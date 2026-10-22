@@ -1,0 +1,1163 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Checky App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Nunito:wght@400;600;700&display=swap">
+<style>
+/* Layout: one app shell, three screens (Login, Personal, Shared). "Paint splash" look: near-black ground, glossy paint
+   rims in blue, pink, yellow and orange, cream text. One light source follows the pointer; rims and shadows respond to it.
+   Deliberately a single dark look (it does not switch to a light version). */
+:root{
+  --p-blue:#2EC4EE; --p-blue-lt:#B8EEFC; --p-blue-dk:#127FB0;
+  --p-pink:#F2479B; --p-pink-lt:#FFC2DF; --p-pink-dk:#A8185E;
+  --p-yellow:#FFD21F; --p-yellow-lt:#FFF6B8; --p-yellow-dk:#D99A00;
+  --p-orange:#FF9A3C; --p-orange-lt:#FFD9B0; --p-orange-dk:#C25E12;
+  --bg:#08070A; --surface:#141218; --field:#0F0D12; --line:#2E2A34;
+  --ink:#FFF6EA; --ink-soft:#B9B0A6; --ink-dark:#120E14; --shadow:rgba(0,0,0,.6);
+  --row-hi:#2A2630; --row-mid:#1E1B23; --row-lo:#16141A;
+  --mother:#F2479B; --mother-ink:#2A0718; --father:#2EC4EE; --father-ink:#04232F;
+  --t-blue:#0D1C23; --t-pink:#21101A; --t-yellow:#211C0A; --t-orange:#23150B;
+  --paint:linear-gradient(100deg,var(--p-blue) 0%,var(--p-pink) 40%,var(--p-yellow) 72%,var(--p-orange) 100%);
+  --display:"Patrick Hand", "Segoe Print", "Bradley Hand", "Chalkboard SE", "Comic Sans MS", cursive;
+  --body:"Nunito", "Segoe UI", system-ui, sans-serif;
+  --deg:147deg; --sx:8px; --sy:16px; --lx:22%; --ly:6%;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;
+  padding-inline:16px;padding-block:0 32px;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+h1,h2,h3{font-family:var(--display);font-weight:400;letter-spacing:.01em;line-height:1.1;text-wrap:balance;margin:0}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--p-yellow);outline-offset:3px}
+.wrap{max-width:1080px;margin-inline:auto;position:relative}
+.eyebrow{font-size:.75rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)}
+.num{font-variant-numeric:tabular-nums}
+
+/* Paint glows and the moving light, fixed behind everything */
+.blob{position:fixed;z-index:-1;pointer-events:none;opacity:.28;filter:blur(46px)}
+.blob.b1{width:min(70vw,520px);aspect-ratio:6/5;right:-18vw;top:120px;border-radius:62% 38% 55% 45% / 48% 60% 40% 52%;
+  background:radial-gradient(circle at 35% 35%,var(--p-blue),transparent 70%),radial-gradient(circle at 70% 70%,var(--p-pink),transparent 65%)}
+.blob.b2{width:min(60vw,440px);aspect-ratio:7/6;left:-20vw;bottom:60px;border-radius:45% 55% 40% 60% / 55% 45% 60% 40%;
+  background:radial-gradient(circle at 40% 40%,var(--p-yellow),transparent 70%),radial-gradient(circle at 70% 70%,var(--p-orange),transparent 65%)}
+.glow{position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(520px circle at var(--lx) var(--ly),rgba(255,255,255,.05),transparent 60%)}
+
+/* Glossy paint rims: a dark surface inside a rim of paint that turns with the light */
+.chrome{position:relative;border:5px solid transparent;border-radius:34px 34px 34px 12px;
+  background:linear-gradient(var(--surface),var(--surface)) padding-box,
+    linear-gradient(var(--deg),var(--p-blue-lt) 0%,var(--p-blue) 22%,var(--p-pink) 46%,var(--p-yellow-lt) 58%,var(--p-yellow) 70%,var(--p-orange) 86%,var(--p-orange-dk) 100%) border-box;
+  box-shadow:var(--sx) var(--sy) 30px var(--shadow)}
+.rim-blue{background:linear-gradient(var(--t-blue),var(--t-blue)) padding-box,linear-gradient(var(--deg),var(--p-blue-lt) 0%,var(--p-blue) 30%,var(--p-blue-dk) 55%,var(--p-blue-lt) 70%,var(--p-blue) 100%) border-box !important}
+.rim-pink{background:linear-gradient(var(--t-pink),var(--t-pink)) padding-box,linear-gradient(var(--deg),var(--p-pink-lt) 0%,var(--p-pink) 30%,var(--p-pink-dk) 55%,var(--p-pink-lt) 70%,var(--p-pink) 100%) border-box !important}
+.rim-yellow{background:linear-gradient(var(--t-yellow),var(--t-yellow)) padding-box,linear-gradient(var(--deg),var(--p-yellow-lt) 0%,var(--p-yellow) 30%,var(--p-yellow-dk) 55%,var(--p-yellow-lt) 70%,var(--p-yellow) 100%) border-box !important}
+.rim-orange{background:linear-gradient(var(--t-orange),var(--t-orange)) padding-box,linear-gradient(var(--deg),var(--p-orange-lt) 0%,var(--p-orange) 30%,var(--p-orange-dk) 55%,var(--p-orange-lt) 70%,var(--p-orange) 100%) border-box !important}
+.grid > .chrome:nth-child(4n+1){border-radius:34px 34px 34px 12px;background:linear-gradient(var(--t-pink),var(--t-pink)) padding-box,linear-gradient(var(--deg),var(--p-pink-lt) 0%,var(--p-pink) 30%,var(--p-pink-dk) 55%,var(--p-pink-lt) 70%,var(--p-pink) 100%) border-box}
+.grid > .chrome:nth-child(4n+2){border-radius:34px 34px 12px 34px;background:linear-gradient(var(--t-blue),var(--t-blue)) padding-box,linear-gradient(var(--deg),var(--p-blue-lt) 0%,var(--p-blue) 30%,var(--p-blue-dk) 55%,var(--p-blue-lt) 70%,var(--p-blue) 100%) border-box}
+.grid > .chrome:nth-child(4n+3){border-radius:34px 34px 34px 12px;background:linear-gradient(var(--t-yellow),var(--t-yellow)) padding-box,linear-gradient(var(--deg),var(--p-yellow-lt) 0%,var(--p-yellow) 30%,var(--p-yellow-dk) 55%,var(--p-yellow-lt) 70%,var(--p-yellow) 100%) border-box}
+.grid > .chrome:nth-child(4n+4),.locked-panel{border-radius:34px 34px 12px 34px;background:linear-gradient(var(--t-orange),var(--t-orange)) padding-box,linear-gradient(var(--deg),var(--p-orange-lt) 0%,var(--p-orange) 30%,var(--p-orange-dk) 55%,var(--p-orange-lt) 70%,var(--p-orange) 100%) border-box}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;cursor:pointer;min-height:44px;
+  padding:10px 20px;border-radius:999px;font-weight:700;color:var(--ink-dark);background:var(--paint);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.5),calc(var(--sx)*.5) calc(var(--sy)*.5) 18px rgba(242,71,155,.32);transition:transform .15s,filter .15s}
+.btn:hover{filter:brightness(1.07)} .btn:active{transform:translateY(1px)}
+.btn.ghost{color:var(--ink);background:linear-gradient(var(--deg),var(--row-hi) 0%,var(--row-mid) 50%,var(--row-lo) 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 0 0 1px var(--line),calc(var(--sx)*.4) calc(var(--sy)*.4) 12px var(--shadow)}
+.btn.small{min-height:38px;padding:7px 15px;font-size:.88rem}
+.field{display:grid;gap:6px}
+.field label{font-size:.88rem;font-weight:700;color:var(--ink-soft)}
+.field input{padding:13px 16px;border-radius:18px;border:1px solid var(--line);background:var(--field);box-shadow:inset 0 2px 6px var(--shadow)}
+input::placeholder,textarea::placeholder{color:#7D756D}
+
+/* ---------- Login ---------- */
+#login{min-height:100vh;display:grid;place-items:center;padding-block:32px}
+.login-card{width:100%;max-width:410px;padding:30px 26px;display:grid;gap:22px;border-width:7px;border-radius:44px 44px 44px 16px}
+/* Checky crest: squares of glossy paint that flip, wave by wave, into the next picture */
+.crest{width:136px;height:158px;display:block;margin-inline:auto;overflow:visible;cursor:pointer;
+  filter:drop-shadow(var(--sx) var(--sy) 14px rgba(0,0,0,.7))}
+.crest .tile{transform-box:fill-box;transform-origin:center;animation:flipIn .55s cubic-bezier(.3,1.5,.5,1) both;animation-delay:calc(.45s + var(--i) * 90ms)}
+@keyframes flipIn{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.crest .rim{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 1.1s ease forwards}
+.tile{stroke:rgba(255,255,255,.45);stroke-width:.8}
+.crest .tile.late{animation:none}
+.crest .shape-rim{transition:opacity .7s ease}
+@keyframes draw{to{stroke-dashoffset:0}}
+.brand{text-align:center;display:grid;gap:4px}
+.brand h1{font-size:2.9rem;color:var(--ink)}
+.brand p{margin:0;color:var(--ink-soft)}
+.brand .slogan{margin:0;font-family:var(--display);font-size:1.5rem;line-height:1.2;background:var(--paint);-webkit-background-clip:text;background-clip:text;color:transparent}
+.login-form{display:grid;gap:14px}
+.login-foot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;font-size:.88rem}
+.linkish{background:none;border:0;padding:0;color:var(--p-pink-lt);font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.trial{font-size:.88rem;color:var(--ink-soft);text-align:center;margin:0}
+
+/* ---------- App shell ---------- */
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;margin-inline:-16px;padding:10px 16px;
+  background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:blur(10px)}
+.topbar .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.mini-brand{display:flex;align-items:center;gap:8px;font-family:var(--display);font-size:1.9rem;line-height:1;color:var(--ink)}
+.mini-brand svg{width:28px;height:33px;overflow:visible;filter:drop-shadow(calc(var(--sx)*.25) calc(var(--sy)*.25) 3px var(--shadow))}
+.seg{display:inline-flex;gap:4px;padding:5px;border-radius:999px;background:var(--row-mid);
+  box-shadow:inset 0 0 0 1px var(--line),calc(var(--sx)*.6) calc(var(--sy)*.6) 18px var(--shadow)}
+.seg button{border:0;background:none;padding:9px 18px;border-radius:999px;font-weight:700;cursor:pointer;color:var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--paint);color:var(--ink-dark)}
+
+/* Hero: the colourful front of each space */
+.hero{margin-top:18px;padding:22px;display:grid;gap:16px;border:7px solid transparent;border-radius:44px 44px 44px 16px;color:var(--ink);
+  background:linear-gradient(120deg,#0E3A4A 0%,#4A1430 36%,#4A3A08 70%,#4A2408 100%) padding-box,
+    linear-gradient(var(--deg),var(--p-blue-lt) 0%,var(--p-blue) 22%,var(--p-pink) 46%,var(--p-yellow-lt) 58%,var(--p-yellow) 70%,var(--p-orange) 86%,var(--p-orange-dk) 100%) border-box;
+  box-shadow:var(--sx) var(--sy) 30px var(--shadow)}
+.hero h2{font-size:clamp(2rem,5.5vw,2.7rem)}
+.hero p,.hero .eyebrow{margin:0;color:#E4D9CC;font-size:1rem}
+.hero .eyebrow{font-size:.75rem}
+.hero-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.stat{padding:12px 16px;border-radius:24px 24px 24px 8px;background:rgba(8,7,10,.45);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.1),calc(var(--sx)*.4) calc(var(--sy)*.4) 12px var(--shadow)}
+.stat b{display:block;font-family:var(--display);font-weight:400;font-size:2rem;line-height:1.1}
+.stat:nth-child(1) b{color:var(--p-pink-lt)} .stat:nth-child(2) b{color:var(--p-blue-lt)} .stat:nth-child(3) b{color:var(--p-yellow)} .stat:nth-child(4) b{color:var(--p-orange-lt)}
+.stat span{font-size:.82rem;color:#D6CABD}
+
+.grid{display:grid;gap:18px;margin-top:18px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.panel{padding:18px;display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-content:start;min-width:0}
+.panel-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.panel-head h3{font-size:1.6rem}
+.hint{font-size:.84rem;color:var(--ink-soft)}
+.list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.list li{display:flex;align-items:center;gap:12px;min-height:52px;padding:8px 16px;border-radius:26px;min-width:0;
+  background:linear-gradient(var(--deg),var(--row-hi) 0%,var(--row-mid) 50%,var(--row-lo) 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07),calc(var(--sx)*.4) calc(var(--sy)*.4) 12px var(--shadow)}
+.list .grow{flex:1;min-width:0}
+.list .meta{font-size:.8rem;color:var(--ink-soft)}
+.check{appearance:none;width:24px;height:24px;flex:none;border-radius:50%;cursor:pointer;margin:0;
+  background:var(--field);box-shadow:inset 0 2px 4px var(--shadow),0 0 0 1.5px #4A4452;display:grid;place-items:center}
+.check:checked{background:linear-gradient(var(--deg),var(--p-yellow-lt),var(--p-yellow) 45%,var(--p-orange));box-shadow:inset 0 2px 0 rgba(255,255,255,.5)}
+.check:checked::after{content:"";width:6px;height:11px;border:solid var(--ink-dark);border-width:0 2.5px 2.5px 0;transform:translate(0,-1px) rotate(45deg)}
+.done .grow > span:first-child{text-decoration:line-through;color:var(--ink-soft)}
+.pill{display:inline-block;font-size:.75rem;font-weight:700;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.pill.mom{background:var(--mother);color:var(--mother-ink)}
+.pill.dad{background:var(--father);color:var(--father-ink)}
+.pill.due{background:var(--p-orange);color:var(--ink-dark)}
+.pill.ok{background:var(--p-yellow);color:var(--ink-dark)}
+.pill.prem{background:var(--paint);color:var(--ink-dark)}
+.amount{font-weight:700;font-variant-numeric:tabular-nums}
+.add-row{display:flex;gap:8px}
+.add-row input{flex:1;min-width:0;padding:10px 16px;border-radius:999px;border:1px solid var(--line);background:var(--field);box-shadow:inset 0 2px 4px var(--shadow)}
+
+/* ---------- Shared ---------- */
+.kids{display:flex;gap:12px;flex-wrap:wrap;margin-top:18px}
+.kid{display:flex;align-items:center;gap:10px;padding:6px 18px 6px 6px;border-radius:999px !important;cursor:pointer;font-weight:700}
+.kid .av{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-family:var(--display);font-size:1.2rem;
+  background:linear-gradient(var(--deg),var(--p-blue-lt),var(--p-blue) 50%,var(--p-pink));color:var(--ink-dark)}
+.kid[aria-pressed="true"]{outline:2px solid var(--p-yellow);outline-offset:2px}
+.kid.locked{color:var(--ink-soft)}
+.kid.locked .av{background:linear-gradient(var(--deg),#5A5560,#2E2A34)}
+.cats{display:flex;gap:8px;overflow-x:auto;padding:16px 4px 10px;scrollbar-width:thin}
+.cat{flex:none;border:0;cursor:pointer;min-height:42px;padding:8px 16px;border-radius:999px;font-weight:700;font-size:.9rem;color:var(--ink);
+  background:linear-gradient(var(--deg),var(--row-hi) 0%,var(--row-mid) 50%,var(--row-lo) 100%);
+  box-shadow:inset 0 0 0 1px var(--line),calc(var(--sx)*.3) calc(var(--sy)*.3) 10px var(--shadow)}
+.cat[aria-selected="true"]{background:var(--paint);color:var(--ink-dark);box-shadow:none}
+.cat .lk{margin-left:6px;font-size:.75rem;opacity:.75}
+
+.cal{width:100%;border-collapse:separate;border-spacing:4px;table-layout:fixed}
+.cal th{font-size:.72rem;font-weight:700;color:var(--ink-soft);letter-spacing:.06em;text-transform:uppercase;padding-bottom:2px}
+.cal td{height:44px;border-radius:14px;text-align:left;vertical-align:top;padding:5px 8px;font-size:.88rem;font-weight:700;font-variant-numeric:tabular-nums}
+.cal td.mom{background:var(--mother);color:var(--mother-ink)}
+.cal td.dad{background:var(--father);color:var(--father-ink)}
+.cal td.out{opacity:.4}
+.cal td.today{box-shadow:inset 0 0 0 3px var(--p-yellow)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.84rem;color:var(--ink-soft)}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+
+.request{padding:16px;border-radius:26px 26px 26px 10px;display:grid;gap:10px;background:#2A1322;box-shadow:inset 0 0 0 1px #4A2238}
+.request .acts{display:flex;gap:8px;flex-wrap:wrap}
+.table-scroll{overflow-x:auto}
+table.log{width:100%;border-collapse:collapse;font-size:.9rem;min-width:420px}
+table.log th{text-align:left;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;padding:6px 8px;border-bottom:1px solid var(--line)}
+table.log td{padding:10px 8px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.mark{font-family:var(--display);font-size:1.25rem;color:var(--p-yellow)}
+.locked-panel{text-align:center;padding:34px 22px;display:grid;gap:12px;justify-items:center;margin-top:18px}
+.locked-panel h3{font-size:1.8rem}
+.locked-panel p{max-width:46ch;margin:0;color:var(--ink-soft)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;
+  padding:12px 20px;border-radius:999px;background:var(--paint);color:var(--ink-dark);font-weight:700;font-size:.9rem;transition:.25s;pointer-events:none;max-width:calc(100% - 32px)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+body.inside{--bg:#08070A}
+@media (max-width:520px){
+  .hero{padding:18px}.panel{padding:14px}
+  .cal td{height:38px;padding:4px 5px;font-size:.78rem}
+  .mini-brand{font-size:1.6rem}
+}
+
+/* Friendly-note check */
+.note-form{display:grid;gap:8px}
+textarea{width:100%;resize:vertical;padding:12px 16px;border-radius:20px;border:1px solid var(--line);background:var(--field);
+  box-shadow:inset 0 2px 5px var(--shadow);font:inherit;color:var(--ink);line-height:1.45}
+.note-acts{display:flex;gap:8px;flex-wrap:wrap}
+.kind-check{display:grid;gap:8px;padding:16px;border-radius:26px 26px 26px 10px;background:#221C0B;box-shadow:inset 0 0 0 1px #4A3D12}
+.kind-title{font-family:var(--display);font-weight:400;font-size:1.4rem;line-height:1.1;color:var(--p-yellow)}
+.login-msg{margin:0;padding:10px 14px;border-radius:14px;background:#2A1322;color:#FFD3E8;font-size:.88rem}
+.invite{display:grid;gap:8px;padding:14px;border-radius:18px;background:var(--row-mid);box-shadow:inset 0 0 0 1px var(--line)}
+.code{font-family:var(--display);font-size:2rem;letter-spacing:.12em;background:var(--paint);-webkit-background-clip:text;background-clip:text;color:transparent}
+.kind-fixes{margin:0;padding-left:20px;font-size:.88rem;color:var(--ink-soft)}
+
+
+/* Family setup and activity forms */
+dialog{background:var(--surface);color:var(--ink);border:0;border-radius:28px;padding:0;width:min(560px,calc(100% - 24px));max-height:calc(100% - 32px);overflow:auto;
+  box-shadow:0 0 0 1px var(--line),0 30px 60px rgba(0,0,0,.7)}
+dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
+.dlg{display:grid;gap:14px;padding:22px}
+.dlg h3{font-size:1.9rem;background:var(--paint);-webkit-background-clip:text;background-clip:text;color:transparent;justify-self:start}
+.two-col{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.field select,.field input[type=date],.field input[type=time]{padding:12px 14px;border-radius:16px;border:1px solid var(--line);background:var(--field);color:var(--ink);min-height:46px}
+.opts{border:0;margin:0;padding:0;display:grid;gap:8px}
+.opts legend{margin-bottom:6px;padding:0}
+.opt{display:flex;gap:10px;align-items:center;padding:10px 14px;border-radius:16px;background:var(--row-mid);box-shadow:inset 0 0 0 1px var(--line);cursor:pointer}
+.opt input{accent-color:var(--p-pink);width:18px;height:18px}
+/* Activities */
+.act-type{display:inline-block;font-size:.72rem;font-weight:800;padding:3px 9px;border-radius:999px;color:var(--ink-dark);white-space:nowrap}
+.t-sport{background:var(--p-blue)} .t-coding{background:var(--p-yellow)} .t-music{background:var(--p-pink)} .t-lesson{background:var(--p-orange)}
+.t-event{background:var(--p-pink-lt)} .t-reminder{background:var(--ink)} .t-other{background:#B9B0A6}
+.act-li{align-items:flex-start !important;padding-block:12px !important}
+.act-li .act-name{font-weight:700}
+.act-li .meta{line-height:1.6}
+.act-li .act-type{margin-right:4px;vertical-align:1px}
+.act-time{font-family:var(--display);font-size:1.3rem;line-height:1.1;color:var(--p-yellow);flex:none;width:2.9em}
+.act-actions{display:flex;gap:6px;flex:none}
+.mini-btn{border:0;background:var(--row-hi);color:var(--ink);font-weight:700;font-size:.8rem;padding:6px 11px;border-radius:999px;cursor:pointer;box-shadow:inset 0 0 0 1px var(--line)}
+.empty{padding:14px 16px;border-radius:20px;background:var(--row-lo);color:var(--ink-soft);font-size:.9rem}
+.week{display:grid;gap:8px}
+.day-row{display:grid;grid-template-columns:4.6em minmax(0,1fr);gap:10px;align-items:start;padding:10px 12px;border-radius:20px;background:var(--row-lo);box-shadow:inset 0 0 0 1px var(--line)}
+.day-row.is-today{box-shadow:inset 0 0 0 2px var(--p-yellow);background:#1C1810}
+.day-name{font-family:var(--display);font-size:1.25rem;line-height:1.1}
+.day-name small{display:block;font-family:var(--body);font-size:.72rem;color:var(--ink-soft)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;min-width:0}
+.chip{display:inline-flex;gap:6px;align-items:center;border:0;cursor:pointer;padding:6px 10px;border-radius:14px;font-size:.82rem;font-weight:700;color:var(--ink-dark);text-align:left;max-width:100%}
+.chip span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+@media (prefers-reduced-motion: reduce){
+  .crest .tile,.crest .rim{animation:none;stroke-dashoffset:0}
+  .btn,.toast{transition:none}
+}
+</style>
+<div class="blob b1" aria-hidden="true"></div>
+<div class="blob b2" aria-hidden="true"></div>
+<div class="glow" aria-hidden="true"></div>
+<!-- Shared crest paints: kept in a rendered (zero-size) svg so every browser can use them -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs id="crest-defs">
+    <clipPath id="crest-clip"><path d="M14 14 H106 V64 C106 98 84 120 60 130 C36 120 14 98 14 64 Z"/></clipPath>
+    <radialGradient id="tile-m" class="lit" cx=".38" cy=".32" r=".8"><stop offset="0" stop-color="#FFC2DF"/><stop offset=".5" stop-color="#F2479B"/><stop offset="1" stop-color="#A8185E"/></radialGradient>
+    <radialGradient id="tile-f" class="lit" cx=".38" cy=".32" r=".8"><stop offset="0" stop-color="#B8EEFC"/><stop offset=".5" stop-color="#2EC4EE"/><stop offset="1" stop-color="#127FB0"/></radialGradient>
+    <radialGradient id="tile-y" class="lit" cx=".38" cy=".32" r=".8"><stop offset="0" stop-color="#FFF6B8"/><stop offset=".5" stop-color="#FFD21F"/><stop offset="1" stop-color="#D99A00"/></radialGradient>
+    <radialGradient id="tile-o" class="lit" cx=".38" cy=".32" r=".8"><stop offset="0" stop-color="#FFD9B0"/><stop offset=".5" stop-color="#FF9A3C"/><stop offset="1" stop-color="#C25E12"/></radialGradient>
+    <linearGradient id="crest-rim" class="lit" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/><stop offset=".14" stop-color="#2EC4EE"/><stop offset=".34" stop-color="#F2479B"/>
+      <stop offset=".48" stop-color="#FFF6EA"/><stop offset=".62" stop-color="#FFD21F"/><stop offset=".8" stop-color="#FF9A3C"/><stop offset="1" stop-color="#C25E12"/>
+    </linearGradient>
+    <linearGradient id="crest-gloss" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity=".6"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></linearGradient>
+  </defs>
+</svg>
+
+
+
+<!-- ================= LOGIN ================= -->
+<section id="login" aria-label="Sign in">
+  <div class="login-card chrome">
+    <svg class="crest" id="crest" viewBox="0 0 120 140" role="img" aria-label="Checky logo: a shield made of glossy pink, blue, yellow and orange squares"></svg>
+    <div class="brand">
+      <h1>Checky</h1>
+      <p class="slogan">Two homes, one plan.</p>
+    </div>
+    <form class="login-form" id="login-form" novalidate>
+      <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" placeholder="you@example.co.za"></div>
+      <div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" placeholder="••••••••"></div>
+      <div class="login-foot">
+        <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" class="check" id="remember"> Remember me</label>
+        <button type="button" class="linkish" id="forgot">Forgot password?</button>
+      </div>
+      <p class="login-msg" id="login-msg" role="status" hidden></p>
+      <button class="btn" type="submit" id="signin-btn">Sign in</button>
+      <button class="btn ghost" type="button" id="trial-btn">Create an account</button>
+      <button type="button" class="linkish" id="demo-btn" style="justify-self:center">Look around first (no account)</button>
+    </form>
+    <p class="trial">Free to use. Premium includes a 30-day free trial.</p>
+  </div>
+</section>
+
+<!-- ================= APP ================= -->
+<div id="app" hidden>
+  <header class="topbar">
+    <div class="wrap">
+      <div class="mini-brand"><svg viewBox="0 0 120 140" aria-hidden="true"><g class="tiles" clip-path="url(#crest-clip)"></g><path d="M14 14 H106 V38 C78 48 42 30 14 44 Z" fill="url(#crest-gloss)" clip-path="url(#crest-clip)"/><path d="M14 14 H106 V64 C106 98 84 120 60 130 C36 120 14 98 14 64 Z" fill="none" stroke="url(#crest-rim)" stroke-width="11" stroke-linejoin="round"/></svg>Checky</div>
+      <div class="seg" role="group" aria-label="Space">
+        <button type="button" data-view="personal" aria-pressed="true">Personal</button>
+        <button type="button" data-view="shared" aria-pressed="false" id="seg-shared">Shared</button>
+      </div>
+      <div style="display:flex;gap:8px"><button class="btn ghost small" type="button" id="family-btn">Family setup</button><button class="btn ghost small" type="button" id="signout">Sign out</button></div>
+    </div>
+  </header>
+
+  <!-- -------- Personal -------- -->
+  <main id="personal" class="wrap">
+    <section class="hero" aria-labelledby="hello">
+      <div>
+        <div class="eyebrow" id="today-label">Tuesday, 13 October 2026</div>
+        <h2 id="hello">Good afternoon. Here's your home today.</h2>
+        <p>Only you can see this space.</p>
+      </div>
+      <div class="hero-stats">
+        <div class="stat"><b class="num" id="chores-left">3</b><span>chores left today</span></div>
+        <div class="stat"><b class="num" id="shop-count">5</b><span>items on the shopping list</span></div>
+        <div class="stat"><b class="num">R 2 450</b><span>bills due this week</span></div>
+        <div class="stat"><b class="num" id="acts-today-count">0</b><span>activities today</span></div>
+        <div class="stat" id="stat-handover"><b>Fri</b><span>children go to <span data-name="p2">Father</span></span></div>
+      </div>
+    </section>
+
+    <div class="grid">
+      <section class="panel chrome" aria-labelledby="h-today-acts" id="today-acts-card">
+        <div class="panel-head"><h3 id="h-today-acts">Happening today</h3><span class="hint" id="today-acts-date"></span></div>
+        <ul class="list" id="today-acts"></ul>
+        <div class="note-acts"><button class="btn small" type="button" id="add-act-home">Add activity or reminder</button><button class="btn ghost small" type="button" id="see-week">See the week</button></div>
+      </section>
+      <section class="panel chrome" aria-labelledby="h-chores">
+        <div class="panel-head"><h3 id="h-chores">Chores</h3><span class="hint">Today</span></div>
+        <form class="add-row" id="chore-form">
+          <input id="chore-input" aria-label="Add a chore" placeholder="Add a chore, e.g. feed the dog">
+          <button class="btn small" type="submit">Add</button>
+        </form>
+        <ul class="list" id="chores">
+          <li><input type="checkbox" class="check" id="c1" checked aria-label="Unpack dishwasher"><div class="grow"><span>Unpack dishwasher</span></div></li>
+          <li><input type="checkbox" class="check" id="c2" aria-label="Wash school uniforms"><div class="grow"><span>Wash school uniforms</span><div class="meta">Before Friday hand-over</div></div></li>
+          <li><input type="checkbox" class="check" id="c3" aria-label="Water the garden"><div class="grow"><span>Water the garden</span></div></li>
+          <li><input type="checkbox" class="check" id="c4" aria-label="Pack sports bag"><div class="grow"><span>Pack sports bag</span><div class="meta">Netball, Thursday</div></div></li>
+        </ul>
+      </section>
+
+      <section class="panel chrome" aria-labelledby="h-shop">
+        <div class="panel-head"><h3 id="h-shop">Shopping list</h3><span class="hint" id="shop-hint">5 items</span></div>
+        <form class="add-row" id="shop-form">
+                    <input id="shop-input" aria-label="Add an item" placeholder="Add an item, e.g. bread">
+          <button class="btn small" type="submit">Add</button>
+        </form>
+        <ul class="list" id="shop">
+          <li><input type="checkbox" class="check" aria-label="Milk"><div class="grow"><span>Milk</span><div class="meta">2 litres</div></div></li>
+          <li><input type="checkbox" class="check" aria-label="Lunchbox snacks"><div class="grow"><span>Lunchbox snacks</span></div></li>
+          <li><input type="checkbox" class="check" aria-label="Washing powder"><div class="grow"><span>Washing powder</span></div></li>
+          <li><input type="checkbox" class="check" aria-label="Rusks"><div class="grow"><span>Rusks</span></div></li>
+          <li><input type="checkbox" class="check" aria-label="Pritt glue sticks"><div class="grow"><span>Pritt glue sticks</span><div class="meta">School project</div></div></li>
+        </ul>
+      </section>
+
+      <section class="panel chrome" aria-labelledby="h-bills">
+        <div class="panel-head"><h3 id="h-bills">Bills</h3><span class="hint">October</span></div>
+        <ul class="list">
+          <li><div class="grow"><span>Electricity (prepaid)</span><div class="meta">Due 15 Oct</div></div><span class="amount">R 850</span><span class="pill due">Due soon</span></li>
+          <li><div class="grow"><span>School fees</span><div class="meta">Due 16 Oct</div></div><span class="amount">R 1 600</span><span class="pill due">Due soon</span></li>
+          <li><div class="grow"><span>Internet</span><div class="meta">Paid 1 Oct</div></div><span class="amount">R 699</span><span class="pill ok">Paid</span></li>
+          <li><div class="grow"><span>Water &amp; lights (municipal)</span><div class="meta">Due 28 Oct</div></div><span class="amount">R 1 120</span><span class="pill" style="background:var(--row-hi);color:var(--ink-soft)">Upcoming</span></li>
+        </ul>
+      </section>
+    </div>
+  </main>
+
+  <!-- -------- Shared -------- -->
+  <main id="shared" class="wrap" hidden>
+    <section class="hero" aria-labelledby="h-shared">
+      <div>
+        <div class="eyebrow" id="shared-eyebrow">Shared with your co-parent</div>
+        <h2 id="h-shared">Everything about the children, in one place.</h2>
+        <p id="shared-sub">When you add something here, the other parent gets notified.</p>
+      </div>
+    </section>
+
+    <div class="grid">
+      <section class="panel chrome" aria-labelledby="h-note">
+        <div class="panel-head"><h3 id="h-note">Note to the other parent</h3><span class="hint">Kept fair and friendly</span></div>
+        <p class="hint" style="margin:0">Swear words and unkind words are not allowed. Checky rewrites them in a friendlier way before anything is sent.</p>
+        <form id="note-form" class="note-form" novalidate>
+          <label for="note" class="hint">Your note</label>
+          <textarea id="note" rows="3" placeholder="e.g. Can we swap the weekend of 23 October?"></textarea>
+          <div class="note-acts"><button class="btn" type="submit">Send note</button></div>
+        </form>
+        <div id="note-check" class="kind-check" hidden>
+          <strong class="kind-title">Let's keep this friendly</strong>
+          <p class="hint" style="margin:0">Your note can't be sent as it is. Checky changed:</p>
+          <ul id="note-fixes" class="kind-fixes"></ul>
+          <label for="note-friendly" class="hint">Friendly version (you can still edit it)</label>
+          <textarea id="note-friendly" rows="3"></textarea>
+          <div class="note-acts">
+            <button class="btn" type="button" id="note-send-friendly">Send friendly version</button>
+            <button class="btn ghost" type="button" id="note-back">Change my note</button>
+          </div>
+        </div>
+        <ul class="list" id="note-sent">
+          <li><div class="grow"><span>Hi, the netball bag is in the boot of the car. Thank you.</span><div class="meta">Sent to <span data-name="other">Father</span> · Yesterday, 18:10</div></div></li>
+        </ul>
+      </section>
+    </div>
+
+    <div class="kids" role="group" aria-label="Child">
+      <button type="button" class="kid chrome" aria-pressed="true"><span class="av" data-initial="c1">1</span><span data-name="c1">Child 1</span></button>
+      <button type="button" class="kid chrome locked" id="kid2"><span class="av" data-initial="c2">2</span><span data-name="c2">Child 2</span> <span class="pill prem">Premium</span></button>
+    </div>
+
+    <div class="cats" role="tablist" aria-label="Categories" id="cats"></div>
+
+    <div id="cat-body"></div>
+  </main>
+</div>
+
+<dialog id="family-dialog" aria-labelledby="fam-title">
+  <form id="family-form" class="dlg" method="dialog" novalidate>
+    <h3 id="fam-title">Family setup</h3>
+    <p class="hint" style="margin:0">Change the names to suit your family. Checky works for two homes (co-parenting) and for one home.</p>
+    <fieldset class="opts"><legend class="hint">How does your family live?</legend>
+      <label class="opt"><input type="radio" name="famtype" value="two" checked> Two homes (co-parenting)</label>
+      <label class="opt"><input type="radio" name="famtype" value="one"> One home, together</label>
+    </fieldset>
+    <div class="two-col">
+      <div class="field"><label for="fam-p1">Parent 1</label><input id="fam-p1" maxlength="24" placeholder="e.g. Mom or Lindiwe"></div>
+      <div class="field"><label for="fam-p2">Parent 2</label><input id="fam-p2" maxlength="24" placeholder="e.g. Dad or Pieter"></div>
+      <div class="field"><label for="fam-c1">First child</label><input id="fam-c1" maxlength="24" placeholder="e.g. Mia"></div>
+      <div class="field"><label for="fam-c2">Second child</label><input id="fam-c2" maxlength="24" placeholder="e.g. Ben"></div>
+    </div>
+    <div class="field"><label for="fam-me">Who are you?</label><select id="fam-me"><option value="p1">Parent 1</option><option value="p2">Parent 2</option></select></div>
+    <div class="invite" id="fam-invite" hidden>
+      <span class="hint">Invite code for the other parent: they create an account, open Family setup and type this code.</span>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><b id="fam-code" class="code">------</b><button type="button" class="mini-btn" id="fam-copy">Copy code</button></div>
+    </div>
+    <div class="invite" id="fam-join" hidden>
+      <div class="field"><label for="fam-join-code">Already have an invite code?</label><input id="fam-join-code" maxlength="6" autocomplete="off" placeholder="e.g. 4F9K2B" style="text-transform:uppercase"></div>
+      <button type="button" class="btn ghost" id="fam-join-btn">Join that family</button>
+    </div>
+    <p class="hint" id="fam-msg" role="status" style="margin:0;color:var(--p-pink-lt)" hidden></p>
+    <div class="note-acts"><button class="btn" type="submit" value="save">Save</button><button class="btn ghost" type="button" id="fam-cancel">Cancel</button></div>
+  </form>
+</dialog>
+
+<dialog id="pw-dialog" aria-labelledby="pw-title">
+  <form id="pw-form" class="dlg" method="dialog" novalidate>
+    <h3 id="pw-title">Choose a new password</h3>
+    <div class="field"><label for="pw-new">New password (at least 6 characters)</label><input id="pw-new" type="password" autocomplete="new-password"></div>
+    <p class="hint" id="pw-msg" role="status" style="margin:0;color:var(--p-pink-lt)" hidden></p>
+    <div class="note-acts"><button class="btn" type="submit">Save password</button></div>
+  </form>
+</dialog>
+
+<dialog id="act-dialog" aria-labelledby="act-title">
+  <form id="act-form" class="dlg" method="dialog" novalidate>
+    <h3 id="act-title">Add activity or reminder</h3>
+    <div class="two-col">
+      <div class="field"><label for="act-type">What kind</label><select id="act-type"><option>Sport</option><option>Coding</option><option>Music</option><option>Extra lesson</option><option>Party or event</option><option>Reminder</option><option>Other</option></select></div>
+      <div class="field"><label for="act-name">Name</label><input id="act-name" maxlength="60" placeholder="e.g. Netball practice"></div>
+      <div class="field"><label for="act-repeat">How often</label><select id="act-repeat"><option value="weekly">Every week</option><option value="game">Game or match</option><option value="once">Once only</option></select></div>
+      <div class="field" id="act-day-wrap"><label for="act-day">Day</label><select id="act-day"><option value="0">Monday</option><option value="1">Tuesday</option><option value="2">Wednesday</option><option value="3">Thursday</option><option value="4">Friday</option><option value="5">Saturday</option><option value="6">Sunday</option></select></div>
+      <div class="field" id="act-date-wrap" hidden><label for="act-date">Date</label><input id="act-date" type="date"></div>
+      <div class="field"><label for="act-who">Who</label><select id="act-who"><option value="c1" data-name="c1">Child 1</option><option value="c2" data-name="c2">Child 2</option><option value="both">Both children</option><option value="family">Whole family</option></select></div>
+      <div class="field"><label for="act-start">Starts</label><input id="act-start" type="time" value="14:30"></div>
+      <div class="field"><label for="act-end">Ends</label><input id="act-end" type="time"></div>
+    </div>
+    <div class="field"><label for="act-where">Where</label><input id="act-where" maxlength="80" placeholder="e.g. School netball courts"></div>
+    <div class="field"><label for="act-bring">Take along</label><input id="act-bring" maxlength="80" placeholder="e.g. Sports bag, water bottle, R20"></div>
+    <div class="field"><label for="act-remind">Remind me</label><select id="act-remind"><option value="">No reminder</option><option value="30 minutes before">30 minutes before</option><option value="1 hour before">1 hour before</option><option value="The evening before">The evening before</option></select></div>
+    <p class="hint" id="act-error" style="margin:0;color:var(--p-pink-lt)" hidden>Give the activity a name.</p>
+    <div class="note-acts"><button class="btn" type="submit" value="save">Save</button><button class="btn ghost" type="button" id="act-cancel">Cancel</button><button class="btn ghost" type="button" id="act-delete" hidden>Remove</button></div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<template id="tpl-schedule">
+  <div class="grid">
+    <section class="panel chrome" aria-labelledby="h-cal">
+      <div class="panel-head"><h3 id="h-cal">50/50 calendar · October 2026</h3><span class="hint">Weeks run Friday hand-over</span></div>
+      <div class="legend"><span><i style="background:var(--mother)"></i><span data-name="p1">Mother</span></span><span><i style="background:var(--father)"></i><span data-name="p2">Father</span></span><span><i style="box-shadow:inset 0 0 0 2px var(--p-yellow)"></i>Today</span></div>
+      <div class="table-scroll"><table class="cal" id="cal" aria-label="October 2026 custody calendar"></table></div>
+      <p class="hint" style="margin:0">Custody is set three months ahead, up to 31 December 2026.</p>
+    </section>
+    <section class="panel chrome" aria-labelledby="h-req">
+      <div class="panel-head"><h3 id="h-req">Waiting for your approval</h3></div>
+      <div class="request" id="request">
+        <div><span class="pill dad"><span data-name="p2">Father</span></span> asked to change a date</div>
+        <div><strong>Swap weekend of 23–25 Oct</strong> for 30 Oct–1 Nov</div>
+        <div class="hint">Reason: Work trip to Durban. Requested 12 Oct, 19:40.</div>
+        <div class="acts"><button class="btn small" type="button" data-act="approve">Approve change</button><button class="btn ghost small" type="button" data-act="decline">Decline</button></div>
+      </div>
+      <div class="panel-head" style="margin-top:6px"><h3>Drop-offs &amp; pickups</h3></div>
+      <ul class="list">
+        <li><div class="grow"><span>Fri 9 Oct · School gate</span><div class="meta">Dropped off by <span data-name="p1">Mother</span> · Picked up by <span data-name="p2">Father</span></div></div></li>
+        <li><div class="grow"><span>Fri 2 Oct · Gran's house, Three Rivers</span><div class="meta">Dropped off by <span data-name="p2">Father</span> · Picked up by <span data-name="p1">Mother</span></div></div></li>
+      </ul>
+    </section>
+    <section class="panel chrome" aria-labelledby="h-changes">
+      <div class="panel-head"><h3 id="h-changes">Schedule changes</h3></div>
+      <ul class="list">
+        <li><div class="grow"><span>18 Sep → 19 Sep</span><div class="meta">School sports day ran late</div></div><span class="pill ok">Approved</span></li>
+        <li><div class="grow"><span>4 Sep → 5 Sep</span><div class="meta"><span data-name="p2">Father</span>'s car in for service</div></div><span class="pill ok">Approved</span></li>
+      </ul>
+    </section>
+  </div>
+</template>
+
+<template id="tpl-school">
+  <div class="grid">
+    <section class="panel chrome" style="grid-column:1/-1" aria-labelledby="h-assign">
+      <div class="panel-head"><h3 id="h-assign">Assignments &amp; tests</h3><span class="hint">Grade 4 · Term 4</span></div>
+      <div class="table-scroll"><table class="log">
+        <thead><tr><th>Item</th><th>Subject</th><th>Given</th><th>Due / date</th><th>Mark</th></tr></thead>
+        <tbody>
+          <tr><td>Water cycle poster</td><td>Natural Sciences</td><td>5 Oct</td><td>16 Oct</td><td class="hint">Add when marked</td></tr>
+          <tr><td>Spelling test</td><td>Afrikaans</td><td>—</td><td>9 Oct</td><td class="mark">18/20</td></tr>
+          <tr><td>Fractions test</td><td>Mathematics</td><td>—</td><td>2 Oct</td><td class="mark">34/40</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+    <section class="panel chrome" aria-labelledby="h-read">
+      <div class="panel-head"><h3 id="h-read">Reading</h3></div>
+      <ul class="list">
+        <li><div class="grow"><span>Pages 24–31</span><div class="meta">12 Oct · Afrikaans</div></div></li>
+        <li><div class="grow"><span>Pages 40–46</span><div class="meta">10 Oct · English</div></div></li>
+      </ul>
+    </section>
+    <section class="panel chrome" aria-labelledby="h-teach">
+      <div class="panel-head"><h3 id="h-teach">Teacher</h3></div>
+      <ul class="list">
+        <li><div class="grow"><span>Mrs Botha · Class 4B</span><div class="meta">Parent evening 22 Oct, 18:00</div></div></li>
+        <li><div class="grow"><span>Last contact 7 Oct</span><div class="meta">About the reading level</div></div></li>
+      </ul>
+    </section>
+  </div>
+</template>
+
+<template id="tpl-today">
+  <div class="grid">
+    <section class="panel chrome" aria-labelledby="h-td">
+      <div class="panel-head"><h3 id="h-td">Today for <span data-name="c1">Child 1</span></h3><span class="pill mom">With <span data-name="p1">Mother</span></span></div>
+      <ul class="list">
+        <li><div class="grow"><span>School until 13:30</span></div></li>
+        <li><div class="grow"><span>Netball practice 14:30</span><div class="meta">Sports bag is at <span data-name="p1">Mother</span>'s house</div></div></li>
+        <li><div class="grow"><span>Reading: pages 32–38</span><div class="meta">Afrikaans</div></div></li>
+      </ul>
+    </section>
+  </div>
+</template>
+
+<template id="tpl-belongings">
+  <div class="grid">
+    <section class="panel chrome" aria-labelledby="h-who">
+      <div class="panel-head"><h3 id="h-who">Who's got it?</h3></div>
+      <ul class="list">
+        <li><input type="checkbox" class="check" aria-label="School jersey returned"><div class="grow"><span>School jersey</span><div class="meta">Asked 6 Oct · Expected back 9 Oct</div></div><span class="pill dad"><span data-name="p2">Father</span></span></li>
+        <li><input type="checkbox" class="check" checked aria-label="Tablet charger returned"><div class="grow"><span>Tablet charger</span><div class="meta">Returned 5 Oct</div></div><span class="pill mom"><span data-name="p1">Mother</span></span></li>
+      </ul>
+    </section>
+    <section class="panel chrome" aria-labelledby="h-shoes">
+      <div class="panel-head"><h3 id="h-shoes">Shoes</h3></div>
+      <ul class="list">
+        <li><div class="grow"><span>School shoes · size 2</span><div class="meta">Bought 14 Jul 2026</div></div></li>
+        <li><div class="grow"><span>Takkies · size 2</span><div class="meta">Bought 3 Mar 2026</div></div></li>
+      </ul>
+    </section>
+  </div>
+</template>
+
+<template id="tpl-holidays">
+  <div class="grid">
+    <section class="panel chrome" aria-labelledby="h-xmas">
+      <div class="panel-head"><h3 id="h-xmas">Christmas</h3></div>
+      <ul class="list">
+        <li><div class="grow"><span class="num">2026</span></div><span class="pill dad"><span data-name="p2">Father</span></span></li>
+        <li><div class="grow"><span class="num">2025</span></div><span class="pill mom"><span data-name="p1">Mother</span></span></li>
+        <li><div class="grow"><span class="num">2024</span></div><span class="pill dad"><span data-name="p2">Father</span></span></li>
+      </ul>
+    </section>
+    <section class="panel chrome" aria-labelledby="h-bday">
+      <div class="panel-head"><h3 id="h-bday">Birthday</h3></div>
+      <ul class="list">
+        <li><div class="grow"><span class="num">2026</span></div><span class="pill mom"><span data-name="p1">Mother</span></span></li>
+        <li><div class="grow"><span class="num">2025</span></div><span class="pill dad"><span data-name="p2">Father</span></span></li>
+      </ul>
+    </section>
+  </div>
+</template>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
+<script>
+(function(){
+  const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+  const toastEl=$('#toast'); let tt;
+  function toast(msg){toastEl.textContent=msg;toastEl.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>toastEl.classList.remove('show'),2400)}
+
+  // One light source follows the pointer: rims turn toward it, shadows fall away from it
+  const rootStyle=document.documentElement.style;
+  function setLight(mx,my){
+    const lx=mx-.5, ly=my-.5;
+    rootStyle.setProperty('--deg',Math.round(Math.atan2(-lx,ly)*180/Math.PI)+'deg');
+    rootStyle.setProperty('--sx',Math.round(-lx*28)+'px');
+    rootStyle.setProperty('--sy',(Math.round(-ly*28)+4)+'px');
+    rootStyle.setProperty('--lx',Math.round(mx*100)+'%');
+    rootStyle.setProperty('--ly',Math.round(my*100)+'%');
+    // Turn the chrome and enamel highlights toward the light
+    const d=Math.atan2(-lx,ly)*180/Math.PI-147;
+    litGrads.forEach(g=>g.setAttribute('gradientTransform','rotate('+d.toFixed(1)+' .5 .5)'));
+  }
+  const litGrads=[...document.querySelectorAll('linearGradient.lit')];
+
+  // Small shield in the top bar: checky grid (4 across, 5 down)
+  const COLS=4, ROWS=5, TW=92/COLS, TH=116/ROWS;
+  document.querySelectorAll('.mini-brand .tiles').forEach(g=>{
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+      const t=document.createElementNS('http://www.w3.org/2000/svg','rect');
+      t.setAttribute('x',(14+c*TW).toFixed(2)); t.setAttribute('y',(14+r*TH).toFixed(2));
+      t.setAttribute('width',TW.toFixed(2)); t.setAttribute('height',TH.toFixed(2));
+      t.setAttribute('class','tile'); t.style.setProperty('--i',r+c);
+      t.setAttribute('fill','url(#tile-'+((r+c)%2?(r%2?'y':'f'):(r%2?'o':'m'))+')');
+      g.appendChild(t);
+    }
+  });
+
+  // Login crest: the checky squares flip, wave by wave, from one picture to the next:
+  // shield, home, heart, two children, tree, and back to the shield.
+  const NS='http://www.w3.org/2000/svg';
+  const SHAPES=[
+    {name:'a shield',d:'M14 14 H106 V64 C106 98 84 120 60 130 C36 120 14 98 14 64 Z'},
+    {name:'a home',d:'M60 14 L110 58 H98 V128 H22 V58 H10 Z'},
+    {name:'a heart',d:'M60 128 C24 102 8 78 12 52 C16 28 42 20 60 42 C78 20 104 28 108 52 C112 78 96 102 60 128 Z'},
+    {name:'two children',d:'M25 34 A15 15 0 1 0 55 34 A15 15 0 1 0 25 34 Z M36 54 H44 A14 14 0 0 1 58 68 V126 H22 V68 A14 14 0 0 1 36 54 Z M69 58 A13 13 0 1 0 95 58 A13 13 0 1 0 69 58 Z M80 76 H84 A12 12 0 0 1 96 88 V126 H68 V88 A12 12 0 0 1 80 76 Z'},
+    {name:'an olive tree',d:'M4 52 C-2 44 4 34 14 34 C14 24 26 18 36 22 C42 12 58 10 66 18 C74 10 92 12 96 22 C106 18 118 26 114 36 C122 42 120 54 110 56 C110 64 98 66 92 60 C86 66 76 64 74 58 C70 66 64 74 62 84 C60 94 62 102 66 110 C70 118 78 126 90 132 C80 134 70 132 62 130 C54 132 46 134 34 132 C42 126 46 118 46 110 C46 100 42 92 38 84 C34 76 30 68 26 60 C20 64 8 62 4 52 Z M34 62 C40 66 46 74 50 82 C54 74 60 66 66 60 C56 62 44 63 34 62 Z M52 104 C54 99 59 100 58 106 C57 111 51 110 52 104 Z'}
+  ];
+  // Four paint colours in a checky pattern: pink, blue, yellow, orange
+  const TILE=(r,c,p)=>((r+c+p)%2? (r%2?'y':'f') : (r%2?'o':'m'));
+  const GC=5, GR=6, GW=120/GC, GH=140/GR, STEP=90, HALF=310;
+  const crest=document.getElementById('crest');
+  const defs=document.getElementById('crest-defs');
+  SHAPES.forEach((s,i)=>{
+    const cp=document.createElementNS(NS,'clipPath'); cp.id='clip-shape-'+i;
+    const p=document.createElementNS(NS,'path'); p.setAttribute('d',s.d); p.setAttribute('clip-rule','evenodd'); cp.appendChild(p); defs.appendChild(cp);
+  });
+  function buildLayer(i,parity,first){
+    const g=document.createElementNS(NS,'g'); g.setAttribute('clip-path','url(#clip-shape-'+i+')');
+    for(let r=0;r<GR;r++) for(let c=0;c<GC;c++){
+      const t=document.createElementNS(NS,'rect');
+      t.setAttribute('x',(c*GW).toFixed(2)); t.setAttribute('y',(r*GH).toFixed(2));
+      t.setAttribute('width',GW.toFixed(2)); t.setAttribute('height',GH.toFixed(2));
+      t.setAttribute('class',first?'tile':'tile late'); t.style.setProperty('--i',r+c);
+      t.setAttribute('fill','url(#tile-'+TILE(r,c,parity)+')');
+      if(!first) t.style.transform='scaleX(0)';
+      g.appendChild(t);
+    }
+    const gloss=document.createElementNS(NS,'path');
+    gloss.setAttribute('d','M0 0 H120 V40 C80 50 40 32 0 46 Z'); gloss.setAttribute('fill','url(#crest-gloss)');
+    g.appendChild(gloss);
+    return g;
+  }
+  let cur=0, parity=0, busy=false, layer=null; const rims=[];
+  if(crest){
+    layer=buildLayer(0,0,true); crest.appendChild(layer);
+    SHAPES.forEach((s,i)=>{
+      const p=document.createElementNS(NS,'path');
+      p.setAttribute('d',s.d); p.setAttribute('fill','none'); p.setAttribute('stroke','url(#crest-rim)');
+      p.setAttribute('stroke-width','8'); p.setAttribute('stroke-linejoin','round');
+      p.setAttribute('class',i===0?'shape-rim rim':'shape-rim');
+      if(i===0) p.setAttribute('pathLength','1');
+      p.style.opacity=i===0?1:0;
+      crest.appendChild(p); rims.push(p);
+    });
+  }
+  function nextPicture(){
+    if(!crest || busy || crest.closest('[hidden]')) return;
+    busy=true;
+    const n=(cur+1)%SHAPES.length; parity^=1;
+    const next=buildLayer(n,parity,false);
+    crest.insertBefore(next,rims[0]);
+    const oldT=layer.querySelectorAll('.tile'), newT=next.querySelectorAll('.tile');
+    oldT.forEach((t,k)=>{
+      const delay=(+t.style.getPropertyValue('--i'))*STEP;
+      t.animate([{transform:'scaleX(1)'},{transform:'scaleX(0)'}],{duration:HALF,delay,easing:'ease-in',fill:'forwards'});
+      newT[k].animate([{transform:'scaleX(0)'},{transform:'scaleX(1)'}],{duration:HALF,delay:delay+HALF,easing:'ease-out',fill:'forwards'});
+    });
+    setTimeout(()=>{rims[cur].style.opacity=0; rims[n].style.opacity=1},HALF);
+    setTimeout(()=>{
+      layer.remove(); layer=next; cur=n; busy=false;
+      crest.setAttribute('aria-label','Checky logo: '+SHAPES[n].name+' made of glossy pink, blue, yellow and orange squares');
+    },(GR+GC-2)*STEP+HALF*2+60);
+  }
+  if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    setInterval(nextPicture,3800);
+    crest&&crest.addEventListener('click',nextPicture);
+  }
+  const calm=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let raf=0;
+  if(!calm){
+    window.addEventListener('pointermove',e=>{
+      if(raf) return;
+      raf=requestAnimationFrame(()=>{raf=0;setLight(e.clientX/innerWidth,e.clientY/innerHeight)});
+    },{passive:true});
+    document.addEventListener('pointerleave',()=>setLight(.22,.06));
+  }
+
+  // Login (look only, no real accounts yet)
+  // ---------- Accounts (Supabase) ----------
+  const SB_URL='https://lcxxtysaimrthbdypuyu.supabase.co', SB_KEY='sb_publishable_IDslB8xRql_iJ__IvlLGUw_jyddMdp3';
+  let sb=null; try{ if(window.supabase) sb=window.supabase.createClient(SB_URL,SB_KEY) }catch(e){ sb=null }
+  let USER=null, CHANNEL=null;
+  const loginMsg=t=>{const m=$('#login-msg'); m.textContent=t||''; m.hidden=!t};
+  const netMsg=err=>/fetch|network|load failed/i.test(String(err&&err.message||err))
+    ?'Checky can\'t reach its server from here. It works once the app is online at checkyapp.co.za. Tap "Look around first" to explore.'
+    :String(err&&err.message||err);
+  function showApp(){$('#login').hidden=true;$('#app').hidden=false;document.body.classList.add('inside');window.scrollTo(0,0)}
+  function creds(){const email=$('#email').value.trim(), password=$('#password').value;
+    if(!email||!password){loginMsg('Type your email and a password first. Or tap "Look around first".');return null}
+    if(!sb){loginMsg(netMsg('fetch'));return null} return {email,password}}
+  $('#login-form').addEventListener('submit',async e=>{
+    e.preventDefault(); const c=creds(); if(!c) return;
+    loginMsg('Signing in…');
+    try{ const {data,error}=await sb.auth.signInWithPassword(c);
+      if(error){loginMsg(/invalid login/i.test(error.message)?'That email and password don\'t match. Try again, or create an account.':/confirm/i.test(error.message)?'Please open the confirmation link in your email first, then sign in.':error.message);return}
+      loginMsg(''); await startCloud(data.user);
+    }catch(err){loginMsg(netMsg(err))}
+  });
+  $('#trial-btn').addEventListener('click',async()=>{
+    const c=creds(); if(!c) return; if(c.password.length<6){loginMsg('Choose a password of at least 6 characters.');return}
+    loginMsg('Creating your account…');
+    try{ const {data,error}=await sb.auth.signUp({...c,options:{emailRedirectTo:location.origin}});
+      if(error){loginMsg(error.message);return}
+      if(data.session){loginMsg('');await startCloud(data.user)}
+      else loginMsg('Almost done: we sent a confirmation link to '+c.email+'. Open it, then come back and sign in.');
+    }catch(err){loginMsg(netMsg(err))}
+  });
+  $('#forgot').addEventListener('click',async()=>{
+    const email=$('#email').value.trim(); if(!email){loginMsg('Type your email above first, then tap Forgot password.');return}
+    if(!sb){loginMsg(netMsg('fetch'));return}
+    try{ const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin});
+      loginMsg(error?error.message:'If that email has a Checky account, a reset link is on its way.');
+    }catch(err){loginMsg(netMsg(err))}
+  });
+  $('#demo-btn').addEventListener('click',()=>{USER=null;loginMsg('');showApp();toast('Demo mode: nothing is saved online')});
+  $('#signout').addEventListener('click',async()=>{
+    if(USER&&sb){try{await sb.auth.signOut()}catch(e){} if(CHANNEL){sb.removeChannel(CHANNEL);CHANNEL=null}}
+    USER=null; $('#app').hidden=true;$('#login').hidden=false;document.body.classList.remove('inside');window.scrollTo(0,0);
+  });
+  $('#pw-form').addEventListener('submit',async e=>{
+    e.preventDefault(); const pw=$('#pw-new').value; const m=$('#pw-msg');
+    if(pw.length<6){m.textContent='At least 6 characters, please.';m.hidden=false;return}
+    const {error}=await sb.auth.updateUser({password:pw});
+    if(error){m.textContent=error.message;m.hidden=false;return}
+    $('#pw-dialog').close(); toast('Password changed');
+  });
+
+  // Personal / Shared switch
+  $$('.seg button').forEach(b=>b.addEventListener('click',()=>{
+    $$('.seg button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+    $('#personal').hidden=b.dataset.view!=='personal';
+    $('#shared').hidden=b.dataset.view!=='shared';
+  }));
+
+  // Greeting by time of day
+  const h=new Date().getHours();
+  $('#hello').textContent=(h<12?'Good morning':h<17?'Good afternoon':'Good evening')+". Here's your home today.";
+
+  // Ticking items
+  document.addEventListener('change',e=>{
+    if(!e.target.matches('.check')) return;
+    const li=e.target.closest('li'); if(li) li.classList.toggle('done',e.target.checked);
+    updateCounts();
+    if(USER&&e.target.dataset.id) sb.from('personal_items').update({done:e.target.checked}).eq('id',e.target.dataset.id).then(({error})=>{if(error)toast('Could not save: '+error.message)});
+  });
+  function updateCounts(){
+    $('#chores-left').textContent=$$('#chores .check:not(:checked)').length;
+    const n=$$('#shop .check:not(:checked)').length;
+    $('#shop-count').textContent=n; $('#shop-hint').textContent=n+(n===1?' item':' items');
+  }
+  $$('.check:checked').forEach(c=>c.closest('li')&&c.closest('li').classList.add('done'));
+  updateCounts();
+
+  function itemLi(body,detail,done,id){
+    const li=document.createElement('li'); if(done) li.classList.add('done');
+    li.innerHTML='<input type="checkbox" class="check"><div class="grow"><span></span>'+(detail?'<div class="meta"></div>':'')+'</div>';
+    li.querySelector('span').textContent=body; if(detail) li.querySelector('.meta').textContent=detail;
+    const cb=li.querySelector('input'); cb.setAttribute('aria-label',body); cb.checked=!!done; if(id) cb.dataset.id=id; return li;
+  }
+  async function addItem(list,input,ul){
+    const v=input.value.trim(); if(!v) return; input.value='';
+    let id=null;
+    if(USER){const {data,error}=await sb.from('personal_items').insert({list,body:v}).select().single(); if(error){toast('Could not save: '+error.message);return} id=data.id}
+    ul.prepend(itemLi(v,'',false,id)); updateCounts();
+  }
+  $('#shop-form').addEventListener('submit',e=>{e.preventDefault();addItem('shopping',$('#shop-input'),$('#shop'))});
+  $('#chore-form').addEventListener('submit',e=>{e.preventDefault();addItem('chores',$('#chore-input'),$('#chores'))});
+
+  // Shared categories
+
+  // ---------- Family names (editable) ----------
+  // Saved on this device only for now; accounts and sync come with the live app.
+  const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},
+    set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+  const FAM=Object.assign({type:'two',p1:'Mother',p2:'Father',c1:'Child 1',c2:'Child 2',me:'p1'},store.get('checky.family',{}));
+  const esc=t=>String(t).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  const nm=k=>k==='other'?FAM[FAM.me==='p1'?'p2':'p1']:(k==='both'?FAM.c1+' & '+FAM.c2:(k==='family'?'Whole family':FAM[k]));
+  const notifyWho=()=>FAM.type==='two'?nm('other'):'the family';
+  function applyNames(){
+    $$('[data-name]').forEach(el=>{el.textContent=nm(el.dataset.name)});
+    $$('[data-initial]').forEach(el=>{el.textContent=(nm(el.dataset.initial)||'?').trim().charAt(0).toUpperCase()});
+    const one=FAM.type==='one';
+    $('#seg-shared').textContent=one?'Family':'Shared';
+    $('#shared-eyebrow').textContent=one?'Shared with your family':'Shared with your co-parent';
+    $('#shared-sub').textContent=one?'When you add something here, everyone in the family gets notified.':'When you add something here, the other parent gets notified.';
+    $('#h-note').textContent=one?'Note to the family':'Note to the other parent';
+    $('#stat-handover').hidden=one;
+    $$('.cat[data-cat="schedule"]').forEach(b=>{b.hidden=one});
+  }
+  const famDlg=$('#family-dialog');
+  function openFamily(first){
+    $$('input[name=famtype]').forEach(r=>{r.checked=r.value===FAM.type});
+    ['p1','p2','c1','c2'].forEach(k=>{$('#fam-'+k).value=FAM[k]});
+    $('#fam-me').value=FAM.me; $('#fam-msg').hidden=true;
+    $('#fam-title').textContent=first?'Welcome! Set up your family':'Family setup';
+    $('#fam-invite').hidden=!(USER&&FAM.id); $('#fam-code').textContent=FAM.code||'------';
+    $('#fam-join').hidden=!(USER&&!FAM.id);
+    famDlg.showModal();
+  }
+  $('#family-btn').addEventListener('click',()=>openFamily(false));
+  $('#fam-copy').addEventListener('click',()=>{const c=FAM.code||'';
+    navigator.clipboard.writeText(c).then(()=>toast('Code copied')).catch(()=>{const r=document.createRange();r.selectNodeContents($('#fam-code'));const sel=getSelection();sel.removeAllRanges();sel.addRange(r);toast('Code selected: copy it')})});
+  $('#fam-join-btn').addEventListener('click',async()=>{
+    const code=$('#fam-join-code').value.trim(); const m=$('#fam-msg');
+    if(code.length<6){m.textContent='The code has 6 letters and numbers.';m.hidden=false;return}
+    const {data,error}=await sb.rpc('join_family',{p_code:code,p_role:$('#fam-me').value});
+    if(error){m.textContent=/not found/i.test(error.message)?'That code wasn\'t found. Check it with the other parent.':error.message;m.hidden=false;return}
+    famDlg.close(); await useFamily(data,$('#fam-me').value); toast('You joined the family');
+  });
+  $('#fam-cancel').addEventListener('click',()=>famDlg.close());
+  $('#family-form').addEventListener('submit',async e=>{
+    e.preventDefault();
+    FAM.type=($$('input[name=famtype]').find(r=>r.checked)||{}).value||'two';
+    const defaults={p1:'Mother',p2:'Father',c1:'Child 1',c2:'Child 2'};
+    ['p1','p2','c1','c2'].forEach(k=>{FAM[k]=$('#fam-'+k).value.trim()||defaults[k]});
+    FAM.me=$('#fam-me').value;
+    if(USER){
+      const m=$('#fam-msg');
+      if(FAM.id){
+        const {error}=await sb.from('families').update({family_type:FAM.type,p1:FAM.p1,p2:FAM.p2,c1:FAM.c1,c2:FAM.c2}).eq('id',FAM.id);
+        if(error){m.textContent='Could not save: '+error.message;m.hidden=false;return}
+        await sb.from('family_members').update({role:FAM.me}).eq('family_id',FAM.id).eq('user_id',USER.id);
+      }else{
+        const {data,error}=await sb.rpc('create_family',{p_type:FAM.type,p_p1:FAM.p1,p_p2:FAM.p2,p_c1:FAM.c1,p_c2:FAM.c2,p_role:FAM.me});
+        if(error){m.textContent='Could not create your family: '+error.message;m.hidden=false;return}
+        await useFamily(data,FAM.me); applyNames(); openFamily(false); toast('Family created. Share the invite code with the other parent.'); return;
+      }
+    }else store.set('checky.family',FAM);
+    famDlg.close(); applyNames(); renderToday(); refreshCat();
+    toast('Family details saved');
+  });
+
+  // ---------- Activities: sport, games, coding, lessons and reminders ----------
+  const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const TYPE_CLASS={'Sport':'t-sport','Coding':'t-coding','Music':'t-music','Extra lesson':'t-lesson','Party or event':'t-event','Reminder':'t-reminder','Other':'t-other'};
+  const now=new Date(); const todayIdx=(now.getDay()+6)%7;
+  const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+  const nextSat=addDays(now,(5-todayIdx+7)%7||7);
+  const seed=[
+    {id:'a1',type:'Sport',name:'Netball practice',repeat:'weekly',day:todayIdx,start:'14:30',end:'15:30',who:'c1',where:'School netball courts',bring:'Sports bag, water bottle',remind:'1 hour before'},
+    {id:'a2',type:'Reminder',name:'Civvies day: bring R20',repeat:'once',date:iso(now),start:'07:30',end:'',who:'both',where:'',bring:'R20 each',remind:'The evening before'},
+    {id:'a3',type:'Sport',name:'Swimming lessons',repeat:'weekly',day:(todayIdx+1)%7,start:'16:00',end:'16:45',who:'c2',where:'Aquatic centre',bring:'Costume, towel, goggles',remind:'30 minutes before'},
+    {id:'a4',type:'Coding',name:'Coding club',repeat:'weekly',day:(todayIdx+2)%7,start:'15:00',end:'16:00',who:'c1',where:'Library computer room',bring:'Laptop charger',remind:''},
+    {id:'a5',type:'Music',name:'Piano lesson',repeat:'weekly',day:(todayIdx+3)%7,start:'17:00',end:'17:30',who:'c2',where:'Mrs Naidoo\'s studio',bring:'Music book',remind:'1 hour before'},
+    {id:'a6',type:'Sport',name:'Netball match vs Oakhill Primary',repeat:'game',date:iso(nextSat),start:'09:00',end:'10:30',who:'c1',where:'Oakhill Primary fields',bring:'Full kit, snacks',remind:'The evening before'}
+  ];
+  let ACTS=store.get('checky.activities',null)||seed;
+  const saveActs=()=>{if(!USER) store.set('checky.activities',ACTS)};
+  const dayOf=a=>a.repeat==='weekly'?a.day:((new Date(a.date+'T12:00').getDay()+6)%7);
+  const onDate=(a,d)=>a.repeat==='weekly'?a.day===(d.getDay()+6)%7:a.date===iso(d);
+  const byTime=(x,y)=>(x.start||'99').localeCompare(y.start||'99');
+  const short=d=>d.toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short'});
+  function actItem(a,opts={}){
+    const li=document.createElement('li');
+    const when=opts.showDate&&a.repeat!=='weekly'?short(new Date(a.date+'T12:00'))+' · ':'';
+    const meta=[nm(a.who),a.where,a.bring?'Take: '+a.bring:'',a.remind?'Reminder: '+a.remind:''].filter(Boolean).map(esc).join(' · ');
+    li.className='act-li';
+    li.innerHTML='<span class="act-time">'+esc(a.start||'All day')+'</span><div class="grow"><span class="act-name">'+esc(when+a.name)+'</span>'+
+      '<div class="meta"><span class="act-type '+(TYPE_CLASS[a.type]||'t-other')+'">'+esc(a.repeat==='game'?'Game':a.type)+'</span> '+meta+'</div></div>'+
+      '<button type="button" class="mini-btn" aria-label="Edit '+esc(a.name)+'">Edit</button>';
+    li.querySelector('.mini-btn').addEventListener('click',()=>openAct(a));
+    return li;
+  }
+  function renderToday(){
+    const list=$('#today-acts'); if(!list) return;
+    const items=ACTS.filter(a=>onDate(a,now)).sort(byTime);
+    $('#today-acts-date').textContent=short(now);
+    $('#acts-today-count').textContent=items.length;
+    list.innerHTML='';
+    if(!items.length){list.innerHTML='<li class="empty">Nothing planned for today. Add sport, games, coding or a reminder.</li>';return}
+    items.forEach(a=>list.appendChild(actItem(a)));
+  }
+  function renderActivities(body){
+    const wrap=document.createElement('div'); wrap.className='grid';
+    // This week, Monday to Sunday
+    const week=document.createElement('section'); week.className='panel chrome'; week.setAttribute('aria-labelledby','h-week');
+    const monday=addDays(now,-todayIdx);
+    week.innerHTML='<div class="panel-head"><h3 id="h-week">This week</h3><button type="button" class="btn small" id="add-act-week">Add activity</button></div><div class="week"></div>';
+    const wk=week.querySelector('.week');
+    for(let i=0;i<7;i++){
+      const d=addDays(monday,i); const row=document.createElement('div'); row.className='day-row'+(i===todayIdx?' is-today':'');
+      row.innerHTML='<div class="day-name">'+DAYS[i].slice(0,3)+'<small>'+d.getDate()+' '+d.toLocaleDateString('en-ZA',{month:'short'})+(i===todayIdx?' · today':'')+'</small></div><div class="chips"></div>';
+      const chips=row.querySelector('.chips'); const items=ACTS.filter(a=>onDate(a,d)).sort(byTime);
+      if(!items.length) chips.innerHTML='<span class="hint">Free</span>';
+      items.forEach(a=>{const c=document.createElement('button');c.type='button';c.className='chip '+(TYPE_CLASS[a.type]||'t-other');
+        c.innerHTML='<b>'+esc(a.start||'')+'</b><span>'+esc(a.name)+' · '+esc(nm(a.who))+'</span>';c.setAttribute('aria-label',a.name+', '+DAYS[i]+' '+(a.start||'')+'. Edit');
+        c.addEventListener('click',()=>openAct(a)); chips.appendChild(c)});
+      wk.appendChild(row);
+    }
+    // Games and once-off events coming up
+    const games=document.createElement('section'); games.className='panel chrome'; games.setAttribute('aria-labelledby','h-games');
+    games.innerHTML='<div class="panel-head"><h3 id="h-games">Games and events coming up</h3></div><ul class="list"></ul>';
+    const gl=games.querySelector('ul'); const upcoming=ACTS.filter(a=>a.repeat!=='weekly'&&a.date>=iso(now)).sort((x,y)=>(x.date+x.start).localeCompare(y.date+y.start));
+    if(!upcoming.length) gl.innerHTML='<li class="empty">No games or events yet.</li>';
+    upcoming.forEach(a=>gl.appendChild(actItem(a,{showDate:true})));
+    // Every week
+    const all=document.createElement('section'); all.className='panel chrome'; all.setAttribute('aria-labelledby','h-weekly');
+    all.innerHTML='<div class="panel-head"><h3 id="h-weekly">Every week</h3><span class="hint">Regular practice and lessons</span></div><ul class="list"></ul>';
+    const al=all.querySelector('ul'); const weekly=ACTS.filter(a=>a.repeat==='weekly').sort((x,y)=>x.day-y.day||byTime(x,y));
+    if(!weekly.length) al.innerHTML='<li class="empty">No weekly activities yet.</li>';
+    weekly.forEach(a=>{const li=actItem(a);li.querySelector('.act-name').textContent=DAYS[a.day]+' · '+a.name;al.appendChild(li)});
+    wrap.append(week,games,all); body.appendChild(wrap);
+    $('#add-act-week').addEventListener('click',()=>openAct(null));
+  }
+  // Add / edit form
+  const actDlg=$('#act-dialog'); let editing=null;
+  function syncRepeat(){const weekly=$('#act-repeat').value==='weekly'; $('#act-day-wrap').hidden=!weekly; $('#act-date-wrap').hidden=weekly}
+  $('#act-repeat').addEventListener('change',syncRepeat);
+  function openAct(a){
+    editing=a; applyNames();
+    $('#act-title').textContent=a?'Edit activity':'Add activity or reminder';
+    $('#act-type').value=a?a.type:'Sport'; $('#act-name').value=a?a.name:''; $('#act-repeat').value=a?a.repeat:'weekly';
+    $('#act-day').value=String(a&&a.repeat==='weekly'?a.day:todayIdx); $('#act-date').value=a&&a.date?a.date:iso(now);
+    $('#act-who').value=a?a.who:'c1'; $('#act-start').value=a?a.start:'14:30'; $('#act-end').value=a?a.end:'';
+    $('#act-where').value=a?a.where:''; $('#act-bring').value=a?a.bring:''; $('#act-remind').value=a?a.remind:'';
+    $('#act-delete').hidden=!a; $('#act-error').hidden=true; syncRepeat(); actDlg.showModal(); $('#act-name').focus();
+  }
+  $('#act-cancel').addEventListener('click',()=>actDlg.close());
+  $('#act-delete').addEventListener('click',async()=>{
+    if(!editing) return;
+    if(USER&&FAM.id){const {error}=await sb.from('activities').delete().eq('id',editing.id); if(error){toast('Could not remove: '+error.message);return}}
+    ACTS=ACTS.filter(x=>x!==editing); saveActs(); actDlg.close(); renderToday(); refreshCat(); toast('Activity removed');
+  });
+  $('#act-form').addEventListener('submit',async e=>{
+    e.preventDefault();
+    const name=$('#act-name').value.trim(); if(!name){$('#act-error').textContent='Give the activity a name.';$('#act-error').hidden=false;$('#act-name').focus();return}
+    const rep=$('#act-repeat').value;
+    const a={id:editing?editing.id:'a'+Date.now(),type:$('#act-type').value,name,repeat:rep,
+      day:rep==='weekly'?+$('#act-day').value:undefined,date:rep==='weekly'?undefined:($('#act-date').value||iso(now)),
+      start:$('#act-start').value,end:$('#act-end').value,who:$('#act-who').value,where:$('#act-where').value.trim(),
+      bring:$('#act-bring').value.trim(),remind:$('#act-remind').value};
+    if(USER&&FAM.id){
+      const row=toRow(a);
+      const res=editing?await sb.from('activities').update(row).eq('id',editing.id).select().single():await sb.from('activities').insert(row).select().single();
+      if(res.error){$('#act-error').textContent='Could not save: '+res.error.message;$('#act-error').hidden=false;return}
+      Object.assign(a,fromRow(res.data));
+    }
+    if(editing) ACTS=ACTS.map(x=>x===editing?a:x); else ACTS.push(a);
+    saveActs(); actDlg.close(); renderToday(); refreshCat();
+    toast((editing?'Saved. ':'Added. ')+(FAM.type==='two'?nm('other')+' can see it too.':'The family can see it too.'));
+  });
+  $('#add-act-home').addEventListener('click',()=>openAct(null));
+  $('#see-week').addEventListener('click',()=>{$('#seg-shared').click();showCat(cats.find(c=>c.id==='activities'))});
+  let currentCat=null; const refreshCat=()=>{if(currentCat&&!$('#shared').hidden) showCat(currentCat)};
+
+  // ---------- Online data ----------
+  const fromRow=r=>({id:r.id,type:r.kind,name:r.name,repeat:r.repeat,day:r.week_day,date:r.on_date||undefined,start:r.starts||'',end:r.ends||'',who:r.who,where:r.place||'',bring:r.bring||'',remind:r.remind||''});
+  const toRow=a=>({family_id:FAM.id,kind:a.type,name:a.name,repeat:a.repeat,week_day:a.repeat==='weekly'?a.day:null,on_date:a.repeat==='weekly'?null:a.date,
+    starts:a.start||null,ends:a.end||null,who:a.who,place:a.where||null,bring:a.bring||null,remind:a.remind||null});
+  async function startCloud(user){
+    USER=user; showApp(); toast('Signed in as '+user.email);
+    // Start every account with empty lists instead of the demo examples
+    ['#chores','#shop','#today-acts'].forEach(s=>{$(s).innerHTML=''}); $('#note-sent').innerHTML=''; ACTS=[]; updateCounts(); renderToday();
+    const {data,error}=await sb.from('family_members').select('role, families(*)').eq('user_id',user.id).limit(1);
+    if(error){toast('Could not load your family. Has the database been set up? ('+error.message+')');return}
+    await loadPersonal();
+    if(!data.length){delete FAM.id;delete FAM.code;openFamily(true);return}
+    await useFamily(data[0].families,data[0].role);
+  }
+  async function useFamily(f,role){
+    Object.assign(FAM,{id:f.id,type:f.family_type,p1:f.p1,p2:f.p2,c1:f.c1,c2:f.c2,me:role||FAM.me,code:f.invite_code});
+    applyNames(); await Promise.all([loadActs(),loadNotes()]);
+    if(CHANNEL) sb.removeChannel(CHANNEL);
+    CHANNEL=sb.channel('family-'+f.id)
+      .on('postgres_changes',{event:'*',schema:'public',table:'activities',filter:'family_id=eq.'+f.id},()=>loadActs())
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'notes',filter:'family_id=eq.'+f.id},()=>loadNotes())
+      .on('postgres_changes',{event:'UPDATE',schema:'public',table:'families',filter:'id=eq.'+f.id},p=>{const n=p.new;Object.assign(FAM,{type:n.family_type,p1:n.p1,p2:n.p2,c1:n.c1,c2:n.c2});applyNames();renderToday();refreshCat()})
+      .subscribe();
+  }
+  async function loadActs(){
+    const {data,error}=await sb.from('activities').select('*').eq('family_id',FAM.id);
+    if(error){toast('Could not load activities: '+error.message);return}
+    ACTS=data.map(fromRow); renderToday(); refreshCat();
+  }
+  async function loadNotes(){
+    const {data,error}=await sb.from('notes').select('*').eq('family_id',FAM.id).order('created_at',{ascending:false}).limit(20);
+    if(error) return; const ul=$('#note-sent'); ul.innerHTML='';
+    data.forEach(n=>{const mine=n.from_user===USER.id; const li=document.createElement('li');
+      const when=new Date(n.created_at).toLocaleString('en-ZA',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+      li.innerHTML='<div class="grow"><span></span><div class="meta"></div></div>'; li.querySelector('span').textContent=n.body;
+      li.querySelector('.meta').textContent=(mine?'From you':'From '+(n.from_role?nm(n.from_role):'the family'))+' · '+when; ul.appendChild(li)});
+  }
+  async function loadPersonal(){
+    const {data,error}=await sb.from('personal_items').select('*').order('created_at',{ascending:false});
+    if(error) return;
+    ['chores','shopping'].forEach(list=>{const ul=list==='chores'?$('#chores'):$('#shop'); ul.innerHTML='';
+      data.filter(r=>r.list===list).forEach(r=>ul.appendChild(itemLi(r.body,r.detail,r.done,r.id)))});
+    updateCounts();
+  }
+  if(sb){
+    sb.auth.onAuthStateChange((ev)=>{ if(ev==='PASSWORD_RECOVERY'){ $('#pw-dialog').showModal() } });
+    sb.auth.getSession().then(({data})=>{ if(data&&data.session&&!USER) startCloud(data.session.user) }).catch(()=>{});
+  }
+  const cats=[
+    {id:'today',name:'Today'},{id:'activities',name:'Activities'},{id:'schedule',name:'Schedule'},{id:'school',name:'School'},
+    {id:'belongings',name:'Belongings'},{id:'holidays',name:'Holidays'},
+    {id:'money',name:'Money',prem:1},{id:'communication',name:'Communication',prem:1},
+    {id:'health',name:'Health',prem:1},{id:'documents',name:'Documents',prem:1}
+  ];
+  const catBox=$('#cats');
+  cats.forEach(c=>{
+    const b=document.createElement('button'); b.type='button'; b.className='cat'; b.role='tab';
+    b.dataset.cat=c.id; b.innerHTML=c.name+(c.prem?'<span class="lk">· Premium</span>':'');
+    b.addEventListener('click',()=>showCat(c)); catBox.appendChild(b);
+  });
+  function showCat(c){
+    currentCat=c;
+    $$('.cat').forEach(b=>b.setAttribute('aria-selected',b.dataset.cat===c.id));
+    const body=$('#cat-body'); body.innerHTML='';
+    if(c.id==='activities'){renderActivities(body);return}
+    const tpl=document.getElementById('tpl-'+c.id);
+    if(c.prem||!tpl){
+      body.innerHTML='<section class="panel chrome locked-panel" style="margin-top:16px"><span class="pill prem">Premium</span><h3>'+c.name+' is part of Premium</h3><p>Try every Premium section free for 30 days. After that it is a small monthly subscription, and you can cancel any time.</p><button class="btn" type="button" id="start-trial">Start 30-day free trial</button></section>';
+      $('#start-trial').addEventListener('click',()=>toast('Payments are not set up yet'));
+      return;
+    }
+    body.appendChild(tpl.content.cloneNode(true));
+    if(c.id==='today'){
+      const sec=document.createElement('section'); sec.className='panel chrome'; sec.setAttribute('aria-labelledby','h-td-acts');
+      sec.innerHTML='<div class="panel-head"><h3 id="h-td-acts">Sport and activities today</h3></div><ul class="list"></ul>';
+      const ul=sec.querySelector('ul'); const items=ACTS.filter(a=>onDate(a,now)).sort(byTime);
+      if(!items.length) ul.innerHTML='<li class="empty">Nothing planned for today.</li>';
+      items.forEach(a=>ul.appendChild(actItem(a))); body.querySelector('.grid').appendChild(sec);
+    }
+    applyNames();
+    if(c.id==='schedule') buildCal();
+    const req=$('#request');
+    if(req) req.addEventListener('click',e=>{
+      const a=e.target.dataset.act; if(!a) return;
+      req.innerHTML='<div><strong>'+(a==='approve'?'Change approved.':'Change declined.')+'</strong> '+esc(notifyWho().charAt(0).toUpperCase()+notifyWho().slice(1))+' has been notified.</div>';
+    });
+  }
+  $('#kid2').addEventListener('click',()=>toast('A second child profile needs Premium'));
+
+  // ---------- Friendly-note check ----------
+  // Notes to the other parent may not contain swear words, name-calling, shouting or blame.
+  // Anything like that is rewritten into a friendlier version; the original is never sent.
+  const SWEAR=['fuck\\w*(?: off)?','f\\*+k\\w*','shit\\w*','sh\\*+t\\w*','bitch\\w*','bastard\\w*','ass(?:hole)?s?','arse(?:hole)?s?',
+    'damn\\w*','crap\\w*','bloody','dick\\w*','prick\\w*','cunt\\w*','twat\\w*','wank\\w*','piss\\w*','bullshit',
+    'what the hell','the hell','go to hell',
+    'fok\\w*(?: man)?','fokkol','kak\\w*','poes\\w*','doos','bliksem\\w*','moer\\w*','donner\\w*','jou ma se \\w+'];
+  const INSULT=['idiot\\w*','stupid','useless','pathetic','loser','moron','dumb','liar','selfish','lazy','clown',
+    'bad (?:parent|mother|father|mom|mum|dad)','terrible (?:parent|mother|father|mom|mum|dad)','disgrace',
+    'dom','simpel','nutteloos','lui','leuenaar','pateties','swak (?:ouer|ma|pa)'];
+  const reSwear=new RegExp('\\b(?:'+SWEAR.join('|')+')\\b','gi');
+  const reMasked=/\b[a-z]*\*+[a-z]*/gi;
+  const reInsultPhrase=new RegExp("\\b(?:you(?:'re| are)?|ur|jy(?:'s| is)?|jou)\\s+(?:(?:such|so|really|just|a|an|'n|n|totally|completely|'?n regte|baie)\\s+)*(?:\\w+\\s+)?(?:"+INSULT.join('|')+")\\b",'gi');
+  const reInsult=new RegExp('\\b(?:'+INSULT.join('|')+')\\b','gi');
+  const SOFTEN=[
+    [/\byou never\b/gi,'it would really help if you could'],
+    [/\byou always\b/gi,"I've noticed that you often"],
+    [/\byou(?: must| have to| better)\b/gi,'could you please'],
+    [/\bi don'?t care\b/gi,"I'd like us to sort this out"],
+    [/\bshut up\b/gi,"let's talk about this calmly"],
+    [/\bhow dare you\b/gi,'I was upset that you'],
+    [/\bi hate you\b/gi,'I am frustrated'],
+    [/\b(?:it'?s|this is) (?:all )?your fault(?: that)?(?=\s+\w)/gi,'I am worried that'],
+    [/\b(?:it'?s|this is) (?:all )?your fault\b/gi,'this is something we need to sort out together'],
+    [/\bwhatever\b/gi,'okay'],
+    [/\bjy moet\b/gi,'kan jy asseblief'],
+    [/\bjy is altyd\b/gi,'ek het agtergekom jy is dikwels'],
+    [/\bjy (?:doen|het) nooit\b/gi,'dit sal regtig help as jy kan']
+  ];
+  function friendly(src){
+    let t=' '+src.trim()+' '; const fixes=new Set();
+    const letters=t.replace(/[^A-Za-z]/g,'');
+    if(letters.length>6 && letters.replace(/[^A-Z]/g,'').length/letters.length>.6){t=t.toLowerCase();fixes.add('Capital letters (shouting) made normal')}
+    if(/[!?]{2,}/.test(t)){t=t.replace(/[!?]*\?[!?]*/g,m=>m.length>1?'?':m).replace(/!{2,}/g,'.');fixes.add('Extra exclamation marks removed')}
+    if(reInsultPhrase.test(t)||reInsult.test(t)){t=t.replace(reInsultPhrase,'').replace(reInsult,'');fixes.add('Name-calling removed')}
+    reInsultPhrase.lastIndex=reInsult.lastIndex=0;
+    if(reSwear.test(t)||reMasked.test(t)){t=t.replace(reSwear,'').replace(reMasked,'');fixes.add('Swear words removed')}
+    reSwear.lastIndex=reMasked.lastIndex=0;
+    SOFTEN.forEach(([re,rep])=>{if(re.test(t)){t=t.replace(re,rep);fixes.add('Blaming words reworded')} re.lastIndex=0});
+    if(!fixes.size) return {text:src.trim(),fixes:[]};
+    // tidy up what is left
+    t=t.replace(/\s+([,.!?])/g,'$1').replace(/([,.!?])(?:\s*[,.])+/g,'$1').replace(/\s{2,}/g,' ').replace(/^[\s,.!?]+/,'').trim();
+    t=t.replace(/\bi\b/g,'I').replace(/(^|[.!?]\s+)([a-z])/g,(m,a,b)=>a+b.toUpperCase());
+    t=t.replace(/[,;:\s]+$/,'');
+    if(t.replace(/[^A-Za-z]/g,'').length<6) t="Can we please talk about this when we are both calm";
+    if(!/[.!?]$/.test(t)) t+='.';
+    if(!/^(hi|hello|hey|hallo|goeie|dear|morning|evening)\b/i.test(t)) t='Hi, '+t.charAt(0).toLowerCase()+t.slice(1);
+    t=t.replace(/^Hi, i\b/,'Hi, I');
+    if(/\bcould you please\b/i.test(t)) t=t.replace(/\.$/,'?');
+    const afr=/\b(jy|ek|die|asseblief|kinders|nie|kan|dit|met)\b/i.test(src);
+    if(!/(thank|dankie|thanks)/i.test(t)) t+=afr?' Dankie.':' Thank you.';
+    return {text:t,fixes:[...fixes]};
+  }
+  window.checkyFriendly=friendly;
+
+  const noteForm=$('#note-form'), noteBox=$('#note'), check=$('#note-check'), friendlyBox=$('#note-friendly');
+  async function sendNote(text){
+    if(USER&&FAM.id){
+      const {error}=await sb.from('notes').insert({family_id:FAM.id,body:text,from_role:FAM.me});
+      if(error){toast('Could not send: '+error.message);return}
+    }
+    const li=document.createElement('li');
+    const now=new Date(); const hhmm=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+    li.innerHTML='<div class="grow"><span></span><div class="meta">Sent to '+esc(notifyWho())+' · Today, '+hhmm+'</div></div>';
+    li.querySelector('span').textContent=text;
+    $('#note-sent').prepend(li);
+    noteBox.value=''; friendlyBox.value=''; check.hidden=true; noteForm.hidden=false;
+    toast('Note sent. '+notifyWho().charAt(0).toUpperCase()+notifyWho().slice(1)+' has been notified.');
+  }
+  function review(text){
+    const r=friendly(text);
+    if(!r.fixes.length) return sendNote(r.text);
+    $('#note-fixes').innerHTML=''; r.fixes.forEach(f=>{const li=document.createElement('li');li.textContent=f;$('#note-fixes').appendChild(li)});
+    friendlyBox.value=r.text; noteForm.hidden=true; check.hidden=false; friendlyBox.focus();
+  }
+  noteForm.addEventListener('submit',e=>{e.preventDefault(); const v=noteBox.value.trim(); if(!v){toast('Write a note first');return} review(v)});
+  $('#note-send-friendly').addEventListener('click',()=>{const v=friendlyBox.value.trim(); if(!v) return; review(v)});
+  $('#note-back').addEventListener('click',()=>{check.hidden=true; noteForm.hidden=false; noteBox.focus()});
+
+  // October 2026 calendar, Monday first. Weeks alternate at the Friday hand-over.
+  function buildCal(){
+    const t=$('#cal'); const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    let html='<thead><tr>'+days.map(d=>'<th scope="col">'+d+'</th>').join('')+'</tr></thead><tbody>';
+    const start=new Date(2026,8,28); // Mon 28 Sep 2026
+    const anchor=new Date(2026,8,25); // Fri 25 Sep: Mother's week starts
+    for(let w=0;w<5;w++){
+      html+='<tr>';
+      for(let d=0;d<7;d++){
+        const dt=new Date(start); dt.setDate(start.getDate()+w*7+d);
+        const weeks=Math.floor((dt-anchor)/(7*864e5));
+        const who=weeks%2===0?'mom':'dad';
+        const cls=[who]; if(dt.getMonth()!==9) cls.push('out');
+        if(dt.getMonth()===9&&dt.getDate()===13) cls.push('today');
+        html+='<td class="'+cls.join(' ')+'" aria-label="'+dt.getDate()+' '+esc(who==='mom'?FAM.p1:FAM.p2)+'">'+dt.getDate()+'</td>';
+      }
+      html+='</tr>';
+    }
+    t.innerHTML=html+'</tbody>';
+  }
+  $('#today-label').textContent=now.toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  applyNames(); renderToday();
+  showCat(cats[0]);
+})();
+</script>
+
+</body></html>
