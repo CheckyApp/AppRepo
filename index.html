@@ -1293,6 +1293,22 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     else if(isIOS) $('#ios-dialog').showModal();
   }));
   if('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  // ---------- Pick up new versions by itself ----------
+  // Installed phone apps (iPhone especially) resume the old page instead of reloading it.
+  // When Checky comes back into view, compare the page's version tag; if it changed, reload,
+  // unless a form is open or something is being typed.
+  let pageTag=null;
+  const fetchTag=()=>fetch('/',{method:'HEAD',cache:'no-store'}).then(r=>r.headers.get('etag')||r.headers.get('last-modified')).catch(()=>null);
+  if(location.protocol==='https:'){
+    fetchTag().then(t=>{pageTag=t});
+    document.addEventListener('visibilitychange',async()=>{
+      if(document.visibilityState!=='visible'||!pageTag) return;
+      const t=await fetchTag(); if(!t||t===pageTag) return;
+      const busy=$$('dialog[open]').length||[...document.querySelectorAll('input:not([type=checkbox]):not([type=radio]),textarea')].some(el=>el.value&&el.offsetParent&&el.id!=='email');
+      if(busy){toast('A new version of Checky is ready. It will load next time you open the app.');pageTag=t;return}
+      location.reload();
+    });
+  }
   window.addEventListener('offline',()=>toast('You are offline. Changes will not save until you are back online.'));
   window.addEventListener('online',()=>toast('Back online'));
 })();
