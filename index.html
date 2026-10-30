@@ -199,6 +199,13 @@ input::placeholder,textarea::placeholder{color:#7D756D}
 .two-col .field.wide{grid-column:1/-1}
 .rec-links a{color:var(--p-blue-lt);font-weight:700}
 .field textarea{min-height:64px}
+.photo-pick{display:grid;gap:8px}
+.photo-prev{width:100%;max-height:220px;object-fit:cover;border-radius:16px}
+.photo-pick input[type=file]{padding:10px;border-radius:14px;border:1px dashed var(--line);background:var(--field);color:var(--ink-soft)}
+.thumb{flex:none;width:64px;height:64px;padding:0;border:0;border-radius:14px;overflow:hidden;cursor:pointer;background:var(--row-lo)}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.photo-dlg{padding:12px;background:#000;width:min(900px,calc(100% - 16px))}
+.photo-dlg img{display:block;width:100%;max-height:80vh;object-fit:contain;border-radius:12px;margin-bottom:10px}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.84rem;color:var(--ink-soft)}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px}
 
@@ -530,6 +537,8 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
 
 <dialog id="rec-dialog" aria-labelledby="rec-title"><form id="rec-form" class="dlg" method="dialog" novalidate></form></dialog>
 
+<dialog id="photo-dialog" aria-label="Photo" class="photo-dlg"><img id="photo-big" alt=""><button type="button" class="btn small" id="photo-close">Close</button></dialog>
+
 <dialog id="cust-dialog" aria-labelledby="cust-title">
   <form id="cust-form" class="dlg" method="dialog" novalidate>
     <h3 id="cust-title">Set up the custody calendar</h3>
@@ -614,25 +623,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   </div>
 </template>
 
-<template id="tpl-holidays">
-  <div class="grid">
-    <section class="panel chrome" aria-labelledby="h-xmas">
-      <div class="panel-head"><h3 id="h-xmas">Christmas</h3></div>
-      <ul class="list">
-        <li><div class="grow"><span class="num">2026</span></div><span class="pill dad"><span data-name="p2">Father</span></span></li>
-        <li><div class="grow"><span class="num">2025</span></div><span class="pill mom"><span data-name="p1">Mother</span></span></li>
-        <li><div class="grow"><span class="num">2024</span></div><span class="pill dad"><span data-name="p2">Father</span></span></li>
-      </ul>
-    </section>
-    <section class="panel chrome" aria-labelledby="h-bday">
-      <div class="panel-head"><h3 id="h-bday">Birthday</h3></div>
-      <ul class="list">
-        <li><div class="grow"><span class="num">2026</span></div><span class="pill mom"><span data-name="p1">Mother</span></span></li>
-        <li><div class="grow"><span class="num">2025</span></div><span class="pill dad"><span data-name="p2">Father</span></span></li>
-      </ul>
-    </section>
-  </div>
-</template>
+
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
 <script>
@@ -1376,7 +1367,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     if(!USER||!FAM.id) return; const c=LISTDEF[k];
     const {data,error}=await sb.from(c.table).select('*').eq('family_id',FAM.id).limit(500);
     if(error){toast('Could not load '+c.plural+': '+error.message);return}
-    RECS[k]=data; refreshCat();
+    await signPhotos(k,data); RECS[k]=data; refreshCat();
   }
   const listTimers={}; const reloadList=k=>{clearTimeout(listTimers[k]);listTimers[k]=setTimeout(()=>loadList(k),400)};
   const recDlg=$('#rec-dialog'), recForm=$('#rec-form'); let recCtx=null;
@@ -1384,13 +1375,14 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   function fieldHtml(f,val){
     const id='rf-'+f.k, v=val==null?'':String(val), ph=f.ph?' placeholder="'+esc(f.ph)+'"':'', mx=f.max?' maxlength="'+f.max+'"':'';
     let input;
+    if(f.type==='photo') return '<div class="field wide" data-k="'+f.k+'"><label for="'+id+'">'+esc(f.label)+'</label><div class="photo-pick">'+(recCtx&&recCtx.rec&&recCtx.rec._url?'<img src="'+esc(recCtx.rec._url)+'" alt="Current photo" class="photo-prev" id="'+id+'-prev">':'<img alt="" class="photo-prev" id="'+id+'-prev" hidden>')+'<input id="'+id+'" type="file" accept="image/*">'+(v?'<label class="opt"><input type="checkbox" id="'+id+'-remove"> Remove this photo</label>':'')+'</div></div>';
     if(f.type==='select') input='<select id="'+id+'">'+optList(f).map(([ov,ol])=>'<option value="'+esc(ov)+'"'+(String(ov)===v?' selected':'')+'>'+esc(ol)+'</option>').join('')+'</select>';
     else if(f.type==='longtext') input='<textarea id="'+id+'" rows="2"'+mx+ph+'>'+esc(v)+'</textarea>';
     else{const t={number:'number',date:'date',time:'time',tel:'tel',email:'email'}[f.type]||'text';
       input='<input id="'+id+'" type="'+t+'"'+(t==='number'?' inputmode="decimal" step="any" min="0"':'')+' value="'+esc(t==='time'?v.slice(0,5):v)+'"'+mx+ph+'>'}
     return '<div class="field'+(f.wide||f.type==='longtext'?' wide':'')+'" data-k="'+f.k+'"><label for="'+id+'">'+esc(f.label)+'</label>'+input+'</div>';
   }
-  function formValues(c){const o={};c.fields.forEach(f=>{const el=$('#rf-'+f.k); if(!el) return; let v=el.value.trim(); o[f.k]=v===''?null:f.type==='number'?+v:v});return o}
+  function formValues(c){const o={};c.fields.forEach(f=>{const el=$('#rf-'+f.k); if(!el||f.type==='photo') return; let v=el.value.trim(); o[f.k]=v===''?null:f.type==='number'?+v:v});return o}
   function syncShow(c){const vals=formValues(c); c.fields.forEach(f=>{if(f.showIf){const w=recForm.querySelector('[data-k="'+f.k+'"]'); if(w) w.hidden=!f.showIf(vals)}})}
   function openRecord(k,rec,opts={}){
     const c=LISTDEF[k]; recCtx={k,rec};
@@ -1399,15 +1391,16 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     recForm.innerHTML='<h3 id="rec-title">'+esc((rec?'Edit ':'Add ')+c.noun)+'</h3><div class="two-col">'+c.fields.map(f=>fieldHtml(f,init[f.k])).join('')+'</div>'+
       '<p class="hint" id="rec-error" role="alert" style="margin:0;color:var(--p-pink-lt)" hidden></p>'+
       '<div class="note-acts"><button class="btn" type="submit">Save</button><button class="btn ghost" type="button" id="rec-cancel">Cancel</button>'+(rec?'<button class="btn ghost" type="button" id="rec-delete">Remove</button>':'')+'</div>';
-    recForm.querySelectorAll('select,input').forEach(el=>el.addEventListener('change',()=>syncShow(c)));
+    recForm.querySelectorAll('select,input:not([type=file])').forEach(el=>el.addEventListener('change',()=>syncShow(c)));
+    recForm.querySelectorAll('input[type=file]').forEach(el=>el.addEventListener('change',()=>{const pv=$('#'+el.id+'-prev'),f=el.files[0]; if(pv&&f){pv.src=URL.createObjectURL(f);pv.hidden=false;pv.alt='Chosen photo'}}));
     $('#rec-cancel').addEventListener('click',()=>recDlg.close());
     if(rec) $('#rec-delete').addEventListener('click',removeRecord);
     syncShow(c); recDlg.showModal();
-    const fe=$('#rf-'+(opts.focus||c.fields.find(f=>!f.showIf&&f.type!=='select').k)); if(fe) fe.focus();
+    const fe=$('#rf-'+(opts.focus||c.fields.find(f=>!f.showIf&&f.type!=='select'&&f.type!=='photo').k)); if(fe) fe.focus();
   }
   async function removeRecord(){
     const {k,rec}=recCtx, c=LISTDEF[k];
-    if(USER&&FAM.id){const {error}=await sb.from(c.table).delete().eq('id',rec.id); if(error){toast('Could not remove: '+error.message);return}}
+    if(USER&&FAM.id){const {error}=await sb.from(c.table).delete().eq('id',rec.id); if(error){toast('Could not remove: '+error.message);return} if(c.photo&&rec[c.photo]) sb.storage.from('trip-photos').remove([rec[c.photo]])}
     RECS[k]=RECS[k].filter(x=>x!==rec); recDlg.close(); refreshCat(); toast('Removed');
   }
   recForm.addEventListener('submit',async e=>{
@@ -1418,11 +1411,29 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     for(const f of c.fields){ if(f.req&&(!f.showIf||f.showIf(row))&&(row[f.k]==null)) return fail(f.reqMsg||('Fill in: '+f.label),f.k);
       if(f.type==='number'&&row[f.k]!=null&&isNaN(row[f.k])) return fail('Type a number for: '+f.label,f.k) }
     const bad=c.validate&&c.validate(row); if(bad) return fail(bad);
+    let oldPhoto=null, localUrl=null;
+    if(c.photo){
+      const inp=$('#rf-'+c.photo), file=inp&&inp.files[0], rm=$('#rf-'+c.photo+'-remove');
+      if(file){
+        let blob; try{blob=await shrinkImage(file)}catch(x){return fail(x.message)}
+        if(USER&&FAM.id){
+          const path=FAM.id+'/'+(crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random().toString(36).slice(2))+'.jpg';
+          err.textContent='Uploading the photo…'; err.hidden=false;
+          const up=await sb.storage.from('trip-photos').upload(path,blob,{contentType:'image/jpeg'});
+          if(up.error) return fail('Could not upload the photo: '+up.error.message);
+          row[c.photo]=path;
+        }else{localUrl=URL.createObjectURL(blob); row[c.photo]='local'}
+        if(rec&&rec[c.photo]) oldPhoto=rec[c.photo];
+      }else if(rm&&rm.checked){row[c.photo]=null; if(rec) oldPhoto=rec[c.photo]}
+      else if(rec) row[c.photo]=rec[c.photo];
+    }
     let saved={...(rec||{}),...row,id:rec?rec.id:'x'+Date.now()};
+    if(localUrl) saved._url=localUrl; else if(c.photo&&!row[c.photo]) saved._url=null;
     if(USER&&FAM.id){
       const res=rec?await sb.from(c.table).update(row).eq('id',rec.id).select().single():await sb.from(c.table).insert({...row,family_id:FAM.id}).select().single();
       if(res.error) return fail('Could not save: '+res.error.message);
       saved=res.data;
+      if(c.photo){ if(oldPhoto&&oldPhoto!==saved[c.photo]) sb.storage.from('trip-photos').remove([oldPhoto]); await signPhotos(k,[saved]) }
     }
     if(rec) RECS[k]=RECS[k].map(x=>x===rec?saved:x); else RECS[k].push(saved);
     recDlg.close(); refreshCat(); toast((rec?'Saved. ':'Added. ')+(FAM.type==='two'?nm(otherOf(FAM.me))+' can see it too.':''));
@@ -1433,17 +1444,18 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     Object.assign(rec,patch); refreshCat(); return true;
   }
   // A panel with a heading, an Add button and a list of records
-  function listPanel(k,{id,title,add,empty,wide,hint}){
+  function listPanel(k,{id,title,add,empty,wide,hint,filter,preset}){
     const c=LISTDEF[k], sec=document.createElement('section'); sec.className='panel chrome'; sec.setAttribute('aria-labelledby',id); if(wide) sec.style.gridColumn='1/-1';
     sec.innerHTML='<div class="panel-head"><h3 id="'+id+'">'+esc(title)+'</h3><button type="button" class="btn small">'+esc(add)+'</button></div>'+(hint?'<p class="hint" style="margin:0">'+hint+'</p>':'')+'<ul class="list"></ul>';
-    sec.querySelector('.panel-head .btn').addEventListener('click',()=>openRecord(k,null));
-    const ul=sec.querySelector('ul'), rows=[...RECS[k]].sort(c.sort||(()=>0));
+    sec.querySelector('.panel-head .btn').addEventListener('click',()=>openRecord(k,null,{preset:preset||{}}));
+    const ul=sec.querySelector('ul'), rows=RECS[k].filter(filter||(()=>true)).sort(c.sort||(()=>0));
     if(!rows.length) ul.innerHTML='<li class="empty">'+esc(empty)+'</li>';
     rows.forEach(r=>{
       const it=c.item(r), li=document.createElement('li'); li.className='bill-li';
-      li.innerHTML=(it.check?'<input type="checkbox" class="check">':'')+'<div class="grow"><span></span><div class="meta"></div>'+(it.links?'<div class="meta rec-links">'+it.links+'</div>':'')+'</div><div class="bill-side">'+(it.pill?'<span class="pill '+it.pill[0]+'">'+esc(it.pill[1])+'</span>':'')+'</div>';
+      li.innerHTML=(it.check?'<input type="checkbox" class="check">':'')+(it.thumb?'<button type="button" class="thumb"><img alt=""></button>':'')+'<div class="grow"><span></span><div class="meta"></div>'+(it.links?'<div class="meta rec-links">'+it.links+'</div>':'')+'</div><div class="bill-side">'+(it.pill?'<span class="pill '+it.pill[0]+'">'+esc(it.pill[1])+'</span>':'')+'</div>';
       li.querySelector('.grow span').textContent=it.title; li.querySelector('.grow .meta').textContent=(it.meta||[]).filter(Boolean).join(' · ');
       if(it.done) li.classList.add('done');
+      if(it.thumb){const tb=li.querySelector('.thumb');tb.querySelector('img').src=it.thumb;tb.setAttribute('aria-label','Open photo: '+it.title);tb.addEventListener('click',()=>showPhoto(it.thumb,it.title))}
       if(it.check){const cb=li.querySelector('.check'); cb.checked=!!it.check.on; cb.setAttribute('aria-label',it.check.label||it.title); cb.addEventListener('change',e=>{e.stopPropagation(); it.check.fn(cb.checked)})}
       const side=li.querySelector('.bill-side');
       [...(it.buttons||[]),{label:'Edit',fn:()=>openRecord(k,r)}].forEach(bd=>{const b=document.createElement('button');b.type='button';b.className='mini-btn';b.textContent=bd.label;b.setAttribute('aria-label',bd.label+': '+it.title);b.addEventListener('click',bd.fn);side.appendChild(b)});
@@ -1539,6 +1551,70 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     body.appendChild(wrap);
   }
 
+  // ---------- Holidays: who had the children, and travel with photos (shared) ----------
+  const OCCASION={birthday:'Birthday',christmas:'Christmas',school:'School holidays',easter:'Easter',new_year:'New Year',other:'Other'};
+  const WITH={p1:()=>nm('p1'),p2:()=>nm('p2'),both:()=>'Both, together',other:()=>'Someone else'};
+  defineList({key:'holidays',table:'holiday_records',noun:'holiday',plural:'holidays',
+    fields:[
+      {k:'occasion',label:'Occasion',type:'select',options:Object.entries(OCCASION),def:'christmas'},
+      {k:'year',label:'Year',type:'number',req:true,def:()=>now.getFullYear(),ph:'e.g. 2026'},
+      {k:'parent',label:'Who had the children',type:'select',options:()=>Object.entries(WITH).map(([k,f])=>[k,f()]),def:()=>FAM.me},
+      {k:'label',label:'Name (optional)',max:60,ph:'e.g. June/July holidays, 9th birthday'},
+      {k:'from_date',label:'From',type:'date',showIf:v=>!['birthday','christmas','new_year'].includes(v.occasion)},
+      {k:'to_date',label:'Until',type:'date',showIf:v=>!['birthday','christmas','new_year'].includes(v.occasion)},
+      {k:'notes',label:'Notes',type:'longtext',max:300,ph:"e.g. Spent the day at Gran's"}],
+    validate:r=>(!Number.isInteger(r.year)||r.year<1990||r.year>2100)?'Type the year, for example 2026.':(r.from_date&&r.to_date&&r.to_date<r.from_date)?'The end date is before the start date.':null,
+    sort:(a,b)=>(b.year-a.year)||(b.from_date||'').localeCompare(a.from_date||''),
+    item:r=>({title:r.year+(r.label?' · '+r.label:'')+(['easter','new_year','other'].includes(r.occasion)?' · '+OCCASION[r.occasion]:''),
+      meta:[r.from_date?rangeText(r.from_date,r.to_date||r.from_date):'',r.notes],
+      pill:[r.parent==='p1'?'mom':r.parent==='p2'?'dad':'later','With '+(WITH[r.parent]||(()=>''))()]})});
+  defineList({key:'trips',table:'trips',noun:'trip',plural:'trips',photo:'photo_path',
+    fields:[
+      {k:'place',label:'Where',max:100,req:true,ph:'e.g. Ballito',reqMsg:'Say where you went.'},
+      {k:'trip_date',label:'From',type:'date',req:true,def:()=>todayIso()},
+      {k:'end_date',label:'Until',type:'date'},
+      {k:'with_who',label:'With who',max:100,ph:'e.g. Father and Gran'},
+      {k:'experience',label:'How was it',type:'longtext',max:1000,ph:'e.g. Swam every day, saw dolphins'},
+      {k:'photo_path',label:'Photo',type:'photo'}],
+    validate:r=>r.end_date&&r.end_date<r.trip_date?'The end date is before the start date.':null,
+    sort:(a,b)=>(b.trip_date||'').localeCompare(a.trip_date||''),
+    item:r=>({title:r.place,meta:[rangeText(r.trip_date,r.end_date||r.trip_date),r.with_who?'With '+r.with_who:'',r.experience],thumb:r._url||null})});
+  const HOLIDAY_KEYS=['holidays','trips'];
+  const loadHolidays=()=>Promise.all(HOLIDAY_KEYS.map(loadList));
+  function lastTime(occ){const r=RECS.holidays.filter(x=>x.occasion===occ).sort((a,b)=>b.year-a.year)[0];return r?'Last recorded: '+r.year+', with '+esc((WITH[r.parent]||(()=>''))()):''}
+  function renderHolidays(body){
+    const wrap=document.createElement('div'); wrap.className='grid';
+    const isOther=r=>['easter','new_year','other'].includes(r.occasion);
+    wrap.append(
+      listPanel('holidays',{id:'h-bday',title:'Birthdays',add:'Add',empty:'No birthdays recorded yet. Add each year and who had the children.',filter:r=>r.occasion==='birthday',preset:{occasion:'birthday'},hint:lastTime('birthday')}),
+      listPanel('holidays',{id:'h-xmas',title:'Christmas',add:'Add',empty:'No Christmases recorded yet.',filter:r=>r.occasion==='christmas',preset:{occasion:'christmas'},hint:lastTime('christmas')}),
+      listPanel('holidays',{id:'h-school-hol',title:'School holidays',add:'Add',empty:'No school holidays recorded yet.',filter:r=>r.occasion==='school',preset:{occasion:'school'},hint:lastTime('school')}),
+      listPanel('holidays',{id:'h-other-hol',title:'Easter, New Year and other',add:'Add',empty:'Nothing recorded yet.',filter:isOther,preset:{occasion:'easter'}}),
+      listPanel('trips',{id:'h-trips',title:'Travel',add:'Add trip',empty:'No trips yet. Add where you went, with who, how it was, and a photo.',wide:true}));
+    body.appendChild(wrap);
+  }
+  // Photos: shrink on the phone before upload, show from the private folder
+  async function shrinkImage(file){
+    const url=URL.createObjectURL(file);
+    try{
+      const img=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>no(new Error('This photo type cannot be read. Try a JPEG or PNG.'));i.src=url});
+      const k=Math.min(1,1600/Math.max(img.naturalWidth,img.naturalHeight)), w=Math.round(img.naturalWidth*k), h=Math.round(img.naturalHeight*k);
+      const cv=document.createElement('canvas'); cv.width=w; cv.height=h; cv.getContext('2d').drawImage(img,0,0,w,h);
+      return await new Promise((ok,no)=>cv.toBlob(b=>b?ok(b):no(new Error('Could not prepare the photo.')),'image/jpeg',0.82));
+    }finally{URL.revokeObjectURL(url)}
+  }
+  async function signPhotos(k,rows){
+    const c=LISTDEF[k]; if(!c.photo||!USER) return;
+    const paths=rows.map(r=>r[c.photo]).filter(Boolean); if(!paths.length) return;
+    const {data}=await sb.storage.from('trip-photos').createSignedUrls(paths,3600);
+    const map=Object.fromEntries((data||[]).filter(x=>x.signedUrl).map(x=>[x.path,x.signedUrl]));
+    rows.forEach(r=>{if(r[c.photo]) r._url=map[r[c.photo]]||null});
+  }
+  const photoDlg=$('#photo-dialog');
+  function showPhoto(url,alt){$('#photo-big').src=url;$('#photo-big').alt=alt;photoDlg.showModal()}
+  $('#photo-close').addEventListener('click',()=>photoDlg.close());
+  photoDlg.addEventListener('click',e=>{if(e.target===photoDlg) photoDlg.close()});
+
   // ---------- Online data ----------
   const fromRow=r=>({id:r.id,type:r.kind,name:r.name,repeat:r.repeat,day:r.week_day,date:r.on_date||undefined,start:r.starts||'',end:r.ends||'',who:r.who,where:r.place||'',bring:r.bring||'',remind:r.remind||''});
   const toRow=a=>({family_id:FAM.id,kind:a.type,name:a.name,repeat:a.repeat,week_day:a.repeat==='weekly'?a.day:null,on_date:a.repeat==='weekly'?null:a.date,
@@ -1555,7 +1631,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   }
   async function useFamily(f,role){
     Object.assign(FAM,{id:f.id,type:f.family_type,p1:f.p1,p2:f.p2,c1:f.c1,c2:f.c2,me:role||FAM.me,code:f.invite_code});
-    applyNames(); await Promise.all([loadActs(),loadNotes(),loadSchedule(),loadSchool()]);
+    applyNames(); await Promise.all([loadActs(),loadNotes(),loadSchedule(),loadSchool(),loadHolidays()]);
     if(CHANNEL) sb.removeChannel(CHANNEL);
     CHANNEL=sb.channel('family-'+f.id)
       .on('postgres_changes',{event:'*',schema:'public',table:'activities',filter:'family_id=eq.'+f.id},()=>loadActs())
@@ -1567,6 +1643,8 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
       .on('postgres_changes',{event:'*',schema:'public',table:'teachers',filter:'family_id=eq.'+f.id},()=>reloadList('teachers'))
       .on('postgres_changes',{event:'*',schema:'public',table:'teacher_contacts',filter:'family_id=eq.'+f.id},()=>reloadList('contacts'))
       .on('postgres_changes',{event:'*',schema:'public',table:'school_events',filter:'family_id=eq.'+f.id},()=>reloadList('events'))
+      .on('postgres_changes',{event:'*',schema:'public',table:'holiday_records',filter:'family_id=eq.'+f.id},()=>reloadList('holidays'))
+      .on('postgres_changes',{event:'*',schema:'public',table:'trips',filter:'family_id=eq.'+f.id},()=>reloadList('trips'))
       .on('postgres_changes',{event:'*',schema:'public',table:'custody_plans',filter:'family_id=eq.'+f.id},schReload)
       .on('postgres_changes',{event:'*',schema:'public',table:'handovers',filter:'family_id=eq.'+f.id},schReload)
       .on('postgres_changes',{event:'*',schema:'public',table:'schedule_requests',filter:'family_id=eq.'+f.id},pl=>{
@@ -1619,6 +1697,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     if(c.id==='activities'){renderActivities(body);return}
     if(c.id==='schedule'){renderSchedule(body);return}
     if(c.id==='school'){renderSchool(body);return}
+    if(c.id==='holidays'){renderHolidays(body);return}
     const tpl=document.getElementById('tpl-'+c.id);
     if(c.prem||!tpl){
       body.innerHTML='<section class="panel chrome locked-panel" style="margin-top:16px"><span class="pill prem">Premium</span><h3>'+c.name+' is part of Premium</h3><p>Try every Premium section free for 30 days. After that it is a small monthly subscription, and you can cancel any time.</p><button class="btn" type="button" id="start-trial">Start 30-day free trial</button></section>';
