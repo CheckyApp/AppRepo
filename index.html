@@ -213,6 +213,8 @@ input::placeholder,textarea::placeholder{color:#7D756D}
 .photo-pick input[type=file]{padding:10px;border-radius:14px;border:1px dashed var(--line);background:var(--field);color:var(--ink-soft)}
 .thumb{flex:none;width:64px;height:64px;padding:0;border:0;border-radius:14px;overflow:hidden;cursor:pointer;background:var(--row-lo)}
 .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb.pdf{display:grid;place-items:center;font-weight:800;font-size:.8rem;color:var(--ink-dark);background:var(--p-orange);text-decoration:none}
+.prem-note{margin:18px 0 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .photo-dlg{padding:12px;background:#000;width:min(900px,calc(100% - 16px))}
 .photo-dlg img{display:block;width:100%;max-height:80vh;object-fit:contain;border-radius:12px;margin-bottom:10px}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.84rem;color:var(--ink-soft)}
@@ -446,8 +448,8 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     </div>
 
     <div class="kids" role="group" aria-label="Child">
-      <button type="button" class="kid chrome" aria-pressed="true"><span class="av" data-initial="c1">1</span><span data-name="c1">Child 1</span></button>
-      <button type="button" class="kid chrome locked" id="kid2"><span class="av" data-initial="c2">2</span><span data-name="c2">Child 2</span> <span class="pill prem">Premium</span></button>
+      <button type="button" class="kid chrome" data-child="c1" aria-pressed="true"><span class="av" data-initial="c1">1</span><span data-name="c1">Child 1</span></button>
+      <button type="button" class="kid chrome" id="kid2" data-child="c2" aria-pressed="false"><span class="av" data-initial="c2">2</span><span data-name="c2">Child 2</span> <span class="pill prem">Premium</span></button>
     </div>
 
     <div class="cats" role="tablist" aria-label="Categories" id="cats"></div>
@@ -604,7 +606,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
 <template id="tpl-today">
   <div class="grid">
     <section class="panel chrome" aria-labelledby="h-td">
-      <div class="panel-head"><h3 id="h-td">Today for <span data-name="c1">Child 1</span></h3><span class="pill" id="td-with" hidden></span></div>
+      <div class="panel-head"><h3 id="h-td">Today for <span id="td-child" data-name="c1">Child 1</span></h3><span class="pill" id="td-with" hidden></span></div>
       <ul class="list">
         <li><div class="grow"><span>School until 13:30</span></div></li>
         <li><div class="grow"><span>Netball practice 14:30</span><div class="meta">Sports bag is at <span data-name="p1">Mother</span>'s house</div></div></li>
@@ -1364,6 +1366,8 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
 
   // ---------- Shared lists: one form and list system used by School (and later sections) ----------
   const RECS={}, LISTDEF={};
+  let CHILD='c1';
+  const isPdfPath=p=>/\.pdf$/i.test(p||'');
   const defineList=cfg=>{LISTDEF[cfg.key]=cfg; RECS[cfg.key]=[]};
   const resetLists=()=>Object.keys(LISTDEF).forEach(k=>{RECS[k]=[]});
   async function loadList(k){
@@ -1378,12 +1382,12 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   function fieldHtml(f,val){
     const id='rf-'+f.k, v=val==null?'':String(val), ph=f.ph?' placeholder="'+esc(f.ph)+'"':'', mx=f.max?' maxlength="'+f.max+'"':'';
     let input;
-    if(f.type==='photo') return '<div class="field wide" data-k="'+f.k+'"><label for="'+id+'">'+esc(f.label)+'</label><div class="photo-pick">'+(recCtx&&recCtx.rec&&recCtx.rec._url?'<img src="'+esc(recCtx.rec._url)+'" alt="Current photo" class="photo-prev" id="'+id+'-prev">':'<img alt="" class="photo-prev" id="'+id+'-prev" hidden>')+'<input id="'+id+'" type="file" accept="image/*">'+(v?'<label class="opt"><input type="checkbox" id="'+id+'-remove"> Remove this photo</label>':'')+'</div></div>';
+    if(f.type==='photo') return '<div class="field wide" data-k="'+f.k+'"><label for="'+id+'">'+esc(f.label)+'</label><div class="photo-pick">'+(recCtx&&recCtx.rec&&recCtx.rec._url&&!isPdfPath(recCtx.rec[f.k])?'<img src="'+esc(recCtx.rec._url)+'" alt="Current photo" class="photo-prev" id="'+id+'-prev">':'<img alt="" class="photo-prev" id="'+id+'-prev" hidden>')+'<input id="'+id+'" type="file" accept="'+(f.pdf?'image/*,application/pdf':'image/*')+'">'+(v?'<label class="opt"><input type="checkbox" id="'+id+'-remove"> Remove this '+(f.pdf?'file':'photo')+'</label>':'')+'</div></div>';
     if(f.type==='select') input='<select id="'+id+'">'+optList(f).map(([ov,ol])=>'<option value="'+esc(ov)+'"'+(String(ov)===v?' selected':'')+'>'+esc(ol)+'</option>').join('')+'</select>';
     else if(f.type==='longtext') input='<textarea id="'+id+'" rows="2"'+mx+ph+'>'+esc(v)+'</textarea>';
     else{const t={number:'number',date:'date',time:'time',tel:'tel',email:'email'}[f.type]||'text';
       input='<input id="'+id+'" type="'+t+'"'+(t==='number'?' inputmode="decimal" step="any" min="0"':'')+' value="'+esc(t==='time'?v.slice(0,5):v)+'"'+mx+ph+'>'}
-    return '<div class="field'+(f.wide||f.type==='longtext'?' wide':'')+'" data-k="'+f.k+'"><label for="'+id+'">'+esc(f.label)+'</label>'+input+'</div>';
+    return '<div class="field'+(f.wide||f.type==='longtext'?' wide':'')+'" data-k="'+f.k+'"><label for="'+id+'">'+esc(typeof f.label==='function'?f.label():f.label)+'</label>'+input+'</div>';
   }
   function formValues(c){const o={};c.fields.forEach(f=>{const el=$('#rf-'+f.k); if(!el||f.type==='photo') return; let v=el.value.trim(); o[f.k]=v===''?null:f.type==='number'?+v:v});return o}
   function syncShow(c){const vals=formValues(c); c.fields.forEach(f=>{if(f.showIf){const w=recForm.querySelector('[data-k="'+f.k+'"]'); if(w) w.hidden=!f.showIf(vals)}})}
@@ -1404,7 +1408,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   async function removeRecord(){
     const {k,rec}=recCtx, c=LISTDEF[k];
     if(needsApproval()&&GUARD[c.table]){recDlg.close(); const it=c.item(rec); await askChange(c.table,rec,'delete',null,c.noun.charAt(0).toUpperCase()+c.noun.slice(1)+' "'+it.title+'"'); return}
-    if(USER&&FAM.id){const {error}=await sb.from(c.table).delete().eq('id',rec.id); if(error){toast('Could not remove: '+error.message);return} if(c.photo&&rec[c.photo]) sb.storage.from('trip-photos').remove([rec[c.photo]])}
+    if(USER&&FAM.id){const {error}=await sb.from(c.table).delete().eq('id',rec.id); if(error){toast('Could not remove: '+error.message);return} if(c.photo&&rec[c.photo]) sb.storage.from((c.bucket||'trip-photos')).remove([rec[c.photo]])}
     RECS[k]=RECS[k].filter(x=>x!==rec); recDlg.close(); refreshCat(); toast('Removed');
   }
   recForm.addEventListener('submit',async e=>{
@@ -1412,8 +1416,8 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     const fail=(t,fk)=>{err.textContent=t;err.hidden=false;if(fk){const el=$('#rf-'+fk);el&&el.focus()}};
     const row=formValues(c);
     c.fields.forEach(f=>{if(f.showIf&&!f.showIf(row)) row[f.k]=null});
-    for(const f of c.fields){ if(f.req&&(!f.showIf||f.showIf(row))&&(row[f.k]==null)) return fail(f.reqMsg||('Fill in: '+f.label),f.k);
-      if(f.type==='number'&&row[f.k]!=null&&isNaN(row[f.k])) return fail('Type a number for: '+f.label,f.k) }
+    for(const f of c.fields){ if(f.req&&(!f.showIf||f.showIf(row))&&(row[f.k]==null)) return fail(f.reqMsg||('Fill in: '+(typeof f.label==='function'?f.label():f.label)),f.k);
+      if(f.type==='number'&&row[f.k]!=null&&isNaN(row[f.k])) return fail('Type a number for: '+(typeof f.label==='function'?f.label():f.label),f.k) }
     const bad=c.validate&&c.validate(row); if(bad) return fail(bad);
     let pendingDates=null;
     if(rec&&needsApproval()&&GUARD[c.table]){const ch=dateDiff(c.table,rec,row); if(Object.keys(ch).length){pendingDates=ch; Object.keys(ch).forEach(k=>{row[k]=rec[k]??null})}}
@@ -1421,25 +1425,27 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     if(c.photo){
       const inp=$('#rf-'+c.photo), file=inp&&inp.files[0], rm=$('#rf-'+c.photo+'-remove');
       if(file){
-        let blob; try{blob=await shrinkImage(file)}catch(x){return fail(x.message)}
+        const isPdf=file.type==='application/pdf'||/\.pdf$/i.test(file.name);
+        if(isPdf&&file.size>10*1024*1024) return fail('This PDF is bigger than 10 MB. Try a smaller file.');
+        let blob; if(isPdf) blob=file; else {try{blob=await shrinkImage(file)}catch(x){return fail(x.message)}}
         if(USER&&FAM.id){
-          const path=FAM.id+'/'+(crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random().toString(36).slice(2))+'.jpg';
-          err.textContent='Uploading the photo…'; err.hidden=false;
-          const up=await sb.storage.from('trip-photos').upload(path,blob,{contentType:'image/jpeg'});
-          if(up.error) return fail('Could not upload the photo: '+up.error.message);
+          const path=FAM.id+'/'+(crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random().toString(36).slice(2))+(isPdf?'.pdf':'.jpg');
+          err.textContent='Uploading…'; err.hidden=false;
+          const up=await sb.storage.from((c.bucket||'trip-photos')).upload(path,blob,{contentType:isPdf?'application/pdf':'image/jpeg'});
+          if(up.error) return fail('Could not upload: '+up.error.message);
           row[c.photo]=path;
-        }else{localUrl=URL.createObjectURL(blob); row[c.photo]='local'}
+        }else{localUrl=URL.createObjectURL(blob); row[c.photo]=isPdf?'local.pdf':'local.jpg'}
         if(rec&&rec[c.photo]) oldPhoto=rec[c.photo];
       }else if(rm&&rm.checked){row[c.photo]=null; if(rec) oldPhoto=rec[c.photo]}
       else if(rec) row[c.photo]=rec[c.photo];
     }
-    let saved={...(rec||{}),...row,id:rec?rec.id:'x'+Date.now()};
+    let saved={...(rec||{}),...row,id:rec?rec.id:'x'+Date.now(),...(!rec&&c.perChild?{child:CHILD}:{})};
     if(localUrl) saved._url=localUrl; else if(c.photo&&!row[c.photo]) saved._url=null;
     if(USER&&FAM.id){
-      const res=rec?await sb.from(c.table).update(row).eq('id',rec.id).select().single():await sb.from(c.table).insert({...row,family_id:FAM.id}).select().single();
+      const res=rec?await sb.from(c.table).update(row).eq('id',rec.id).select().single():await sb.from(c.table).insert({...row,family_id:FAM.id,...(c.perChild?{child:CHILD}:{})}).select().single();
       if(res.error) return fail('Could not save: '+res.error.message);
       saved=res.data;
-      if(c.photo){ if(oldPhoto&&oldPhoto!==saved[c.photo]) sb.storage.from('trip-photos').remove([oldPhoto]); await signPhotos(k,[saved]) }
+      if(c.photo){ if(oldPhoto&&oldPhoto!==saved[c.photo]) sb.storage.from((c.bucket||'trip-photos')).remove([oldPhoto]); await signPhotos(k,[saved]) }
     }
     if(rec) RECS[k]=RECS[k].map(x=>x===rec?saved:x); else RECS[k].push(saved);
     if(pendingDates){recDlg.close(); refreshCat(); await askChange(c.table,saved,'update',pendingDates,c.item(saved).title); return}
@@ -1455,14 +1461,16 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     const c=LISTDEF[k], sec=document.createElement('section'); sec.className='panel chrome'; sec.setAttribute('aria-labelledby',id); if(wide) sec.style.gridColumn='1/-1';
     sec.innerHTML='<div class="panel-head"><h3 id="'+id+'">'+esc(title)+'</h3><button type="button" class="btn small">'+esc(add)+'</button></div>'+(hint?'<p class="hint" style="margin:0">'+hint+'</p>':'')+'<ul class="list"></ul>';
     sec.querySelector('.panel-head .btn').addEventListener('click',()=>openRecord(k,null,{preset:preset||{}}));
-    const ul=sec.querySelector('ul'), rows=RECS[k].filter(filter||(()=>true)).sort(c.sort||(()=>0));
+    const ul=sec.querySelector('ul'), rows=RECS[k].filter(r=>!c.perChild||(r.child||'c1')===CHILD).filter(filter||(()=>true)).sort(c.sort||(()=>0));
     if(!rows.length) ul.innerHTML='<li class="empty">'+esc(empty)+'</li>';
     rows.forEach(r=>{
       const it=c.item(r), li=document.createElement('li'); li.className='bill-li';
-      li.innerHTML=(it.check?'<input type="checkbox" class="check">':'')+(it.thumb?'<button type="button" class="thumb"><img alt=""></button>':'')+'<div class="grow"><span></span><div class="meta"></div>'+(it.links?'<div class="meta rec-links">'+it.links+'</div>':'')+'</div><div class="bill-side">'+(it.pill?'<span class="pill '+it.pill[0]+'">'+esc(it.pill[1])+'</span>':'')+'</div>';
+      if(c.photo&&r._url){ if(isPdfPath(r[c.photo])) it.pdf=r._url; else it.thumb=r._url }
+      li.innerHTML=(it.check?'<input type="checkbox" class="check">':'')+(it.thumb?'<button type="button" class="thumb"><img alt=""></button>':'')+(it.pdf?'<a class="thumb pdf" target="_blank" rel="noopener">PDF</a>':'')+'<div class="grow"><span></span><div class="meta"></div>'+(it.links?'<div class="meta rec-links">'+it.links+'</div>':'')+'</div><div class="bill-side">'+(it.pill?'<span class="pill '+it.pill[0]+'">'+esc(it.pill[1])+'</span>':'')+'</div>';
       li.querySelector('.grow span').textContent=it.title; li.querySelector('.grow .meta').textContent=(it.meta||[]).filter(Boolean).join(' · ');
       if(it.done) li.classList.add('done');
       if(pendingFor(r.id)){const pp=document.createElement('span');pp.className='pill later';pp.textContent='Change waiting';li.querySelector('.bill-side').prepend(pp)}
+      if(it.pdf){const a=li.querySelector('a.pdf');a.href=it.pdf;a.setAttribute('aria-label','Open PDF: '+it.title)}
       if(it.thumb){const tb=li.querySelector('.thumb');tb.querySelector('img').src=it.thumb;tb.setAttribute('aria-label','Open photo: '+it.title);tb.addEventListener('click',()=>showPhoto(it.thumb,it.title))}
       if(it.check){const cb=li.querySelector('.check'); cb.checked=!!it.check.on; cb.setAttribute('aria-label',it.check.label||it.title); cb.addEventListener('change',e=>{e.stopPropagation(); it.check.fn(cb.checked)})}
       const side=li.querySelector('.bill-side');
@@ -1614,7 +1622,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   async function signPhotos(k,rows){
     const c=LISTDEF[k]; if(!c.photo||!USER) return;
     const paths=rows.map(r=>r[c.photo]).filter(Boolean); if(!paths.length) return;
-    const {data}=await sb.storage.from('trip-photos').createSignedUrls(paths,3600);
+    const {data}=await sb.storage.from((c.bucket||'trip-photos')).createSignedUrls(paths,3600);
     const map=Object.fromEntries((data||[]).filter(x=>x.signedUrl).map(x=>[x.path,x.signedUrl]));
     rows.forEach(r=>{if(r[c.photo]) r._url=map[r[c.photo]]||null});
   }
@@ -1675,16 +1683,150 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     body.appendChild(wrap);
   }
 
+  // ---------- Premium sections (free preview while testing) and the second child ----------
+  const PREMIUM_PREVIEW=true; // set to false once payments (Step 10) are switched on
+  ['work','reading','teachers','events','holidays','trips','belong','whohas'].forEach(k=>{LISTDEF[k].perChild=true});
+  const who3=()=>[['p1',nm('p1')],['p2',nm('p2')],['other','Someone else']];
+  const premiumNote=()=>{const d=document.createElement('p');d.className='hint prem-note';d.innerHTML='<span class="pill prem">Premium</span> Free preview while we test. These sections become part of Premium later.';return d};
+
+  // Money
+  const MONEY_KIND={expense:'Expense',recurring:'Recurring expense',owed:'Money owed',paid:'Payment made'};
+  defineList({key:'money',table:'money_entries',noun:'money entry',plural:'money',photo:'file_path',bucket:'family-files',perChild:true,
+    fields:[
+      {k:'kind',label:'Type',type:'select',options:Object.entries(MONEY_KIND),def:'expense'},
+      {k:'description',label:'What for',max:120,req:true,ph:'e.g. School shoes',reqMsg:'Say what the money is for.'},
+      {k:'amount',label:'Amount (R)',type:'number',req:true,ph:'e.g. 450',reqMsg:'Type the amount in rand.'},
+      {k:'entry_date',label:'Date',type:'date',req:true,reqMsg:'Choose the date.'},
+      {k:'repeats',label:'How often',type:'select',options:[['monthly','Every month'],['termly','Every school term'],['yearly','Every year']],def:'monthly',showIf:v=>v.kind==='recurring'},
+      {k:'paid_by',label:'Who paid',type:'select',options:()=>[['','—'],...who3()],def:'',showIf:v=>v.kind!=='owed'},
+      {k:'owed_by',label:'Who owes the other parent',type:'select',options:()=>[['p1',nm('p1')],['p2',nm('p2')]],def:()=>otherOf(FAM.me),showIf:v=>v.kind==='owed'},
+      {k:'notes',label:'Notes',type:'longtext',max:300,ph:'e.g. Half each, as agreed'},
+      {k:'file_path',label:'Receipt or proof of payment (photo or PDF)',type:'photo',pdf:true}],
+    validate:r=>r.amount<0||isNaN(r.amount)?'Type the amount in rand, for example 450.':null,
+    sort:(a,b)=>(b.entry_date||'').localeCompare(a.entry_date||''),
+    item:r=>({title:r.description,pill:['later',fmtR(r.amount)],
+      meta:[dmy(r.entry_date),r.kind==='recurring'?({monthly:'Every month',termly:'Every school term',yearly:'Every year'})[r.repeats]:'',
+        r.kind==='owed'&&r.owed_by?nm(r.owed_by)+' owes '+nm(otherOf(r.owed_by)):'',r.kind!=='owed'&&r.paid_by?'Paid by '+(r.paid_by==='other'?'someone else':nm(r.paid_by)):'',r.notes]})});
+  function moneyHints(){
+    const mine=RECS.money.filter(r=>(r.child||'c1')===CHILD), ym=todayIso().slice(0,7);
+    const month=mine.filter(r=>(r.kind==='expense'||r.kind==='recurring')&&(r.entry_date||'').slice(0,7)===ym).reduce((s,r)=>s+Number(r.amount),0);
+    const out={p1:0,p2:0}; mine.forEach(r=>{if(r.kind==='owed'&&r.owed_by) out[r.owed_by]+=Number(r.amount); if(r.kind==='paid'&&(r.paid_by==='p1'||r.paid_by==='p2')) out[r.paid_by]-=Number(r.amount)});
+    const owe=['p1','p2'].filter(p=>out[p]>0.004).map(p=>esc(nm(p))+' still owes '+fmtR(out[p]));
+    return {month:'Expenses this month: '+fmtR(month),owed:owe.length?owe.join(' · '):'Nothing outstanding'};
+  }
+  function renderMoney(body){
+    const wrap=document.createElement('div'); wrap.className='grid'; const h=moneyHints();
+    const panel=(kind,id,title,empty,hint)=>listPanel('money',{id,title,add:'Add',empty,filter:r=>r.kind===kind,preset:{kind},hint});
+    wrap.append(panel('expense','h-exp','Expenses','No expenses yet. Add the amount, date and a photo of the receipt.',h.month),
+      panel('recurring','h-rec','Recurring expenses','No recurring expenses yet, e.g. school fees or medical aid.'),
+      panel('owed','h-owed','Who owes',"Nobody owes anything.",h.owed),
+      panel('paid','h-paid','Who paid','No payments yet. Add proof of payment and notes.'));
+    body.append(premiumNote(),wrap);
+  }
+
+  // Communication
+  const COMM_KIND={call:'Call',notice:'Important notice',message:'Parent message',request:'Request'};
+  defineList({key:'comm',table:'communications',noun:'entry',plural:'communication',perChild:true,
+    fields:[
+      {k:'kind',label:'Type',type:'select',options:Object.entries(COMM_KIND),def:'call'},
+      {k:'happened_on',label:'Date',type:'date',req:true,reqMsg:'Choose the date.'},
+      {k:'at_time',label:'Time',type:'time',showIf:v=>v.kind==='call'},
+      {k:'by_role',label:'Call with',type:'select',options:who3,def:()=>otherOf(FAM.me),showIf:v=>v.kind==='call'},
+      {k:'duration_min',label:'How long (minutes)',type:'number',ph:'e.g. 15',showIf:v=>v.kind==='call'},
+      {k:'mood',label:'Mood',type:'select',options:[['','—'],['Happy','Happy'],['Okay','Okay'],['Quiet','Quiet'],['Tired','Tired'],['Sad','Sad'],['Upset','Upset']],def:'',showIf:v=>v.kind==='call'},
+      {k:'title',label:'Subject',max:120,ph:'e.g. Change of school times',showIf:v=>v.kind!=='call'},
+      {k:'notes',label:'Notes',type:'longtext',max:1000}],
+    validate:r=>r.kind!=='call'&&!r.title&&!r.notes?'Add a subject or notes.':r.duration_min!=null&&(!Number.isInteger(r.duration_min)||r.duration_min<0)?'Type the minutes as a whole number.':null,
+    sort:(a,b)=>((b.happened_on||'')+(b.at_time||'')).localeCompare((a.happened_on||'')+(a.at_time||'')),
+    item:r=>r.kind==='call'
+      ?{title:'Call with '+(r.by_role==='other'?'someone else':nm(r.by_role||otherOf(FAM.me)))+(r.duration_min!=null?' · '+r.duration_min+' min':''),meta:[dmy(r.happened_on)+(r.at_time?' '+r.at_time.slice(0,5):''),r.mood?'Mood: '+r.mood:'',r.notes]}
+      :{title:r.title||COMM_KIND[r.kind],meta:[dmy(r.happened_on),r.notes]}});
+  function renderComm(body){
+    const wrap=document.createElement('div'); wrap.className='grid';
+    const panel=(kind,id,title,empty)=>listPanel('comm',{id,title,add:'Add',empty,filter:r=>r.kind===kind,preset:{kind}});
+    wrap.append(panel('call','h-calls','Calls','No calls logged yet.'),panel('notice','h-notices','Important notices','No notices yet.'),
+      panel('message','h-pmsg','Parent messages','No messages yet.'),panel('request','h-requests','Requests','No requests yet.'));
+    body.append(premiumNote(),wrap);
+  }
+
+  // Health
+  const HEALTH_KIND={doctor:'Doctor',medical_aid:'Medical aid',medication:'Medication (when sick)',operation:'Past operation'};
+  const is=(...k)=>v=>k.includes(v.kind);
+  defineList({key:'health',table:'health_records',noun:'health entry',plural:'health',perChild:true,
+    fields:[
+      {k:'kind',label:'Type',type:'select',options:Object.entries(HEALTH_KIND),def:'doctor'},
+      {k:'name',label:'Name',max:80,ph:'e.g. Dr Anna',showIf:is('doctor')},
+      {k:'surname',label:'Surname',max:80,ph:'e.g. Pillay',showIf:is('doctor')},
+      {k:'aid_name',label:'Medical aid name',max:80,ph:'e.g. Discovery',showIf:is('medical_aid')},
+      {k:'member_number',label:'Member number',max:40,showIf:is('medical_aid')},
+      {k:'plan',label:'Plan or option',max:60,showIf:is('medical_aid')},
+      {k:'kin_p1',label:()=>'Next of kin ('+nm('p1')+"'s side)",max:120,ph:'Name and number',showIf:is('medical_aid')},
+      {k:'kin_p2',label:()=>'Next of kin ('+nm('p2')+"'s side)",max:120,ph:'Name and number',showIf:is('medical_aid')},
+      {k:'illness',label:'Illness',max:120,ph:'e.g. Flu, ear infection',showIf:is('medication')},
+      {k:'medicine',label:'What was used',max:200,ph:'e.g. Panado syrup 5 ml',showIf:is('medication')},
+      {k:'operation',label:'Operation',max:120,ph:'e.g. Tonsils removed',showIf:is('operation')},
+      {k:'given_on',label:'Date',type:'date',showIf:is('medication','operation')},
+      {k:'at_time',label:'Time',type:'time',showIf:is('medication')},
+      {k:'to_date',label:'Until',type:'date',showIf:is('medication')},
+      {k:'place',label:'Location or hospital',max:120,showIf:is('doctor','operation')},
+      {k:'phone',label:'Phone number',type:'tel',max:30,showIf:is('doctor','medical_aid')},
+      {k:'follow_up',label:'Follow-up appointment',type:'date',showIf:is('operation')},
+      {k:'notes',label:'Notes and updates',type:'longtext',max:1000}],
+    validate:r=>r.kind==='doctor'&&!r.name&&!r.surname?"Type the doctor's name.":r.kind==='medical_aid'&&!r.aid_name?'Type the name of the medical aid.':
+      r.kind==='medication'&&(!r.illness&&!r.medicine)?'Fill in the illness or what was used.':r.kind==='medication'&&!r.given_on?'Choose the date.':
+      r.kind==='operation'&&!r.operation?'Say what the operation was.':r.kind==='operation'&&!r.given_on?'Choose when it was.':null,
+    sort:(a,b)=>(b.given_on||'').localeCompare(a.given_on||'')||(a.name||a.aid_name||'').localeCompare(b.name||b.aid_name||''),
+    item:r=>{const tel=r.phone?'<a href="tel:'+esc(r.phone.replace(/[^+\d]/g,''))+'">'+esc(r.phone)+'</a>':'';
+      if(r.kind==='doctor') return {title:[r.name,r.surname].filter(Boolean).join(' '),meta:[r.place,r.notes],links:tel};
+      if(r.kind==='medical_aid') return {title:r.aid_name+(r.plan?' · '+r.plan:''),meta:[r.member_number?'Member no. '+r.member_number:'',r.kin_p1?'Next of kin ('+nm('p1')+'): '+r.kin_p1:'',r.kin_p2?'Next of kin ('+nm('p2')+'): '+r.kin_p2:'',r.notes],links:tel};
+      if(r.kind==='medication') return {title:r.illness||r.medicine,meta:[r.given_on?rangeText(r.given_on,r.to_date||r.given_on)+(r.at_time?' '+r.at_time.slice(0,5):''):'',r.illness&&r.medicine?'Used: '+r.medicine:'',r.notes]};
+      return {title:r.operation,meta:[r.given_on?dmy(r.given_on):'',r.place,r.follow_up?'Follow-up '+dmy(r.follow_up):'',r.notes],pill:r.follow_up&&daysTo(r.follow_up)>=0&&daysTo(r.follow_up)<=14?['due','Follow-up soon']:null}}});
+  function renderHealth(body){
+    const wrap=document.createElement('div'); wrap.className='grid';
+    const panel=(kind,id,title,empty)=>listPanel('health',{id,title,add:'Add',empty,filter:r=>r.kind===kind,preset:{kind}});
+    wrap.append(panel('doctor','h-docs','Doctors','No doctors added yet.'),panel('medical_aid','h-aid','Medical aid','No medical aid details yet.'),
+      panel('medication','h-meds','Medication log','Nothing logged yet. Add each time the child is sick: what was used, when and why.'),panel('operation','h-ops','Past operations','No operations recorded.'));
+    body.append(premiumNote(),wrap);
+  }
+
+  // Documents
+  const DOC_KIND={court:'Court orders and parenting plan',identity:'Birth certificate, ID and passport',school:'School documents',medical:'Medical documents',other:'Other documents'};
+  defineList({key:'docs',table:'documents',noun:'document',plural:'documents',photo:'file_path',bucket:'family-files',perChild:true,
+    fields:[
+      {k:'kind',label:'Type',type:'select',options:Object.entries(DOC_KIND),def:'court'},
+      {k:'title',label:'Document',max:120,req:true,ph:'e.g. Parenting plan 2026',reqMsg:'Name the document.'},
+      {k:'doc_date',label:'Date',type:'date',showIf:v=>v.kind!=='school'},
+      {k:'at_time',label:'Time',type:'time',showIf:v=>v.kind!=='school'},
+      {k:'reason',label:'Reason',max:300,ph:'e.g. Updated after mediation',showIf:v=>v.kind!=='school'},
+      {k:'held_by',label:'Who has the original',type:'select',options:()=>[['','—'],...who3()],def:'',showIf:v=>v.kind!=='school'},
+      {k:'notes',label:'Notes',type:'longtext',max:1000},
+      {k:'file_path',label:'Upload (photo or PDF)',type:'photo',pdf:true}],
+    sort:(a,b)=>(b.doc_date||'').localeCompare(a.doc_date||'')||a.title.localeCompare(b.title),
+    item:r=>({title:r.title,meta:[r.doc_date?dmy(r.doc_date)+(r.at_time?' '+r.at_time.slice(0,5):''):'',r.reason,r.held_by?'Original with '+(r.held_by==='other'?'someone else':nm(r.held_by)):'',r.notes]})});
+  function renderDocs(body){
+    const wrap=document.createElement('div'); wrap.className='grid';
+    wrap.append(...Object.entries(DOC_KIND).map(([kind,title])=>listPanel('docs',{id:'h-doc-'+kind,title,add:'Add',empty:'No documents yet.',filter:r=>r.kind===kind,preset:{kind}})));
+    body.append(premiumNote(),wrap);
+  }
+  const PREMIUM_KEYS=['money','comm','health','docs'];
+  const loadPremium=()=>Promise.all(PREMIUM_KEYS.map(loadList));
+
+  // Choosing a child
+  function setChild(c){
+    if(c==='c2'&&!PREMIUM_PREVIEW){toast('A second child profile needs Premium');return}
+    CHILD=c; $$('.kid').forEach(b=>b.setAttribute('aria-pressed',b.dataset.child===c)); refreshCat();
+  }
+
   // ---------- Once a date is set, it's set: date changes and removals need the other parent ----------
   const GUARD={activities:['repeat','week_day','on_date','starts','ends'],handovers:['on_date','at_time'],school_work:['given_date','due_date'],reading_log:['read_on'],
-    teacher_contacts:['contacted_on'],school_events:['on_date','at_time'],holiday_records:['occasion','year','parent','from_date','to_date'],trips:['trip_date','end_date','with_who'],belongings:['bought_on','swapped_on'],who_has:['has_parent','asked_on','expected_on','returned_on']};
+    teacher_contacts:['contacted_on'],school_events:['on_date','at_time'],holiday_records:['occasion','year','parent','from_date','to_date'],trips:['trip_date','end_date','with_who'],belongings:['bought_on','swapped_on'],who_has:['has_parent','asked_on','expected_on','returned_on'],money_entries:['entry_date','paid_by','owed_by'],communications:['happened_on','at_time'],health_records:['given_on','at_time','to_date','follow_up'],documents:['doc_date','at_time','held_by']};
   const COL_LABEL={repeat:'how often',week_day:'day',on_date:'date',starts:'start time',ends:'end time',at_time:'time',given_date:'date given',due_date:'due date',
-    read_on:'date',contacted_on:'date',year:'year',from_date:'from',to_date:'until',trip_date:'from',end_date:'until',parent:'who had the children',occasion:'occasion',with_who:'with who',bought_on:'bought',swapped_on:'swapped',has_parent:'who has it',asked_on:'asked',expected_on:'back by',returned_on:'returned'};
-  const TBL_KEY={school_work:'work',reading_log:'reading',teacher_contacts:'contacts',school_events:'events',holiday_records:'holidays',trips:'trips',belongings:'belong',who_has:'whohas'};
+    read_on:'date',contacted_on:'date',year:'year',from_date:'from',to_date:'until',trip_date:'from',end_date:'until',parent:'who had the children',occasion:'occasion',with_who:'with who',bought_on:'bought',swapped_on:'swapped',has_parent:'who has it',asked_on:'asked',expected_on:'back by',returned_on:'returned',entry_date:'date',paid_by:'who paid',owed_by:'who owes',happened_on:'date',given_on:'date',follow_up:'follow-up',doc_date:'date',held_by:'who has the original'};
+  const TBL_KEY={school_work:'work',reading_log:'reading',teacher_contacts:'contacts',school_events:'events',holiday_records:'holidays',trips:'trips',belongings:'belong',who_has:'whohas',money_entries:'money',communications:'comm',health_records:'health',documents:'docs'};
   let CHG=[];
   const needsApproval=()=>!!(USER&&FAM.id&&(SCH.members||1)>1);
   const normV=(k,v)=>v==null||v===''?'':/^(starts|ends|at_time)$/.test(k)?String(v).slice(0,5):String(v);
-  const showV=(k,v)=>{v=normV(k,v); if(!v) return 'none'; if(/_date$|_on$/.test(k)) return dmy(v); if(k==='week_day') return DAYS[+v]; if(k==='repeat') return ({weekly:'every week',game:'game or match',once:'once'})[v]||v; if(k==='parent') return (WITH[v]||(()=>v))(); if(k==='occasion') return OCCASION[v]||v; if(k==='has_parent') return v==='other'?'someone else':nm(v); return v};
+  const showV=(k,v)=>{v=normV(k,v); if(!v) return 'none'; if(/_date$|_on$/.test(k)) return dmy(v); if(k==='week_day') return DAYS[+v]; if(k==='repeat') return ({weekly:'every week',game:'game or match',once:'once'})[v]||v; if(k==='parent') return (WITH[v]||(()=>v))(); if(k==='occasion') return OCCASION[v]||v; if(k==='has_parent'||k==='paid_by'||k==='owed_by'||k==='held_by') return v==='other'?'someone else':nm(v); return v};
   function dateDiff(tbl,oldRec,row){const ch={};(GUARD[tbl]||[]).forEach(k=>{if(k in row&&normV(k,oldRec[k])!==''&&normV(k,row[k])!==normV(k,oldRec[k])) ch[k]=row[k]===''?null:row[k]});return ch}
   const changeText=(ch,oldRec)=>Object.keys(ch).map(k=>COL_LABEL[k]+' '+showV(k,oldRec[k])+' → '+showV(k,ch[k])).join(', ');
   const pendingFor=id=>CHG.find(c=>c.status==='pending'&&c.record_id===id);
@@ -1727,10 +1869,10 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     box.appendChild(sec);
   }
   async function answerChange(c,a){
-    let photo=null; if(a==='approve'&&c.action==='delete'&&c.tbl==='trips'){const t=RECS.trips.find(x=>x.id===c.record_id); photo=t&&t.photo_path}
+    let photo=null, lc=LISTDEF[TBL_KEY[c.tbl]]; if(a==='approve'&&c.action==='delete'&&lc&&lc.photo){const t=RECS[lc.key].find(x=>x.id===c.record_id); photo=t&&t[lc.photo]}
     const res=a==='withdraw'?await sb.rpc('withdraw_record_change',{p_id:c.id}):await sb.rpc('decide_record_change',{p_id:c.id,p_approve:a==='approve'});
     if(res.error){toast(res.error.message);return}
-    if(photo) sb.storage.from('trip-photos').remove([photo]);
+    if(photo) sb.storage.from(lc.bucket||'trip-photos').remove([photo]);
     await loadChanges();
     if(c.tbl==='activities') loadActs(); else if(c.tbl==='handovers') loadSchedule(); else if(TBL_KEY[c.tbl]) loadList(TBL_KEY[c.tbl]);
     toast(a==='withdraw'?'Request withdrawn.':(a==='approve'?'Approved. ':'Declined. ')+nm(c.requested_role)+' can see your answer.');
@@ -1752,7 +1894,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   }
   async function useFamily(f,role){
     Object.assign(FAM,{id:f.id,type:f.family_type,p1:f.p1,p2:f.p2,c1:f.c1,c2:f.c2,me:role||FAM.me,code:f.invite_code});
-    applyNames(); await Promise.all([loadActs(),loadNotes(),loadSchedule(),loadSchool(),loadHolidays(),loadBelongings(),loadChanges()]);
+    applyNames(); await Promise.all([loadActs(),loadNotes(),loadSchedule(),loadSchool(),loadHolidays(),loadBelongings(),loadPremium(),loadChanges()]);
     if(CHANNEL) sb.removeChannel(CHANNEL);
     CHANNEL=sb.channel('family-'+f.id)
       .on('postgres_changes',{event:'*',schema:'public',table:'activities',filter:'family_id=eq.'+f.id},()=>loadActs())
@@ -1768,6 +1910,10 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
       .on('postgres_changes',{event:'*',schema:'public',table:'trips',filter:'family_id=eq.'+f.id},()=>reloadList('trips'))
       .on('postgres_changes',{event:'*',schema:'public',table:'belongings',filter:'family_id=eq.'+f.id},()=>reloadList('belong'))
       .on('postgres_changes',{event:'*',schema:'public',table:'who_has',filter:'family_id=eq.'+f.id},()=>reloadList('whohas'))
+      .on('postgres_changes',{event:'*',schema:'public',table:'money_entries',filter:'family_id=eq.'+f.id},()=>reloadList('money'))
+      .on('postgres_changes',{event:'*',schema:'public',table:'communications',filter:'family_id=eq.'+f.id},()=>reloadList('comm'))
+      .on('postgres_changes',{event:'*',schema:'public',table:'health_records',filter:'family_id=eq.'+f.id},()=>reloadList('health'))
+      .on('postgres_changes',{event:'*',schema:'public',table:'documents',filter:'family_id=eq.'+f.id},()=>reloadList('docs'))
       .on('postgres_changes',{event:'*',schema:'public',table:'record_changes',filter:'family_id=eq.'+f.id},pl=>{
         const n=pl.new||{}; loadChanges();
         if(pl.eventType==='INSERT'&&n.status==='pending'&&n.requested_by!==USER.id) toast(nm(n.requested_role)+' asked for a change. Open Shared to approve or decline.');
@@ -1828,6 +1974,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     if(c.id==='holidays'){renderHolidays(body);return}
     if(c.id==='belongings'){renderBelongings(body);return}
     const tpl=document.getElementById('tpl-'+c.id);
+    if(PREMIUM_PREVIEW){const R={money:renderMoney,communication:renderComm,health:renderHealth,documents:renderDocs}[c.id]; if(R){R(body);applyNames();return}}
     if(c.prem||!tpl){
       body.innerHTML='<section class="panel chrome locked-panel" style="margin-top:16px"><span class="pill prem">Premium</span><h3>'+c.name+' is part of Premium</h3><p>Try every Premium section free for 30 days. After that it is a small monthly subscription, and you can cancel any time.</p><button class="btn" type="button" id="start-trial">Start 30-day free trial</button></section>';
       $('#start-trial').addEventListener('click',()=>toast('Payments are not set up yet'));
@@ -1849,9 +1996,10 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
       body.querySelector('.grid').appendChild(ss);
     }
     applyNames();
+    if(c.id==='today'){const tc=$('#td-child'); if(tc){tc.dataset.name=CHILD; tc.textContent=nm(CHILD)}} 
     if(c.id==='today'){const w=$('#td-with'),p=SCH.days[iso(now)]; if(w){w.hidden=!p; if(p){w.className='pill '+(p==='p1'?'mom':'dad'); w.textContent='With '+nm(p)}}}
   }
-  $('#kid2').addEventListener('click',()=>toast('A second child profile needs Premium'));
+  $$('.kid').forEach(b=>b.addEventListener('click',()=>setChild(b.dataset.child)));
 
   // ---------- Friendly-note check ----------
   // Notes to the other parent may not contain swear words, name-calling, shouting or blame.
