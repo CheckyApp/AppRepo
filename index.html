@@ -509,7 +509,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
       <div class="field" id="act-day-wrap"><label for="act-day">Day</label><select id="act-day"><option value="0">Monday</option><option value="1">Tuesday</option><option value="2">Wednesday</option><option value="3">Thursday</option><option value="4">Friday</option><option value="5">Saturday</option><option value="6">Sunday</option></select></div>
       <div class="field" id="act-date-wrap" hidden><label for="act-date">Date</label><input id="act-date" type="date"></div>
       <div class="field"><label for="act-who">Who</label><select id="act-who"><option value="c1" data-name="c1">Child 1</option><option value="c2" data-name="c2">Child 2</option><option value="both">Both children</option><option value="family">Whole family</option></select></div>
-      <div class="field"><label for="act-start">Starts</label><input id="act-start" type="time" value="14:30"></div>
+      <div class="field"><label for="act-start">Starts</label><input id="act-start" type="time"></div>
       <div class="field"><label for="act-end">Ends</label><input id="act-end" type="time"></div>
     </div>
     <div class="field"><label for="act-where">Where</label><input id="act-where" maxlength="80" placeholder="e.g. School netball courts"></div>
@@ -976,8 +976,8 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     editing=a; applyNames();
     $('#act-title').textContent=a?'Edit activity':'Add activity or reminder';
     $('#act-type').value=a?a.type:'Sport'; $('#act-name').value=a?a.name:''; $('#act-repeat').value=a?a.repeat:'weekly';
-    $('#act-day').value=String(a&&a.repeat==='weekly'?a.day:todayIdx); $('#act-date').value=a&&a.date?a.date:iso(now);
-    $('#act-who').value=a?a.who:'c1'; $('#act-start').value=a?a.start:'14:30'; $('#act-end').value=a?a.end:'';
+    $('#act-day').value=String(a&&a.repeat==='weekly'?a.day:todayIdx); $('#act-date').value=a&&a.date?a.date:'';
+    $('#act-who').value=a?a.who:'c1'; $('#act-start').value=a?a.start:''; $('#act-end').value=a?a.end:'';
     $('#act-where').value=a?a.where:''; $('#act-bring').value=a?a.bring:''; $('#act-remind').value=a?a.remind:'';
     $('#act-delete').hidden=!a; $('#act-error').hidden=true; syncRepeat(); actDlg.showModal(); $('#act-name').focus();
   }
@@ -991,8 +991,9 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     e.preventDefault();
     const name=$('#act-name').value.trim(); if(!name){$('#act-error').textContent='Give the activity a name.';$('#act-error').hidden=false;$('#act-name').focus();return}
     const rep=$('#act-repeat').value;
+    if(rep!=='weekly'&&!$('#act-date').value){$('#act-error').textContent='Choose the date.';$('#act-error').hidden=false;$('#act-date').focus();return}
     const a={id:editing?editing.id:'a'+Date.now(),type:$('#act-type').value,name,repeat:rep,
-      day:rep==='weekly'?+$('#act-day').value:undefined,date:rep==='weekly'?undefined:($('#act-date').value||iso(now)),
+      day:rep==='weekly'?+$('#act-day').value:undefined,date:rep==='weekly'?undefined:$('#act-date').value,
       start:$('#act-start').value,end:$('#act-end').value,who:$('#act-who').value,where:$('#act-where').value.trim(),
       bring:$('#act-bring').value.trim(),remind:$('#act-remind').value};
     if(USER&&FAM.id){
@@ -1056,7 +1057,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   function openBill(b){
     editingBill=b;
     $('#bill-title').textContent=b?'Edit bill':'Add bill';
-    $('#bill-name').value=b?b.name:''; $('#bill-amount').value=b?b.amount:''; $('#bill-due').value=b?b.due_date:iso(now);
+    $('#bill-name').value=b?b.name:''; $('#bill-amount').value=b?b.amount:''; $('#bill-due').value=b?b.due_date:'';
     $('#bill-repeat').value=b?b.repeat:'monthly'; $('#bill-paid').value=b&&b.last_paid?b.last_paid:''; $('#bill-notes').value=b?b.notes||'':'';
     $('#bill-delete').hidden=!b; $('#bill-error').hidden=true; billDlg.showModal(); $('#bill-name').focus();
   }
@@ -1212,7 +1213,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     const pc=calSec.querySelector('#paint-cancel'); if(pc) pc.addEventListener('click',()=>{PAINT=null;refreshCat()});
     const pv=calSec.querySelector('#paint-save'); if(pv) pv.addEventListener('click',savePaint);
     const co=calSec.querySelector('#cust-open'); if(co) co.addEventListener('click',openCustody);
-    const ro=calSec.querySelector('#req-open'); if(ro) ro.addEventListener('click',()=>{const d=iso(addDays(now,1));openRequest(d,d,otherOf(SCH.days[d]||FAM.me))});
+    const ro=calSec.querySelector('#req-open'); if(ro) ro.addEventListener('click',()=>openRequest('','',otherOf(FAM.me)));
     const ce=calSec.querySelector('#cust-extend'); if(ce) ce.addEventListener('click',extendCustody);
     hoSec.querySelector('#ho-add').addEventListener('click',()=>openHandover(null));
   }
@@ -1320,7 +1321,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     editingHo=h; applyNames(); $('#ho-error').hidden=true;
     $('#ho-title').textContent=h?'Edit drop-off or pickup':'Add drop-off or pickup';
     const cur=SCH.days[iso(now)]||FAM.me;
-    $('#ho-date').value=h?h.on_date:iso(now); $('#ho-time').value=h&&h.at_time?h.at_time.slice(0,5):'';
+    $('#ho-date').value=h?h.on_date:''; $('#ho-time').value=h&&h.at_time?h.at_time.slice(0,5):'';
     $('#ho-drop').value=h?h.dropped_by||'p1':cur; $('#ho-pick').value=h?h.picked_by||'p2':otherOf(cur);
     $('#ho-place').value=h?h.place||'':''; $('#ho-notes').value=h?h.notes||'':'';
     $('#ho-delete').hidden=!h; hoDlg.showModal();
@@ -1474,7 +1475,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
       {k:'kind',label:'Type',type:'select',options:[['assignment','Assignment'],['test','Test']],def:'assignment'},
       {k:'title',label:'What',max:100,req:true,ph:'e.g. Water cycle poster',reqMsg:'Say what the assignment or test is.'},
       {k:'subject',label:'Subject',max:60,ph:'e.g. Natural Sciences'},
-      {k:'given_date',label:'Date given',type:'date',def:()=>todayIso(),showIf:v=>v.kind==='assignment'},
+      {k:'given_date',label:'Date given',type:'date',showIf:v=>v.kind==='assignment'},
       {k:'due_date',label:'Due date (or test date)',type:'date',req:true,reqMsg:'Choose the due date or test date.'},
       {k:'mark',label:'Mark (add when marked)',type:'number',ph:'e.g. 18'},
       {k:'out_of',label:'Out of',type:'number',ph:'e.g. 20'},
@@ -1492,7 +1493,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     }});
   defineList({key:'reading',table:'reading_log',noun:'reading',plural:'reading',
     fields:[
-      {k:'read_on',label:'Date',type:'date',req:true,def:()=>todayIso()},
+      {k:'read_on',label:'Date',type:'date',req:true,reqMsg:'Choose the date.'},
       {k:'pages',label:'Pages',max:40,ph:'e.g. 24–31'},
       {k:'book',label:'Book',max:100,ph:'e.g. Die Wonderwerk'},
       {k:'language',label:'Language',type:'select',options:[['Afrikaans','Afrikaans'],['English','English'],['Other','Other']],def:'Afrikaans'},
@@ -1517,7 +1518,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   defineList({key:'contacts',table:'teacher_contacts',noun:'contact with a teacher',plural:'teacher contacts',
     fields:[
       {k:'teacher_id',label:'Teacher',type:'select',options:()=>[['','Not listed'],...[...RECS.teachers].sort((a,b)=>a.name.localeCompare(b.name)).map(t=>[t.id,t.name])],def:''},
-      {k:'contacted_on',label:'When',type:'date',req:true,def:()=>todayIso()},
+      {k:'contacted_on',label:'When',type:'date',req:true,reqMsg:'Choose the date.'},
       {k:'how',label:'How',type:'select',options:[['','—'],['Message','Message'],['Phone call','Phone call'],['Email','Email'],['Meeting','Meeting'],['Letter or note','Letter or note']],def:''},
       {k:'about',label:'What was it about',type:'longtext',max:300,req:true,ph:'e.g. Reading level, asked for extra practice',reqMsg:'Say what it was about.'},
       {k:'by_role',label:'Who made contact',type:'select',options:()=>[['p1',nm('p1')],['p2',nm('p2')]],def:()=>FAM.me}],
@@ -1528,7 +1529,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     fields:[
       {k:'kind',label:'Type',type:'select',options:Object.entries(EVENT_KIND),def:'event'},
       {k:'title',label:'What',max:100,req:true,ph:'e.g. Term 4 parent evening',reqMsg:'Say what is happening.'},
-      {k:'on_date',label:'Date',type:'date',req:true,def:()=>todayIso()},
+      {k:'on_date',label:'Date',type:'date',req:true,reqMsg:'Choose the date.'},
       {k:'at_time',label:'Time',type:'time'},
       {k:'details',label:'More information',type:'longtext',max:300,ph:'e.g. Classroom 12, bring the report'}],
     sort:(a,b)=>(a.done-b.done)||((a.on_date<todayIso())-(b.on_date<todayIso()))||(a.on_date<todayIso()?b.on_date.localeCompare(a.on_date):a.on_date.localeCompare(b.on_date)),
@@ -1557,7 +1558,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   defineList({key:'holidays',table:'holiday_records',noun:'holiday',plural:'holidays',
     fields:[
       {k:'occasion',label:'Occasion',type:'select',options:Object.entries(OCCASION),def:'christmas'},
-      {k:'year',label:'Year',type:'number',req:true,def:()=>now.getFullYear(),ph:'e.g. 2026'},
+      {k:'year',label:'Year',type:'number',req:true,ph:'e.g. 2026',reqMsg:'Type the year, for example 2026.'},
       {k:'parent',label:'Who had the children',type:'select',options:()=>Object.entries(WITH).map(([k,f])=>[k,f()]),def:()=>FAM.me},
       {k:'label',label:'Name (optional)',max:60,ph:'e.g. June/July holidays, 9th birthday'},
       {k:'from_date',label:'From',type:'date',showIf:v=>!['birthday','christmas','new_year'].includes(v.occasion)},
@@ -1571,7 +1572,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   defineList({key:'trips',table:'trips',noun:'trip',plural:'trips',photo:'photo_path',
     fields:[
       {k:'place',label:'Where',max:100,req:true,ph:'e.g. Ballito',reqMsg:'Say where you went.'},
-      {k:'trip_date',label:'From',type:'date',req:true,def:()=>todayIso()},
+      {k:'trip_date',label:'From',type:'date',req:true,reqMsg:'Choose the date the trip started.'},
       {k:'end_date',label:'Until',type:'date'},
       {k:'with_who',label:'With who',max:100,ph:'e.g. Father and Gran'},
       {k:'experience',label:'How was it',type:'longtext',max:1000,ph:'e.g. Swam every day, saw dolphins'},
