@@ -150,6 +150,11 @@ input::placeholder,textarea::placeholder{color:#7D756D}
 .pill.due{background:var(--p-orange);color:var(--ink-dark)}
 .pill.ok{background:var(--p-yellow);color:var(--ink-dark)}
 .pill.prem{background:var(--paint);color:var(--ink-dark)}
+.pill.late{background:var(--p-pink);color:var(--ink-dark)}
+.pill.later{background:var(--row-hi);color:var(--ink-soft)}
+.list li.bill-li{flex-wrap:wrap;padding-block:10px}
+.list li.bill-li .grow{flex:1 1 200px}
+.bill-side{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end}
 .amount{font-weight:700;font-variant-numeric:tabular-nums}
 .add-row{display:flex;gap:8px}
 .add-row input{flex:1;min-width:0;padding:10px 16px;border-radius:999px;border:1px solid var(--line);background:var(--field);box-shadow:inset 0 2px 4px var(--shadow)}
@@ -320,7 +325,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
       <div class="hero-stats">
         <div class="stat"><b class="num" id="chores-left">3</b><span>chores left today</span></div>
         <div class="stat"><b class="num" id="shop-count">5</b><span>items on the shopping list</span></div>
-        <div class="stat"><b class="num">R 2 450</b><span>bills due this week</span></div>
+        <div class="stat"><b class="num" id="bills-week">R 0</b><span>bills due this week</span></div>
         <div class="stat"><b class="num" id="acts-today-count">0</b><span>activities today</span></div>
         <div class="stat" id="stat-handover"><b>Fri</b><span>children go to <span data-name="p2">Father</span></span></div>
       </div>
@@ -362,13 +367,9 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
       </section>
 
       <section class="panel chrome" aria-labelledby="h-bills">
-        <div class="panel-head"><h3 id="h-bills">Bills</h3><span class="hint">October</span></div>
-        <ul class="list">
-          <li><div class="grow"><span>Electricity (prepaid)</span><div class="meta">Due 15 Oct</div></div><span class="amount">R 850</span><span class="pill due">Due soon</span></li>
-          <li><div class="grow"><span>School fees</span><div class="meta">Due 16 Oct</div></div><span class="amount">R 1 600</span><span class="pill due">Due soon</span></li>
-          <li><div class="grow"><span>Internet</span><div class="meta">Paid 1 Oct</div></div><span class="amount">R 699</span><span class="pill ok">Paid</span></li>
-          <li><div class="grow"><span>Water &amp; lights (municipal)</span><div class="meta">Due 28 Oct</div></div><span class="amount">R 1 120</span><span class="pill" style="background:var(--row-hi);color:var(--ink-soft)">Upcoming</span></li>
-        </ul>
+        <div class="panel-head"><h3 id="h-bills">Bills</h3><span class="hint" id="bills-hint"></span></div>
+        <ul class="list" id="bills"></ul>
+        <div class="note-acts"><button class="btn small" type="button" id="add-bill">Add bill</button></div>
       </section>
     </div>
   </main>
@@ -454,6 +455,22 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     <div class="field"><label for="pw-new">New password (at least 6 characters)</label><input id="pw-new" type="password" autocomplete="new-password"></div>
     <p class="hint" id="pw-msg" role="status" style="margin:0;color:var(--p-pink-lt)" hidden></p>
     <div class="note-acts"><button class="btn" type="submit">Save password</button></div>
+  </form>
+</dialog>
+
+<dialog id="bill-dialog" aria-labelledby="bill-title">
+  <form id="bill-form" class="dlg" method="dialog" novalidate>
+    <h3 id="bill-title">Add bill</h3>
+    <div class="field"><label for="bill-name">Bill</label><input id="bill-name" maxlength="80" placeholder="e.g. School fees"></div>
+    <div class="two-col">
+      <div class="field"><label for="bill-amount">Amount (R)</label><input id="bill-amount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="e.g. 1600"></div>
+      <div class="field"><label for="bill-due">Next due date</label><input id="bill-due" type="date"></div>
+      <div class="field"><label for="bill-repeat">How often</label><select id="bill-repeat"><option value="monthly">Every month</option><option value="once">Once only</option></select></div>
+      <div class="field"><label for="bill-paid">Last paid (leave empty if not paid)</label><input id="bill-paid" type="date"></div>
+    </div>
+    <div class="field"><label for="bill-notes">Notes</label><input id="bill-notes" maxlength="200" placeholder="e.g. Debit order, reference number"></div>
+    <p class="hint" id="bill-error" role="alert" style="margin:0;color:var(--p-pink-lt)" hidden></p>
+    <div class="note-acts"><button class="btn" type="submit">Save</button><button class="btn ghost" type="button" id="bill-cancel">Cancel</button><button class="btn ghost" type="button" id="bill-delete" hidden>Remove</button></div>
   </form>
 </dialog>
 
@@ -762,7 +779,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   $('#demo-btn').addEventListener('click',()=>{USER=null;loginMsg('');showApp();toast('Demo mode: nothing is saved online')});
   $('#signout').addEventListener('click',async()=>{
     if(USER&&sb){try{await sb.auth.signOut()}catch(e){} if(CHANNEL){sb.removeChannel(CHANNEL);CHANNEL=null}}
-    USER=null; $('#app').hidden=true;$('#login').hidden=false;document.body.classList.remove('inside');window.scrollTo(0,0);
+    USER=null; BILLS=store.get('checky.bills',null)||billSeed(); renderBills(); $('#app').hidden=true;$('#login').hidden=false;document.body.classList.remove('inside');window.scrollTo(0,0);
   });
   $('#pw-form').addEventListener('submit',async e=>{
     e.preventDefault(); const pw=$('#pw-new').value; const m=$('#pw-msg');
@@ -991,6 +1008,86 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   $('#see-week').addEventListener('click',()=>{$('#seg-shared').click();showCat(cats.find(c=>c.id==='activities'))});
   let currentCat=null; const refreshCat=()=>{if(currentCat&&!$('#shared').hidden) showCat(currentCat)};
 
+  // ---------- Bills (private to each person) ----------
+  const fmtR=n=>{const [i,c]=(Math.round(Number(n||0)*100)/100).toFixed(2).split('.');return 'R '+i.replace(/\B(?=(\d{3})+(?!\d))/g,' ')+(c==='00'?'':','+c)};
+  const dmy=s=>{const d=new Date(s+'T12:00');return d.getDate()+' '+d.toLocaleDateString('en-ZA',{month:'short'}).replace('.','')};
+  const addMonth=s=>{const d=new Date(s+'T12:00'),day=d.getDate();d.setDate(1);d.setMonth(d.getMonth()+1);d.setDate(Math.min(day,new Date(d.getFullYear(),d.getMonth()+1,0).getDate()));return iso(d)};
+  const billSeed=()=>{const m=n=>iso(addDays(now,n));return [
+    {id:'b1',name:'Electricity (prepaid)',amount:850,due_date:m(2),repeat:'monthly',last_paid:null,notes:''},
+    {id:'b2',name:'School fees',amount:1600,due_date:m(4),repeat:'monthly',last_paid:null,notes:''},
+    {id:'b3',name:'Internet',amount:699,due_date:m(20),repeat:'monthly',last_paid:m(-10),notes:'Debit order'},
+    {id:'b4',name:'Water & lights (municipal)',amount:1120,due_date:m(12),repeat:'monthly',last_paid:null,notes:''}]};
+  let BILLS=store.get('checky.bills',null)||billSeed();
+  const saveBillsLocal=()=>{if(!USER) store.set('checky.bills',BILLS)};
+  function billState(b){
+    if(b.repeat==='once'&&b.last_paid) return {k:'paid',label:'Paid',pill:'ok'};
+    if(b.due_date<iso(now)) return {k:'late',label:'Overdue',pill:'late'};
+    if(b.due_date<=iso(addDays(now,7))) return {k:'soon',label:'Due soon',pill:'due'};
+    return {k:'later',label:'Upcoming',pill:'later'};
+  }
+  function renderBills(){
+    const ul=$('#bills'); if(!ul) return;
+    const list=[...BILLS].sort((a,b)=>(billState(a).k==='paid')-(billState(b).k==='paid')||a.due_date.localeCompare(b.due_date));
+    ul.innerHTML='';
+    if(!list.length) ul.innerHTML='<li class="empty">No bills yet. Add rent, school fees, electricity and the like.</li>';
+    list.forEach(b=>{
+      const st=billState(b), li=document.createElement('li'); li.className='bill-li';
+      const meta=[st.k==='paid'?'Paid '+dmy(b.last_paid):'Due '+dmy(b.due_date), b.repeat==='monthly'?'Every month':'Once',
+        b.repeat==='monthly'&&b.last_paid?'Last paid '+dmy(b.last_paid):'', b.notes].filter(Boolean).map(esc).join(' · ');
+      li.innerHTML='<div class="grow"><span></span><div class="meta">'+meta+'</div></div><div class="bill-side"><span class="amount">'+fmtR(b.amount)+'</span><span class="pill '+st.pill+'">'+st.label+'</span>'+
+        (st.k!=='paid'?'<button type="button" class="mini-btn" data-act="pay">Paid</button>':'')+'<button type="button" class="mini-btn" data-act="edit">Edit</button></div>';
+      li.querySelector('.grow span').textContent=b.name;
+      const pay=li.querySelector('[data-act=pay]'); if(pay){pay.setAttribute('aria-label','Mark '+b.name+' as paid');pay.addEventListener('click',()=>payBill(b))}
+      const ed=li.querySelector('[data-act=edit]'); ed.setAttribute('aria-label','Edit '+b.name); ed.addEventListener('click',()=>openBill(b));
+      ul.appendChild(li);
+    });
+    $('#bills-week').textContent=fmtR(BILLS.filter(b=>['late','soon'].includes(billState(b).k)).reduce((s,b)=>s+Number(b.amount||0),0));
+    const open=BILLS.filter(b=>billState(b).k!=='paid').length;
+    $('#bills-hint').textContent=!BILLS.length?'':open?open+(open===1?' bill to pay':' bills to pay'):'All paid';
+  }
+  async function payBill(b){
+    const upd=b.repeat==='monthly'?{last_paid:iso(now),due_date:addMonth(b.due_date)}:{last_paid:iso(now)};
+    if(USER){const {error}=await sb.from('bills').update(upd).eq('id',b.id); if(error){toast('Could not save: '+error.message);return}}
+    Object.assign(b,upd); saveBillsLocal(); renderBills();
+    toast(b.repeat==='monthly'?b.name+' paid. Next due '+dmy(b.due_date)+'.':b.name+' marked as paid.');
+  }
+  const billDlg=$('#bill-dialog'); let editingBill=null;
+  function openBill(b){
+    editingBill=b;
+    $('#bill-title').textContent=b?'Edit bill':'Add bill';
+    $('#bill-name').value=b?b.name:''; $('#bill-amount').value=b?b.amount:''; $('#bill-due').value=b?b.due_date:iso(now);
+    $('#bill-repeat').value=b?b.repeat:'monthly'; $('#bill-paid').value=b&&b.last_paid?b.last_paid:''; $('#bill-notes').value=b?b.notes||'':'';
+    $('#bill-delete').hidden=!b; $('#bill-error').hidden=true; billDlg.showModal(); $('#bill-name').focus();
+  }
+  $('#add-bill').addEventListener('click',()=>openBill(null));
+  $('#bill-cancel').addEventListener('click',()=>billDlg.close());
+  $('#bill-delete').addEventListener('click',async()=>{
+    if(!editingBill) return;
+    if(USER){const {error}=await sb.from('bills').delete().eq('id',editingBill.id); if(error){toast('Could not remove: '+error.message);return}}
+    BILLS=BILLS.filter(x=>x!==editingBill); saveBillsLocal(); billDlg.close(); renderBills(); toast('Bill removed');
+  });
+  $('#bill-form').addEventListener('submit',async e=>{
+    e.preventDefault(); const err=$('#bill-error'); const fail=(t,el)=>{err.textContent=t;err.hidden=false;el&&el.focus()};
+    const name=$('#bill-name').value.trim(), amt=$('#bill-amount').value, due=$('#bill-due').value;
+    if(!name) return fail('Give the bill a name.',$('#bill-name'));
+    if(amt===''||isNaN(+amt)||+amt<0) return fail('Type the amount in rand, for example 1600 or 849.99.',$('#bill-amount'));
+    if(!due) return fail('Choose the date it is next due.',$('#bill-due'));
+    const row={name,amount:Math.round(+amt*100)/100,due_date:due,repeat:$('#bill-repeat').value,last_paid:$('#bill-paid').value||null,notes:$('#bill-notes').value.trim()||null};
+    let saved={...row,id:editingBill?editingBill.id:'b'+Date.now(),notes:row.notes||''};
+    if(USER){
+      const res=editingBill?await sb.from('bills').update(row).eq('id',editingBill.id).select().single():await sb.from('bills').insert(row).select().single();
+      if(res.error) return fail('Could not save: '+res.error.message);
+      saved={...res.data,amount:Number(res.data.amount),notes:res.data.notes||''};
+    }
+    if(editingBill) BILLS=BILLS.map(x=>x===editingBill?saved:x); else BILLS.push(saved);
+    saveBillsLocal(); billDlg.close(); renderBills(); toast(editingBill?'Bill saved':'Bill added');
+  });
+  async function loadBills(){
+    const {data,error}=await sb.from('bills').select('*').order('due_date');
+    if(error){toast('Could not load your bills: '+error.message);return}
+    BILLS=data.map(r=>({...r,amount:Number(r.amount),notes:r.notes||''})); renderBills();
+  }
+
   // ---------- Online data ----------
   const fromRow=r=>({id:r.id,type:r.kind,name:r.name,repeat:r.repeat,day:r.week_day,date:r.on_date||undefined,start:r.starts||'',end:r.ends||'',who:r.who,where:r.place||'',bring:r.bring||'',remind:r.remind||''});
   const toRow=a=>({family_id:FAM.id,kind:a.type,name:a.name,repeat:a.repeat,week_day:a.repeat==='weekly'?a.day:null,on_date:a.repeat==='weekly'?null:a.date,
@@ -998,10 +1095,10 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   async function startCloud(user){
     USER=user; showApp(); toast('Signed in as '+user.email);
     // Start every account with empty lists instead of the demo examples
-    ['#chores','#shop','#today-acts'].forEach(s=>{$(s).innerHTML=''}); $('#note-sent').innerHTML=''; ACTS=[]; updateCounts(); renderToday();
+    ['#chores','#shop','#today-acts'].forEach(s=>{$(s).innerHTML=''}); $('#note-sent').innerHTML=''; ACTS=[]; BILLS=[]; updateCounts(); renderToday(); renderBills();
     const {data,error}=await sb.from('family_members').select('role, families(*)').eq('user_id',user.id).limit(1);
     if(error){toast('Could not load your family. Has the database been set up? ('+error.message+')');return}
-    await loadPersonal();
+    await Promise.all([loadPersonal(),loadBills()]);
     if(!data.length){delete FAM.id;delete FAM.code;openFamily(true);return}
     await useFamily(data[0].families,data[0].role);
   }
@@ -1180,7 +1277,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     t.innerHTML=html+'</tbody>';
   }
   $('#today-label').textContent=now.toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  applyNames(); renderToday();
+  applyNames(); renderToday(); renderBills();
   showCat(cats[0]);
 
   // ---------- Install on a phone ----------
