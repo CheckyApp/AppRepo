@@ -213,6 +213,10 @@ input::placeholder,textarea::placeholder{color:#7D756D}
 .photo-pick input[type=file]{padding:10px;border-radius:14px;border:1px dashed var(--line);background:var(--field);color:var(--ink-soft)}
 .thumb{flex:none;width:64px;height:64px;padding:0;border:0;border-radius:14px;overflow:hidden;cursor:pointer;background:var(--row-lo)}
 .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.file-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.file-chip{display:inline-block;padding:4px 10px;border-radius:999px;background:var(--row-hi);color:var(--p-blue-lt);font-weight:700;font-size:.8rem;text-decoration:none;box-shadow:inset 0 0 0 1px var(--line)}
+.dispute{margin-top:8px;padding:10px 12px;border-radius:14px;background:#2A1322;box-shadow:inset 0 0 0 1px var(--p-pink);font-size:.86rem;display:grid;gap:6px;justify-items:start}
+.dispute strong{color:var(--p-pink-lt)}
 .thumb.pdf{display:grid;place-items:center;font-weight:800;font-size:.8rem;color:var(--ink-dark);background:var(--p-orange);text-decoration:none}
 .prem-note{margin:18px 0 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .photo-dlg{padding:12px;background:#000;width:min(900px,calc(100% - 16px))}
@@ -548,6 +552,30 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <dialog id="rec-dialog" aria-labelledby="rec-title"><form id="rec-form" class="dlg" method="dialog" novalidate></form></dialog>
+
+<dialog id="dispute-dialog" aria-labelledby="dis-title">
+  <form id="dis-form" class="dlg" method="dialog" novalidate>
+    <h3 id="dis-title">Disagree</h3>
+    <p class="hint" id="dis-about" style="margin:0"></p>
+    <div class="field"><label for="dis-note">Why do you disagree?</label><textarea id="dis-note" rows="3" maxlength="500" placeholder="e.g. I already paid half on 12 October"></textarea></div>
+    <div class="field"><label for="dis-amount">Amount you agree to (R, optional)</label><input id="dis-amount" type="number" inputmode="decimal" min="0" step="any" placeholder="e.g. 100"></div>
+    <div class="field"><label for="dis-file">Your proof of payment (photo or PDF, optional)</label><input id="dis-file" type="file" accept="image/*,application/pdf"></div>
+    <p class="hint" style="margin:0">The other parent sees this in the same box. Once added, changing it needs their approval.</p>
+    <p class="hint" id="dis-error" role="alert" style="margin:0;color:var(--p-pink-lt)" hidden></p>
+    <div class="note-acts"><button class="btn" type="submit">Save</button><button class="btn ghost" type="button" id="dis-cancel">Cancel</button></div>
+  </form>
+</dialog>
+
+<dialog id="proof-dialog" aria-labelledby="proof-title">
+  <form id="proof-form" class="dlg" method="dialog" novalidate>
+    <h3 id="proof-title">Add proof of payment</h3>
+    <p class="hint" id="proof-about" style="margin:0"></p>
+    <div class="field"><label for="proof-file">Proof of payment (photo or PDF)</label><input id="proof-file" type="file" accept="image/*,application/pdf"></div>
+    <p class="hint" style="margin:0">Once added, replacing it needs the other parent's approval.</p>
+    <p class="hint" id="proof-error" role="alert" style="margin:0;color:var(--p-pink-lt)" hidden></p>
+    <div class="note-acts"><button class="btn" type="submit">Upload</button><button class="btn ghost" type="button" id="proof-cancel">Cancel</button></div>
+  </form>
+</dialog>
 
 <dialog id="photo-dialog" aria-label="Photo" class="photo-dlg"><img id="photo-big" alt=""><button type="button" class="btn small" id="photo-close">Close</button></dialog>
 
@@ -1407,6 +1435,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   }
   async function removeRecord(){
     const {k,rec}=recCtx, c=LISTDEF[k];
+    if(c.strict&&!isMine(rec)){toast("You can't remove the other parent's entry. Use Disagree instead.",4000);return}
     if(needsApproval()&&GUARD[c.table]){recDlg.close(); const it=c.item(rec); await askChange(c.table,rec,'delete',null,c.noun.charAt(0).toUpperCase()+c.noun.slice(1)+' "'+it.title+'"'); return}
     if(USER&&FAM.id){const {error}=await sb.from(c.table).delete().eq('id',rec.id); if(error){toast('Could not remove: '+error.message);return} if(c.photo&&rec[c.photo]) sb.storage.from((c.bucket||'trip-photos')).remove([rec[c.photo]])}
     RECS[k]=RECS[k].filter(x=>x!==rec); recDlg.close(); refreshCat(); toast('Removed');
@@ -1420,7 +1449,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
       if(f.type==='number'&&row[f.k]!=null&&isNaN(row[f.k])) return fail('Type a number for: '+(typeof f.label==='function'?f.label():f.label),f.k) }
     const bad=c.validate&&c.validate(row); if(bad) return fail(bad);
     let pendingDates=null;
-    if(rec&&needsApproval()&&GUARD[c.table]){const ch=dateDiff(c.table,rec,row); if(Object.keys(ch).length){pendingDates=ch; Object.keys(ch).forEach(k=>{row[k]=rec[k]??null})}}
+    if(rec&&needsApproval()&&GUARD[c.table]){const ch=c.strict?strictDiff(c.table,rec,row):dateDiff(c.table,rec,row); if(Object.keys(ch).length){pendingDates=ch; Object.keys(ch).forEach(k=>{row[k]=rec[k]??null})}}
     let oldPhoto=null, localUrl=null;
     if(c.photo){
       const inp=$('#rf-'+c.photo), file=inp&&inp.files[0], rm=$('#rf-'+c.photo+'-remove');
@@ -1439,6 +1468,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
       }else if(rm&&rm.checked){row[c.photo]=null; if(rec) oldPhoto=rec[c.photo]}
       else if(rec) row[c.photo]=rec[c.photo];
     }
+    if(rec&&c.strict&&needsApproval()&&c.photo&&row[c.photo]!==rec[c.photo]){pendingDates=pendingDates||{}; pendingDates[c.photo]=row[c.photo]; row[c.photo]=rec[c.photo]; oldPhoto=null}
     let saved={...(rec||{}),...row,id:rec?rec.id:'x'+Date.now(),...(!rec&&c.perChild?{child:CHILD}:{})};
     if(localUrl) saved._url=localUrl; else if(c.photo&&!row[c.photo]) saved._url=null;
     if(USER&&FAM.id){
@@ -1466,15 +1496,17 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     rows.forEach(r=>{
       const it=c.item(r), li=document.createElement('li'); li.className='bill-li';
       if(c.photo&&r._url){ if(isPdfPath(r[c.photo])) it.pdf=r._url; else it.thumb=r._url }
-      li.innerHTML=(it.check?'<input type="checkbox" class="check">':'')+(it.thumb?'<button type="button" class="thumb"><img alt=""></button>':'')+(it.pdf?'<a class="thumb pdf" target="_blank" rel="noopener">PDF</a>':'')+'<div class="grow"><span></span><div class="meta"></div>'+(it.links?'<div class="meta rec-links">'+it.links+'</div>':'')+'</div><div class="bill-side">'+(it.pill?'<span class="pill '+it.pill[0]+'">'+esc(it.pill[1])+'</span>':'')+'</div>';
+      li.innerHTML=(it.check?'<input type="checkbox" class="check">':'')+(it.thumb?'<button type="button" class="thumb"><img alt=""></button>':'')+(it.pdf?'<a class="thumb pdf" target="_blank" rel="noopener">PDF</a>':'')+'<div class="grow"><span></span><div class="meta"></div>'+(it.links?'<div class="meta rec-links">'+it.links+'</div>':'')+(it.files&&it.files.length?'<div class="file-chips"></div>':'')+(it.extra?'<div class="dispute"></div>':'')+'</div><div class="bill-side">'+(it.pill?'<span class="pill '+it.pill[0]+'">'+esc(it.pill[1])+'</span>':'')+'</div>';
       li.querySelector('.grow span').textContent=it.title; li.querySelector('.grow .meta').textContent=(it.meta||[]).filter(Boolean).join(' · ');
       if(it.done) li.classList.add('done');
       if(pendingFor(r.id)){const pp=document.createElement('span');pp.className='pill later';pp.textContent='Change waiting';li.querySelector('.bill-side').prepend(pp)}
+      if(it.files&&it.files.length){const fc=li.querySelector('.file-chips'); it.files.forEach(fl=>{const a=document.createElement('a');a.className='file-chip';a.textContent=fl.label+(fl.pdf?' (PDF)':'');a.href=fl.url;a.target='_blank';a.rel='noopener';if(!fl.pdf){a.addEventListener('click',ev=>{ev.preventDefault();showPhoto(fl.url,fl.label)})}fc.appendChild(a)})}
+      if(it.extra){const d=li.querySelector('.dispute'); d.innerHTML=it.extra.html; (it.extra.files||[]).forEach(fl=>{const a=document.createElement('a');a.className='file-chip';a.textContent=fl.label+(fl.pdf?' (PDF)':'');a.href=fl.url;a.target='_blank';a.rel='noopener';if(!fl.pdf){a.addEventListener('click',ev=>{ev.preventDefault();showPhoto(fl.url,fl.label)})}d.appendChild(a)})}
       if(it.pdf){const a=li.querySelector('a.pdf');a.href=it.pdf;a.setAttribute('aria-label','Open PDF: '+it.title)}
       if(it.thumb){const tb=li.querySelector('.thumb');tb.querySelector('img').src=it.thumb;tb.setAttribute('aria-label','Open photo: '+it.title);tb.addEventListener('click',()=>showPhoto(it.thumb,it.title))}
       if(it.check){const cb=li.querySelector('.check'); cb.checked=!!it.check.on; cb.setAttribute('aria-label',it.check.label||it.title); cb.addEventListener('change',e=>{e.stopPropagation(); it.check.fn(cb.checked)})}
       const side=li.querySelector('.bill-side');
-      [...(it.buttons||[]),{label:'Edit',fn:()=>openRecord(k,r)}].forEach(bd=>{const b=document.createElement('button');b.type='button';b.className='mini-btn';b.textContent=bd.label;b.setAttribute('aria-label',bd.label+': '+it.title);b.addEventListener('click',bd.fn);side.appendChild(b)});
+      [...(it.buttons||[]),...(it.noEdit?[]:[{label:'Edit',fn:()=>openRecord(k,r)}])].forEach(bd=>{const b=document.createElement('button');b.type='button';b.className='mini-btn';b.textContent=bd.label;b.setAttribute('aria-label',bd.label+': '+it.title);b.addEventListener('click',bd.fn);side.appendChild(b)});
       ul.appendChild(li);
     });
     return sec;
@@ -1621,10 +1653,11 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   }
   async function signPhotos(k,rows){
     const c=LISTDEF[k]; if(!c.photo||!USER) return;
-    const paths=rows.map(r=>r[c.photo]).filter(Boolean); if(!paths.length) return;
-    const {data}=await sb.storage.from((c.bucket||'trip-photos')).createSignedUrls(paths,3600);
+    const paths=rows.map(r=>r[c.photo]).filter(Boolean); if(!paths.length&&!c.extraFiles) return;
+    const {data}=paths.length?await sb.storage.from((c.bucket||'trip-photos')).createSignedUrls(paths,3600):{data:[]};
     const map=Object.fromEntries((data||[]).filter(x=>x.signedUrl).map(x=>[x.path,x.signedUrl]));
     rows.forEach(r=>{if(r[c.photo]) r._url=map[r[c.photo]]||null});
+    if(c.extraFiles){const ex=rows.flatMap(r=>c.extraFiles.map(f=>r[f]).filter(Boolean)); if(ex.length){const {data:d2}=await sb.storage.from(c.bucket||'trip-photos').createSignedUrls(ex,3600); const m2=Object.fromEntries((d2||[]).filter(x=>x.signedUrl).map(x=>[x.path,x.signedUrl])); rows.forEach(r=>{r._urls={};c.extraFiles.forEach(f=>{if(r[f]) r._urls[f]=m2[r[f]]||null})})}}
   }
   const photoDlg=$('#photo-dialog');
   function showPhoto(url,alt){$('#photo-big').src=url;$('#photo-big').alt=alt;photoDlg.showModal()}
@@ -1691,7 +1724,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
 
   // Money
   const MONEY_KIND={expense:'Expense',recurring:'Recurring expense',owed:'Money owed',paid:'Payment made'};
-  defineList({key:'money',table:'money_entries',noun:'money entry',plural:'money',photo:'file_path',bucket:'family-files',perChild:true,
+  defineList({key:'money',table:'money_entries',noun:'money entry',plural:'money',photo:'file_path',bucket:'family-files',perChild:true,extraFiles:['proof_path','dispute_proof_path'],strict:true,
     fields:[
       {k:'kind',label:'Type',type:'select',options:Object.entries(MONEY_KIND),def:'expense'},
       {k:'description',label:'What for',max:120,req:true,ph:'e.g. School shoes',reqMsg:'Say what the money is for.'},
@@ -1701,18 +1734,27 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
       {k:'paid_by',label:'Who paid',type:'select',options:()=>[['','—'],...who3()],def:'',showIf:v=>v.kind!=='owed'},
       {k:'owed_by',label:'Who owes the other parent',type:'select',options:()=>[['p1',nm('p1')],['p2',nm('p2')]],def:()=>otherOf(FAM.me),showIf:v=>v.kind==='owed'},
       {k:'notes',label:'Notes',type:'longtext',max:300,ph:'e.g. Half each, as agreed'},
-      {k:'file_path',label:'Receipt or proof of payment (photo or PDF)',type:'photo',pdf:true}],
+      {k:'file_path',label:'Receipt (photo or PDF)',type:'photo',pdf:true}],
     validate:r=>r.amount<0||isNaN(r.amount)?'Type the amount in rand, for example 450.':null,
     sort:(a,b)=>(b.entry_date||'').localeCompare(a.entry_date||''),
-    item:r=>({title:r.description,pill:['later',fmtR(r.amount)],
+    item:r=>{const mine=isMine(r), U=r._urls||{}, disputed=!!(r.dispute_note||r.dispute_amount!=null||r.dispute_proof_path);
+      const files=[]; if(r.proof_path&&U.proof_path) files.push({label:'Proof of payment',url:U.proof_path,pdf:isPdfPath(r.proof_path)});
+      const btns=[]; if(!r.proof_path) btns.push({label:'Add proof of payment',fn:()=>openProof(r)});
+      if(!mine&&!disputed) btns.push({label:'Disagree',fn:()=>openDispute(r)});
+      const disBy=r.disputed_by||(mine?otherOf(FAM.me):FAM.me);
+      if(disputed&&disBy===FAM.me&&!mine) btns.push({label:'Change disagreement',fn:()=>openDispute(r)});
+      const extra=disputed?{html:'<strong>'+esc(nm(disBy))+' disagrees:</strong> '+esc(r.dispute_note||'')+(r.dispute_amount!=null?' · <strong>Agrees to '+esc(fmtR(r.dispute_amount))+'</strong>':''),
+        files:r.dispute_proof_path&&U.dispute_proof_path?[{label:'Their proof of payment',url:U.dispute_proof_path,pdf:isPdfPath(r.dispute_proof_path)}]:[]}:null;
+      return {title:r.description,pill:disputed?['late','Disputed · '+fmtR(r.amount)]:['later',fmtR(r.amount)],noEdit:!mine,buttons:btns,files,extra,
       meta:[dmy(r.entry_date),r.kind==='recurring'?({monthly:'Every month',termly:'Every school term',yearly:'Every year'})[r.repeats]:'',
-        r.kind==='owed'&&r.owed_by?nm(r.owed_by)+' owes '+nm(otherOf(r.owed_by)):'',r.kind!=='owed'&&r.paid_by?'Paid by '+(r.paid_by==='other'?'someone else':nm(r.paid_by)):'',r.notes]})});
+        r.kind==='owed'&&r.owed_by?nm(r.owed_by)+' owes '+nm(otherOf(r.owed_by)):'',r.kind!=='owed'&&r.paid_by?'Paid by '+(r.paid_by==='other'?'someone else':nm(r.paid_by)):'',r.notes,!mine?'Added by '+nm(r.created_by===USER?.id?FAM.me:otherOf(FAM.me)):'']}}});
   function moneyHints(){
     const mine=RECS.money.filter(r=>(r.child||'c1')===CHILD), ym=todayIso().slice(0,7);
     const month=mine.filter(r=>(r.kind==='expense'||r.kind==='recurring')&&(r.entry_date||'').slice(0,7)===ym).reduce((s,r)=>s+Number(r.amount),0);
     const out={p1:0,p2:0}; mine.forEach(r=>{if(r.kind==='owed'&&r.owed_by) out[r.owed_by]+=Number(r.amount); if(r.kind==='paid'&&(r.paid_by==='p1'||r.paid_by==='p2')) out[r.paid_by]-=Number(r.amount)});
     const owe=['p1','p2'].filter(p=>out[p]>0.004).map(p=>esc(nm(p))+' still owes '+fmtR(out[p]));
-    return {month:'Expenses this month: '+fmtR(month),owed:owe.length?owe.join(' · '):'Nothing outstanding'};
+    const dis=mine.filter(r=>r.kind==='owed'&&(r.dispute_note||r.dispute_amount!=null)).length;
+    return {month:'Expenses this month: '+fmtR(month),owed:(owe.length?owe.join(' · '):'Nothing outstanding')+(dis?' · '+dis+' disputed':'')};
   }
   function renderMoney(body){
     const wrap=document.createElement('div'); wrap.className='grid'; const h=moneyHints();
@@ -1817,17 +1859,70 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     CHILD=c; $$('.kid').forEach(b=>b.setAttribute('aria-pressed',b.dataset.child===c)); refreshCat();
   }
 
+  // ---------- Money: disagree and proof of payment ----------
+  // Nothing with money changes without the other parent's approval; you can't edit the other parent's entries,
+  // but you can disagree (reason, amount you agree to, your proof) and either parent can add proof of payment once.
+  const isMine=r=>!USER||!r.created_by||r.created_by===USER.id;
+  async function uploadFile(bucket,file){
+    const isPdf=file.type==='application/pdf'||/\.pdf$/i.test(file.name);
+    if(isPdf&&file.size>10*1024*1024) throw new Error('This PDF is bigger than 10 MB. Try a smaller file.');
+    const blob=isPdf?file:await shrinkImage(file);
+    if(!USER||!FAM.id) return {path:isPdf?'local.pdf':'local.jpg',url:URL.createObjectURL(blob)};
+    const path=FAM.id+'/'+(crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random().toString(36).slice(2))+(isPdf?'.pdf':'.jpg');
+    const up=await sb.storage.from(bucket).upload(path,blob,{contentType:isPdf?'application/pdf':'image/jpeg'});
+    if(up.error) throw new Error('Could not upload: '+up.error.message);
+    return {path,url:null};
+  }
+  const disDlg=$('#dispute-dialog'); let disRec=null;
+  function openDispute(r){
+    disRec=r; $('#dis-error').hidden=true; $('#dis-file').value='';
+    $('#dis-title').textContent=r.dispute_note||r.dispute_amount!=null?'Change your disagreement':'Disagree';
+    $('#dis-about').textContent=r.description+' · '+fmtR(r.amount)+' · '+dmy(r.entry_date);
+    $('#dis-note').value=r.dispute_note||''; $('#dis-amount').value=r.dispute_amount!=null?r.dispute_amount:'';
+    disDlg.showModal(); $('#dis-note').focus();
+  }
+  $('#dis-cancel').addEventListener('click',()=>disDlg.close());
+  $('#dis-form').addEventListener('submit',async e=>{
+    e.preventDefault(); const err=$('#dis-error'), fail=t=>{err.textContent=t;err.hidden=false};
+    let note=$('#dis-note').value.trim(); const amt=$('#dis-amount').value, file=$('#dis-file').files[0];
+    if(!note) return fail('Write why you disagree.');
+    if(amt!==''&&(isNaN(+amt)||+amt<0)) return fail('Type the amount you agree to in rand, or leave it empty.');
+    const fr=friendly(note); let softened=false; if(fr.fixes.length){note=fr.text;softened=true}
+    const patch={dispute_note:note,dispute_amount:amt===''?null:Math.round(+amt*100)/100};
+    let local=null;
+    if(file){ try{err.textContent='Uploading…';err.hidden=false;const u=await uploadFile('family-files',file);patch.dispute_proof_path=u.path;local=u.url}catch(x){return fail(x.message)} }
+    const r=disRec, first=!r.dispute_note&&r.dispute_amount==null&&!r.dispute_proof_path;
+    if(USER&&FAM.id&&!first&&needsApproval()){ disDlg.close(); return askChange('money_entries',r,'update',patch,r.description) }
+    if(USER&&FAM.id){const {error}=await sb.from('money_entries').update(patch).eq('id',r.id); if(error) return fail('Could not save: '+error.message); await loadList('money')}
+    else{Object.assign(r,patch,{disputed_by:FAM.me}); if(local){r._urls=r._urls||{};r._urls.dispute_proof_path=local} refreshCat()}
+    disDlg.close(); toast((softened?'Your words were made friendlier. ':'')+'Disagreement added. '+nm(otherOf(FAM.me))+' can see it in the same box.',4000);
+  });
+  const proofDlg=$('#proof-dialog'); let proofRec=null;
+  function openProof(r){proofRec=r; $('#proof-error').hidden=true; $('#proof-file').value=''; $('#proof-about').textContent=r.description+' · '+fmtR(r.amount); proofDlg.showModal()}
+  $('#proof-cancel').addEventListener('click',()=>proofDlg.close());
+  $('#proof-form').addEventListener('submit',async e=>{
+    e.preventDefault(); const err=$('#proof-error'), fail=t=>{err.textContent=t;err.hidden=false}, file=$('#proof-file').files[0];
+    if(!file) return fail('Choose a photo or PDF of the proof of payment.');
+    let u; try{err.textContent='Uploading…';err.hidden=false;u=await uploadFile('family-files',file)}catch(x){return fail(x.message)}
+    const r=proofRec;
+    if(USER&&FAM.id&&r.proof_path&&needsApproval()){ proofDlg.close(); return askChange('money_entries',r,'update',{proof_path:u.path},r.description) }
+    if(USER&&FAM.id){const {error}=await sb.from('money_entries').update({proof_path:u.path}).eq('id',r.id); if(error) return fail('Could not save: '+error.message); await loadList('money')}
+    else{r.proof_path=u.path; r._urls=r._urls||{}; r._urls.proof_path=u.url; refreshCat()}
+    proofDlg.close(); toast('Proof of payment added. '+nm(otherOf(FAM.me))+' can see it.');
+  });
+
   // ---------- Once a date is set, it's set: date changes and removals need the other parent ----------
   const GUARD={activities:['repeat','week_day','on_date','starts','ends'],handovers:['on_date','at_time'],school_work:['given_date','due_date'],reading_log:['read_on'],
-    teacher_contacts:['contacted_on'],school_events:['on_date','at_time'],holiday_records:['occasion','year','parent','from_date','to_date'],trips:['trip_date','end_date','with_who'],belongings:['bought_on','swapped_on'],who_has:['has_parent','asked_on','expected_on','returned_on'],money_entries:['entry_date','paid_by','owed_by'],communications:['happened_on','at_time'],health_records:['given_on','at_time','to_date','follow_up'],documents:['doc_date','at_time','held_by']};
+    teacher_contacts:['contacted_on'],school_events:['on_date','at_time'],holiday_records:['occasion','year','parent','from_date','to_date'],trips:['trip_date','end_date','with_who'],belongings:['bought_on','swapped_on'],who_has:['has_parent','asked_on','expected_on','returned_on'],money_entries:['kind','description','amount','entry_date','repeats','paid_by','owed_by','notes','file_path','proof_path','dispute_note','dispute_amount','dispute_proof_path'],communications:['happened_on','at_time'],health_records:['given_on','at_time','to_date','follow_up'],documents:['doc_date','at_time','held_by']};
   const COL_LABEL={repeat:'how often',week_day:'day',on_date:'date',starts:'start time',ends:'end time',at_time:'time',given_date:'date given',due_date:'due date',
-    read_on:'date',contacted_on:'date',year:'year',from_date:'from',to_date:'until',trip_date:'from',end_date:'until',parent:'who had the children',occasion:'occasion',with_who:'with who',bought_on:'bought',swapped_on:'swapped',has_parent:'who has it',asked_on:'asked',expected_on:'back by',returned_on:'returned',entry_date:'date',paid_by:'who paid',owed_by:'who owes',happened_on:'date',given_on:'date',follow_up:'follow-up',doc_date:'date',held_by:'who has the original'};
+    read_on:'date',contacted_on:'date',year:'year',from_date:'from',to_date:'until',trip_date:'from',end_date:'until',parent:'who had the children',occasion:'occasion',with_who:'with who',bought_on:'bought',swapped_on:'swapped',has_parent:'who has it',asked_on:'asked',expected_on:'back by',returned_on:'returned',entry_date:'date',paid_by:'who paid',owed_by:'who owes',happened_on:'date',given_on:'date',follow_up:'follow-up',doc_date:'date',held_by:'who has the original',kind:'type',description:'what for',amount:'amount',repeats:'how often',notes:'notes',file_path:'receipt',proof_path:'proof of payment',dispute_note:'disagreement',dispute_amount:'amount agreed to',dispute_proof_path:'their proof'};
   const TBL_KEY={school_work:'work',reading_log:'reading',teacher_contacts:'contacts',school_events:'events',holiday_records:'holidays',trips:'trips',belongings:'belong',who_has:'whohas',money_entries:'money',communications:'comm',health_records:'health',documents:'docs'};
   let CHG=[];
   const needsApproval=()=>!!(USER&&FAM.id&&(SCH.members||1)>1);
-  const normV=(k,v)=>v==null||v===''?'':/^(starts|ends|at_time)$/.test(k)?String(v).slice(0,5):String(v);
-  const showV=(k,v)=>{v=normV(k,v); if(!v) return 'none'; if(/_date$|_on$/.test(k)) return dmy(v); if(k==='week_day') return DAYS[+v]; if(k==='repeat') return ({weekly:'every week',game:'game or match',once:'once'})[v]||v; if(k==='parent') return (WITH[v]||(()=>v))(); if(k==='occasion') return OCCASION[v]||v; if(k==='has_parent'||k==='paid_by'||k==='owed_by'||k==='held_by') return v==='other'?'someone else':nm(v); return v};
+  const normV=(k,v)=>v==null||v===''?'':/^(starts|ends|at_time)$/.test(k)?String(v).slice(0,5):/^(amount|dispute_amount|year|quantity|duration_min|week_day)$/.test(k)&&!isNaN(+v)?String(+v):String(v);
+  const showV=(k,v)=>{v=normV(k,v); if(!v) return 'none'; if(k==='amount'||k==='dispute_amount') return fmtR(v); if(/_path$/.test(k)) return 'a new file'; if(k==='kind') return (MONEY_KIND[v]||v); if(k==='notes'||k==='description'||k==='dispute_note') return '"'+v+'"'; if(/_date$|_on$/.test(k)) return dmy(v); if(k==='week_day') return DAYS[+v]; if(k==='repeat') return ({weekly:'every week',game:'game or match',once:'once'})[v]||v; if(k==='parent') return (WITH[v]||(()=>v))(); if(k==='occasion') return OCCASION[v]||v; if(k==='has_parent'||k==='paid_by'||k==='owed_by'||k==='held_by') return v==='other'?'someone else':nm(v); return v};
   function dateDiff(tbl,oldRec,row){const ch={};(GUARD[tbl]||[]).forEach(k=>{if(k in row&&normV(k,oldRec[k])!==''&&normV(k,row[k])!==normV(k,oldRec[k])) ch[k]=row[k]===''?null:row[k]});return ch}
+  function strictDiff(tbl,oldRec,row){const ch={};(GUARD[tbl]||[]).forEach(k=>{if(k in row&&normV(k,row[k])!==normV(k,oldRec[k])) ch[k]=row[k]===''?null:row[k]});return ch}
   const changeText=(ch,oldRec)=>Object.keys(ch).map(k=>COL_LABEL[k]+' '+showV(k,oldRec[k])+' → '+showV(k,ch[k])).join(', ');
   const pendingFor=id=>CHG.find(c=>c.status==='pending'&&c.record_id===id);
   async function askChange(tbl,rec,action,changes,title){
@@ -2016,6 +2111,8 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   const reInsultPhrase=new RegExp("\\b(?:you(?:'re| are)?|ur|jy(?:'s| is)?|jou)\\s+(?:(?:such|so|really|just|a|an|'n|n|totally|completely|'?n regte|baie)\\s+)*(?:\\w+\\s+)?(?:"+INSULT.join('|')+")\\b",'gi');
   const reInsult=new RegExp('\\b(?:'+INSULT.join('|')+')\\b','gi');
   const SOFTEN=[
+    [/\byou(?:'re| are) (?:a )?(?:lying|liar)\b/gi,'I see this differently'],
+    [/\bjy lieg\b/gi,'ek sien dit anders'],
     [/\byou never\b/gi,'it would really help if you could'],
     [/\byou always\b/gi,"I've noticed that you often"],
     [/\byou(?: must| have to| better)\b/gi,'could you please'],
