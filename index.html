@@ -374,6 +374,10 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
       </div>
     </section>
 
+    <section class="panel chrome rim-blue" id="alerts-card" aria-labelledby="h-alerts" hidden style="margin-top:18px">
+      <div class="panel-head"><h3 id="h-alerts">Alerts on this phone</h3><span class="pill later alerts-state">Off</span></div>
+      <div class="alerts-body" style="display:grid;gap:10px"></div>
+    </section>
     <div class="grid">
       <section class="panel chrome" aria-labelledby="h-today-acts" id="today-acts-card">
         <div class="panel-head"><h3 id="h-today-acts">Happening today</h3><span class="hint" id="today-acts-date"></span></div>
@@ -808,8 +812,8 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   });
   $('#demo-btn').addEventListener('click',()=>{USER=null;loginMsg('');showApp();toast('Demo mode: nothing is saved online')});
   $('#signout').addEventListener('click',async()=>{
-    if(USER&&sb){try{await sb.auth.signOut()}catch(e){} if(CHANNEL){sb.removeChannel(CHANNEL);CHANNEL=null}}
-    USER=null; BILLS=store.get('checky.bills',null)||billSeed(); renderBills(); SCH=demoSchedule(); resetLists(); CHG=[]; renderPending(); renderPersonalComm(); renderHandoverStat(); $('#app').hidden=true;$('#login').hidden=false;document.body.classList.remove('inside');window.scrollTo(0,0);
+    if(USER&&sb){try{await turnOffAlerts(true)}catch(e){} try{await sb.auth.signOut()}catch(e){} if(CHANNEL){sb.removeChannel(CHANNEL);CHANNEL=null}}
+    USER=null; BILLS=store.get('checky.bills',null)||billSeed(); renderBills(); renderAlerts(); SCH=demoSchedule(); resetLists(); CHG=[]; renderPending(); renderPersonalComm(); renderHandoverStat(); $('#app').hidden=true;$('#login').hidden=false;document.body.classList.remove('inside');window.scrollTo(0,0);
   });
   $('#pw-form').addEventListener('submit',async e=>{
     e.preventDefault(); const pw=$('#pw-new').value; const m=$('#pw-msg');
@@ -1981,6 +1985,58 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     toast(a==='withdraw'?'Request withdrawn.':(a==='approve'?'Approved. ':'Declined. ')+nm(c.requested_role)+' can see your answer.');
   }
 
+  // ---------- Alerts on this phone (push notifications) ----------
+  const VAPID_PUBLIC='BLf0zb58Gd48pvVsBklQznsrYX6lD2IBgUP1Bkg8-z2ZgpzC3E-pXECPdgn7G1pZZOwwe4LOAhqQ3vOm5liwJyg';
+  const pushSupported=()=>'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window&&location.protocol==='https:';
+  const onIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  const installedApp=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+  const b64ToU8=s=>{const p='='.repeat((4-s.length%4)%4),b=atob((s+p).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(b,c=>c.charCodeAt(0))};
+  async function currentSub(){try{const reg=await navigator.serviceWorker.ready;return await reg.pushManager.getSubscription()}catch(e){return null}}
+  async function savePushSub(sub){
+    const j=sub.toJSON();
+    return sb.from('push_subscriptions').upsert({endpoint:j.endpoint,p256dh:j.keys.p256dh,auth:j.keys.auth,user_agent:navigator.userAgent.slice(0,300),user_id:USER.id},{onConflict:'endpoint'});
+  }
+  async function syncAlerts(){ // after sign-in: make sure this phone's subscription belongs to this account
+    if(!USER||!pushSupported()||Notification.permission!=='granted') return renderAlerts();
+    const sub=await currentSub(); if(sub) await savePushSub(sub); renderAlerts();
+  }
+  async function turnOnAlerts(){
+    const msg=$('#alerts-msg');
+    try{
+      const perm=await Notification.requestPermission();
+      if(perm!=='granted'){renderAlerts();return}
+      const reg=await navigator.serviceWorker.ready;
+      let sub=await reg.pushManager.getSubscription();
+      if(!sub) sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToU8(VAPID_PUBLIC)});
+      const {error}=await savePushSub(sub); if(error) throw error;
+      toast('Alerts are on for this phone'); renderAlerts();
+    }catch(e){ if(msg){msg.textContent='Could not turn on alerts: '+(e.message||e);msg.hidden=false} }
+  }
+  async function turnOffAlerts(silent){
+    const sub=await currentSub();
+    if(sub){ if(USER) await sb.from('push_subscriptions').delete().eq('endpoint',sub.endpoint); try{await sub.unsubscribe()}catch(e){} }
+    if(!silent){toast('Alerts are off for this phone'); renderAlerts()}
+  }
+  async function renderAlerts(){
+    const box=$('#alerts-card'); if(!box) return;
+    if(!USER){box.hidden=true;return}
+    box.hidden=false; const body=box.querySelector('.alerts-body');
+    let html, on=false;
+    if(onIOS()&&!installedApp()) html='<p class="hint" style="margin:0">On iPhone, alerts only work in the installed app. Add Checky to your home screen first (Share, then Add to Home Screen), open it from there and turn alerts on.</p>';
+    else if(!pushSupported()) html='<p class="hint" style="margin:0">This browser can\'t show alerts. Open Checky from its home-screen icon, or in Chrome or Safari.</p>';
+    else if(Notification.permission==='denied') html='<p class="hint" style="margin:0">Alerts are blocked for Checky. Allow them in your phone\'s settings (Settings, Notifications, Checky), then come back here.</p>';
+    else{ const sub=Notification.permission==='granted'?await currentSub():null; on=!!sub;
+      html=on?'<p class="hint" style="margin:0">Alerts are <strong>on</strong> for this phone. You\'ll hear about new shared entries, notes, and changes that need your approval, even when Checky is closed.</p><div class="note-acts"><button type="button" class="btn small" id="alerts-test">Send me a test</button><button type="button" class="btn ghost small" id="alerts-off">Turn off</button></div>'
+        :'<p class="hint" style="margin:0">Get an alert on this phone when the other parent adds something, sends a note, or asks for your approval, even when Checky is closed.</p><div class="note-acts"><button type="button" class="btn small" id="alerts-on">Turn on alerts</button></div>'; }
+    body.innerHTML=html+'<p class="hint" id="alerts-msg" role="status" style="margin:0;color:var(--p-pink-lt)" hidden></p>';
+    box.querySelector('.alerts-state').textContent=on?'On':'Off';
+    const b1=$('#alerts-on'); if(b1) b1.addEventListener('click',turnOnAlerts);
+    const b2=$('#alerts-off'); if(b2) b2.addEventListener('click',()=>turnOffAlerts(false));
+    const b3=$('#alerts-test'); if(b3) b3.addEventListener('click',async()=>{const {error}=await sb.rpc('test_notification'); toast(error?'Could not send: '+error.message:'Test sent. It should appear in a few seconds.')});
+  }
+  // Tapping an alert opens Shared
+  if('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.open==='shared'&&!$('#app').hidden) $('#seg-shared').click()});
+
   // ---------- Online data ----------
   const fromRow=r=>({id:r.id,type:r.kind,name:r.name,repeat:r.repeat,day:r.week_day,date:r.on_date||undefined,start:r.starts||'',end:r.ends||'',who:r.who,where:r.place||'',bring:r.bring||'',remind:r.remind||''});
   const toRow=a=>({family_id:FAM.id,kind:a.type,name:a.name,repeat:a.repeat,week_day:a.repeat==='weekly'?a.day:null,on_date:a.repeat==='weekly'?null:a.date,
@@ -1991,7 +2047,8 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     ['#chores','#shop','#today-acts'].forEach(s=>{$(s).innerHTML=''}); $('#note-sent').innerHTML=''; ACTS=[]; BILLS=[]; SCH={plan:null,days:{},reqs:[],hand:[],members:1}; PAINT=null; resetLists(); CHG=[]; renderPending(); updateCounts(); renderToday(); renderBills(); renderHandoverStat();
     const {data,error}=await sb.from('family_members').select('role, families(*)').eq('user_id',user.id).limit(1);
     if(error){toast('Could not load your family. Has the database been set up? ('+error.message+')');return}
-    await Promise.all([loadPersonal(),loadBills(),loadList('comm')]);
+    await Promise.all([loadPersonal(),loadBills(),loadList('comm')]); syncAlerts();
+    if(location.hash==='#shared'){history.replaceState(null,'',location.pathname); $('#seg-shared').click()}
     if(!data.length){delete FAM.id;delete FAM.code;openFamily(true);return}
     await useFamily(data[0].families,data[0].role);
   }
