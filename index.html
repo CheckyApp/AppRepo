@@ -1073,6 +1073,8 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     if(amt===''||isNaN(+amt)||+amt<0) return fail('Type the amount in rand, for example 1600 or 849.99.',$('#bill-amount'));
     if(!due) return fail('Choose the date it is next due.',$('#bill-due'));
     const row={name,amount:Math.round(+amt*100)/100,due_date:due,repeat:$('#bill-repeat').value,last_paid:$('#bill-paid').value||null,notes:$('#bill-notes').value.trim()||null};
+    // A monthly bill already paid on or after its due date belongs to the next month
+    if(row.repeat==='monthly'&&row.last_paid){let n=0;while(row.due_date<=row.last_paid&&n++<120) row.due_date=addMonth(row.due_date)}
     let saved={...row,id:editingBill?editingBill.id:'b'+Date.now(),notes:row.notes||''};
     if(USER){
       const res=editingBill?await sb.from('bills').update(row).eq('id',editingBill.id).select().single():await sb.from('bills').insert(row).select().single();
