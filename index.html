@@ -181,6 +181,16 @@ input::placeholder,textarea::placeholder{color:#7D756D}
 .cal td.dad{background:var(--father);color:var(--father-ink)}
 .cal td.out{opacity:.4}
 .cal td.today{box-shadow:inset 0 0 0 3px var(--p-yellow)}
+.cal td{padding:0}
+.cal td.none{background:var(--row-lo);color:var(--ink-soft)}
+.cal td.pend{outline:2px dashed var(--p-yellow);outline-offset:-5px}
+.cal .day{all:unset;box-sizing:border-box;display:block;width:100%;height:100%;padding:5px 8px;cursor:pointer;border-radius:14px}
+.cal .day:focus-visible{outline:2px solid var(--p-yellow);outline-offset:1px}
+.cal-nav{display:flex;align-items:center;gap:6px}
+.cal-nav b{font-family:var(--display);font-weight:400;font-size:1.3rem;min-width:7.5em;text-align:center}
+.req-item{padding:14px 16px;border-radius:24px 24px 24px 10px;display:grid;gap:8px;background:#2A1322;box-shadow:inset 0 0 0 1px #4A2238}
+.req-item.mine{background:var(--row-mid);box-shadow:inset 0 0 0 1px var(--line)}
+.req-item .acts{display:flex;gap:8px;flex-wrap:wrap}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.84rem;color:var(--ink-soft)}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px}
 
@@ -327,7 +337,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
         <div class="stat"><b class="num" id="shop-count">5</b><span>items on the shopping list</span></div>
         <div class="stat"><b class="num" id="bills-week">R 0</b><span>bills due this week</span></div>
         <div class="stat"><b class="num" id="acts-today-count">0</b><span>activities today</span></div>
-        <div class="stat" id="stat-handover"><b>Fri</b><span>children go to <span data-name="p2">Father</span></span></div>
+        <div class="stat" id="stat-handover"><b id="ho-next-day">–</b><span id="ho-next-text">custody calendar not set up</span></div>
       </div>
     </section>
 
@@ -510,37 +520,55 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<template id="tpl-schedule">
-  <div class="grid">
-    <section class="panel chrome" aria-labelledby="h-cal">
-      <div class="panel-head"><h3 id="h-cal">50/50 calendar · October 2026</h3><span class="hint">Weeks run Friday hand-over</span></div>
-      <div class="legend"><span><i style="background:var(--mother)"></i><span data-name="p1">Mother</span></span><span><i style="background:var(--father)"></i><span data-name="p2">Father</span></span><span><i style="box-shadow:inset 0 0 0 2px var(--p-yellow)"></i>Today</span></div>
-      <div class="table-scroll"><table class="cal" id="cal" aria-label="October 2026 custody calendar"></table></div>
-      <p class="hint" style="margin:0">Custody is set three months ahead, up to 31 December 2026.</p>
-    </section>
-    <section class="panel chrome" aria-labelledby="h-req">
-      <div class="panel-head"><h3 id="h-req">Waiting for your approval</h3></div>
-      <div class="request" id="request">
-        <div><span class="pill dad"><span data-name="p2">Father</span></span> asked to change a date</div>
-        <div><strong>Swap weekend of 23–25 Oct</strong> for 30 Oct–1 Nov</div>
-        <div class="hint">Reason: Work trip to Durban. Requested 12 Oct, 19:40.</div>
-        <div class="acts"><button class="btn small" type="button" data-act="approve">Approve change</button><button class="btn ghost small" type="button" data-act="decline">Decline</button></div>
-      </div>
-      <div class="panel-head" style="margin-top:6px"><h3>Drop-offs &amp; pickups</h3></div>
-      <ul class="list">
-        <li><div class="grow"><span>Fri 9 Oct · School gate</span><div class="meta">Dropped off by <span data-name="p1">Mother</span> · Picked up by <span data-name="p2">Father</span></div></div></li>
-        <li><div class="grow"><span>Fri 2 Oct · Gran's house, Three Rivers</span><div class="meta">Dropped off by <span data-name="p2">Father</span> · Picked up by <span data-name="p1">Mother</span></div></div></li>
-      </ul>
-    </section>
-    <section class="panel chrome" aria-labelledby="h-changes">
-      <div class="panel-head"><h3 id="h-changes">Schedule changes</h3></div>
-      <ul class="list">
-        <li><div class="grow"><span>18 Sep → 19 Sep</span><div class="meta">School sports day ran late</div></div><span class="pill ok">Approved</span></li>
-        <li><div class="grow"><span>4 Sep → 5 Sep</span><div class="meta"><span data-name="p2">Father</span>'s car in for service</div></div><span class="pill ok">Approved</span></li>
-      </ul>
-    </section>
-  </div>
-</template>
+<dialog id="cust-dialog" aria-labelledby="cust-title">
+  <form id="cust-form" class="dlg" method="dialog" novalidate>
+    <h3 id="cust-title">Set up the custody calendar</h3>
+    <p class="hint" style="margin:0">Choose the pattern you agreed on. Checky fills in the calendar for the next months. After this, any change needs the other parent's approval.</p>
+    <div class="field"><label for="cust-pattern">Pattern</label><select id="cust-pattern">
+      <option value="week">Week on, week off</option>
+      <option value="2255">2-2-5-5 (2 days, 2 days, 5 days, 5 days)</option>
+      <option value="weekend">Every second weekend (Friday to Sunday)</option></select></div>
+    <p class="hint" id="cust-explain" style="margin:0"></p>
+    <div class="two-col">
+      <div class="field"><label for="cust-start">Starts on</label><input id="cust-start" type="date"></div>
+      <div class="field"><label for="cust-first">Who has the children first</label><select id="cust-first"><option value="p1" data-name="p1">Parent 1</option><option value="p2" data-name="p2">Parent 2</option></select></div>
+      <div class="field"><label for="cust-months">Plan ahead for</label><select id="cust-months"><option value="3">3 months</option><option value="6">6 months</option><option value="12">12 months</option></select></div>
+    </div>
+    <p class="hint" id="cust-error" role="alert" style="margin:0;color:var(--p-pink-lt)" hidden></p>
+    <div class="note-acts"><button class="btn" type="submit">Fill in the calendar</button><button class="btn ghost" type="button" id="cust-cancel">Cancel</button></div>
+  </form>
+</dialog>
+
+<dialog id="req-dialog" aria-labelledby="req-title">
+  <form id="req-form" class="dlg" method="dialog" novalidate>
+    <h3 id="req-title">Ask to change days</h3>
+    <div class="two-col">
+      <div class="field"><label for="req-from">From</label><input id="req-from" type="date"></div>
+      <div class="field"><label for="req-to">Until (same day for one day)</label><input id="req-to" type="date"></div>
+    </div>
+    <div class="field"><label for="req-parent">Who should have the children</label><select id="req-parent"><option value="p1" data-name="p1">Parent 1</option><option value="p2" data-name="p2">Parent 2</option></select></div>
+    <div class="field"><label for="req-reason">Reason</label><input id="req-reason" maxlength="300" placeholder="e.g. Work trip to Durban, I can take the weekend after"></div>
+    <p class="hint" id="req-who" style="margin:0"></p>
+    <p class="hint" id="req-error" role="alert" style="margin:0;color:var(--p-pink-lt)" hidden></p>
+    <div class="note-acts"><button class="btn" type="submit" id="req-send">Send request</button><button class="btn ghost" type="button" id="req-cancel">Cancel</button></div>
+  </form>
+</dialog>
+
+<dialog id="ho-dialog" aria-labelledby="ho-title">
+  <form id="ho-form" class="dlg" method="dialog" novalidate>
+    <h3 id="ho-title">Add drop-off or pickup</h3>
+    <div class="two-col">
+      <div class="field"><label for="ho-date">Date</label><input id="ho-date" type="date"></div>
+      <div class="field"><label for="ho-time">Time</label><input id="ho-time" type="time"></div>
+      <div class="field"><label for="ho-drop">Dropped off by</label><select id="ho-drop"><option value="p1" data-name="p1">Parent 1</option><option value="p2" data-name="p2">Parent 2</option><option value="other">Someone else</option></select></div>
+      <div class="field"><label for="ho-pick">Picked up by</label><select id="ho-pick"><option value="p1" data-name="p1">Parent 1</option><option value="p2" data-name="p2">Parent 2</option><option value="other">Someone else</option></select></div>
+    </div>
+    <div class="field"><label for="ho-place">Where</label><input id="ho-place" maxlength="120" placeholder="e.g. School gate, Gran's house"></div>
+    <div class="field"><label for="ho-notes">Notes</label><input id="ho-notes" maxlength="200" placeholder="e.g. Sports bag handed over, Gran picked up"></div>
+    <p class="hint" id="ho-error" role="alert" style="margin:0;color:var(--p-pink-lt)" hidden></p>
+    <div class="note-acts"><button class="btn" type="submit">Save</button><button class="btn ghost" type="button" id="ho-cancel">Cancel</button><button class="btn ghost" type="button" id="ho-delete" hidden>Remove</button></div>
+  </form>
+</dialog>
 
 <template id="tpl-school">
   <div class="grid">
@@ -575,7 +603,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
 <template id="tpl-today">
   <div class="grid">
     <section class="panel chrome" aria-labelledby="h-td">
-      <div class="panel-head"><h3 id="h-td">Today for <span data-name="c1">Child 1</span></h3><span class="pill mom">With <span data-name="p1">Mother</span></span></div>
+      <div class="panel-head"><h3 id="h-td">Today for <span data-name="c1">Child 1</span></h3><span class="pill" id="td-with" hidden></span></div>
       <ul class="list">
         <li><div class="grow"><span>School until 13:30</span></div></li>
         <li><div class="grow"><span>Netball practice 14:30</span><div class="meta">Sports bag is at <span data-name="p1">Mother</span>'s house</div></div></li>
@@ -779,7 +807,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   $('#demo-btn').addEventListener('click',()=>{USER=null;loginMsg('');showApp();toast('Demo mode: nothing is saved online')});
   $('#signout').addEventListener('click',async()=>{
     if(USER&&sb){try{await sb.auth.signOut()}catch(e){} if(CHANNEL){sb.removeChannel(CHANNEL);CHANNEL=null}}
-    USER=null; BILLS=store.get('checky.bills',null)||billSeed(); renderBills(); $('#app').hidden=true;$('#login').hidden=false;document.body.classList.remove('inside');window.scrollTo(0,0);
+    USER=null; BILLS=store.get('checky.bills',null)||billSeed(); renderBills(); SCH=demoSchedule(); renderHandoverStat(); $('#app').hidden=true;$('#login').hidden=false;document.body.classList.remove('inside');window.scrollTo(0,0);
   });
   $('#pw-form').addEventListener('submit',async e=>{
     e.preventDefault(); const pw=$('#pw-new').value; const m=$('#pw-msg');
@@ -1090,6 +1118,256 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     BILLS=data.map(r=>({...r,amount:Number(r.amount),notes:r.notes||''})); renderBills();
   }
 
+  // ---------- Schedule: custody calendar, change requests, drop-offs and pickups (shared) ----------
+  const otherOf=r=>r==='p1'?'p2':'p1';
+  const dayDiff=(a,b)=>Math.round((new Date(b+'T12:00')-new Date(a+'T12:00'))/864e5);
+  function patternParent(pat,start,first,d){
+    const i=((dayDiff(start,d)%14)+14)%14;
+    const f=pat==='week'?i<7:pat==='2255'?(i<2||(i>=4&&i<9)):i<3;
+    return f?first:otherOf(first);
+  }
+  const addMonthsIso=(s,m)=>{let x=s;for(let k=0;k<m;k++)x=addMonth(x);return x};
+  function fillDays(target,pat,start,first,from,to){for(let d=from;d<=to;d=iso(addDays(new Date(d+'T12:00'),1))) target[d]=patternParent(pat,start,first,d)}
+  const PATTERN_TEXT={week:'Week on, week off',2255:'2-2-5-5',weekend:'Every second weekend'};
+  const meId=()=>USER?USER.id:'me';
+  function demoSchedule(){
+    const lastFri=iso(addDays(now,-((todayIdx-4+7)%7))), start=iso(addDays(new Date(lastFri+'T12:00'),-42));
+    const days={}; fillDays(days,'week',start,'p1',start,iso(addDays(new Date(addMonthsIso(start,3)+'T12:00'),-1)));
+    // the sample request: Parent 2 asks for the next weekend that Parent 1 has
+    let nextSat=iso(addDays(now,(5-todayIdx+7)%7||7)); while(days[nextSat]!=='p1') nextSat=iso(addDays(new Date(nextSat+'T12:00'),7));
+    const nextSun=iso(addDays(new Date(nextSat+'T12:00'),1));
+    return {plan:{pattern:'week',start_date:start,first_parent:'p1'},days,members:2,
+      reqs:[{id:'r1',from_date:nextSat,to_date:nextSun,new_parent:'p2',reason:'Family visiting from Cape Town that weekend. I can swap for the weekend after.',requested_by:'other',requested_role:'p2',status:'pending',created_at:new Date(Date.now()-864e5).toISOString()},
+        {id:'r0',from_date:iso(addDays(now,-20)),to_date:iso(addDays(now,-20)),new_parent:'p1',reason:'School sports day ran late',requested_by:'me',requested_role:'p1',status:'approved',decided_role:'p2',created_at:new Date(Date.now()-22*864e5).toISOString(),decided_at:new Date(Date.now()-21*864e5).toISOString()}],
+      hand:[{id:'h1',on_date:lastFri,at_time:'14:00',place:'School gate',dropped_by:'p2',picked_by:'p1',notes:''},
+        {id:'h2',on_date:iso(addDays(new Date(lastFri+'T12:00'),-7)),at_time:'17:30',place:"Gran's house",dropped_by:'p1',picked_by:'p2',notes:'Sports bag handed over'}]};
+  }
+  let SCH=demoSchedule();
+  let calMonth=new Date(now.getFullYear(),now.getMonth(),1);
+  const lastPlanned=()=>Object.keys(SCH.days).sort().pop()||null;
+  const rangeText=(a,b)=>a===b?dmy(a):dmy(a)+' – '+dmy(b);
+  const whoName=r=>r==='other'?'Someone else':nm(r);
+
+  function renderHandoverStat(){
+    const dayEl=$('#ho-next-day'), txt=$('#ho-next-text'); if(!dayEl) return;
+    const t=iso(now), cur=SCH.days[t];
+    if(!cur){dayEl.textContent='–';txt.textContent=Object.keys(SCH.days).length?'no custody planned for today':'custody calendar not set up';return}
+    for(let k=1;k<=60;k++){const d=iso(addDays(now,k)),p=SCH.days[d]; if(p&&p!==cur){
+      dayEl.textContent=k===1?'Tomorrow':new Date(d+'T12:00').toLocaleDateString('en-ZA',{weekday:'short'}).replace('.','');
+      txt.innerHTML=(k>6?esc(dmy(d))+': ':'')+'children go to <span data-name="'+p+'">'+esc(nm(p))+'</span>';return}}
+    dayEl.textContent='With '+nm(cur); txt.textContent='for the planned weeks ahead';
+  }
+
+  function renderSchedule(body){
+    const wrap=document.createElement('div'); wrap.className='grid';
+    const t=iso(now), hasDays=Object.keys(SCH.days).length>0, last=lastPlanned();
+    // Calendar
+    const calSec=document.createElement('section'); calSec.className='panel chrome'; calSec.setAttribute('aria-labelledby','h-cal');
+    const mLabel=calMonth.toLocaleDateString('en-ZA',{month:'long',year:'numeric'});
+    calSec.innerHTML='<div class="panel-head"><h3 id="h-cal">50/50 calendar</h3><div class="cal-nav"><button type="button" class="mini-btn" id="cal-prev" aria-label="Previous month">‹</button><b>'+esc(mLabel)+'</b><button type="button" class="mini-btn" id="cal-next" aria-label="Next month">›</button></div></div>'+
+      '<div class="legend"><span><i style="background:var(--mother)"></i>'+esc(nm('p1'))+'</span><span><i style="background:var(--father)"></i>'+esc(nm('p2'))+'</span><span><i style="box-shadow:inset 0 0 0 2px var(--p-yellow)"></i>Today</span><span><i style="outline:2px dashed var(--p-yellow);outline-offset:-2px"></i>Waiting for approval</span></div>'+
+      '<div class="table-scroll"><table class="cal" id="cal"></table></div><div id="cal-foot" style="display:grid;gap:10px"></div>';
+    const pendingDays=new Set(); SCH.reqs.filter(r=>r.status==='pending').forEach(r=>{for(let d=r.from_date;d<=r.to_date;d=iso(addDays(new Date(d+'T12:00'),1))) pendingDays.add(d)});
+    const first=new Date(calMonth), gridStart=addDays(first,-((first.getDay()+6)%7));
+    let html='<caption class="hint" style="text-align:left;padding-bottom:4px">Tap a day to ask for a change</caption><thead><tr>'+['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>'<th scope="col">'+d+'</th>').join('')+'</tr></thead><tbody>';
+    for(let w=0;w<6;w++){
+      const rowStart=addDays(gridStart,w*7); if(w>3&&rowStart.getMonth()!==calMonth.getMonth()) break;
+      html+='<tr>';
+      for(let k=0;k<7;k++){
+        const dt=addDays(gridStart,w*7+k), d=iso(dt), p=SCH.days[d];
+        const cls=[p==='p1'?'mom':p==='p2'?'dad':'none']; if(dt.getMonth()!==calMonth.getMonth()) cls.push('out'); if(d===t) cls.push('today'); if(pendingDays.has(d)) cls.push('pend');
+        html+='<td class="'+cls.join(' ')+'"><button type="button" class="day" data-d="'+d+'" aria-label="'+esc(dt.toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long'}))+': '+(p?esc(nm(p)):'not planned')+(pendingDays.has(d)?', change waiting for approval':'')+'">'+dt.getDate()+'</button></td>';
+      }
+      html+='</tr>';
+    }
+    calSec.querySelector('#cal').innerHTML=html+'</tbody>';
+    const foot=calSec.querySelector('#cal-foot');
+    if(!hasDays){
+      foot.innerHTML='<p class="hint" style="margin:0">No custody days planned yet. Set up the pattern you agreed on and Checky fills in the next months.</p><div class="note-acts"><button type="button" class="btn small" id="cust-open">Set up the custody calendar</button></div>';
+    }else{
+      const soon=last<iso(addDays(now,30));
+      foot.innerHTML='<p class="hint" style="margin:0'+(soon?';color:var(--p-yellow)':'')+'">'+(SCH.plan?esc(PATTERN_TEXT[SCH.plan.pattern]||'')+'. ':'')+'Planned until '+esc(new Date(last+'T12:00').toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'}))+'.'+(soon?' Time to plan the next 3 months.':'')+'</p>'+
+        '<div class="note-acts"><button type="button" class="btn small" id="req-open">Ask to change days</button>'+(SCH.plan?'<button type="button" class="btn ghost small" id="cust-extend">Plan 3 more months</button>':'')+((SCH.members||1)<2?'<button type="button" class="btn ghost small" id="cust-open">Change the pattern</button>':'')+'</div>';
+    }
+    // Waiting for approval
+    const reqSec=document.createElement('section'); reqSec.className='panel chrome'; reqSec.setAttribute('aria-labelledby','h-req');
+    reqSec.innerHTML='<div class="panel-head"><h3 id="h-req">Waiting for approval</h3></div><div id="req-list" style="display:grid;gap:10px"></div>';
+    const rl=reqSec.querySelector('#req-list'), pend=SCH.reqs.filter(r=>r.status==='pending');
+    if(!pend.length) rl.innerHTML='<p class="empty" style="margin:0">No changes waiting.</p>';
+    pend.forEach(r=>{
+      const mine=r.requested_by===meId(), it=document.createElement('div'); it.className='req-item'+(mine?' mine':'');
+      const when=new Date(r.created_at).toLocaleString('en-ZA',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+      it.innerHTML='<div>'+(mine?'You asked':'<span class="pill '+(r.requested_role==='p1'?'mom':'dad')+'">'+esc(nm(r.requested_role))+'</span> asked')+' for <strong>'+esc(rangeText(r.from_date,r.to_date))+'</strong> to be with <strong>'+esc(nm(r.new_parent))+'</strong></div>'+
+        (r.reason?'<div class="hint">Reason: '+esc(r.reason)+'</div>':'')+'<div class="hint">Asked '+esc(when)+(mine?' · waiting for '+esc(nm(otherOf(r.requested_role||FAM.me)))+' to answer':'')+'</div>'+
+        '<div class="acts">'+(mine?'<button type="button" class="btn ghost small" data-act="withdraw">Withdraw request</button>':'<button type="button" class="btn small" data-act="approve">Approve change</button><button type="button" class="btn ghost small" data-act="decline">Decline</button>')+'</div>';
+      it.querySelectorAll('[data-act]').forEach(b=>b.addEventListener('click',()=>answerRequest(r,b.dataset.act)));
+      rl.appendChild(it);
+    });
+    // Drop-offs and pickups
+    const hoSec=document.createElement('section'); hoSec.className='panel chrome'; hoSec.setAttribute('aria-labelledby','h-ho');
+    hoSec.innerHTML='<div class="panel-head"><h3 id="h-ho">Drop-offs &amp; pickups</h3><button type="button" class="btn small" id="ho-add">Add</button></div><ul class="list"></ul>';
+    const hl=hoSec.querySelector('ul');
+    if(!SCH.hand.length) hl.innerHTML='<li class="empty">No drop-offs or pickups recorded yet.</li>';
+    [...SCH.hand].sort((a,b)=>(b.on_date+(b.at_time||'')).localeCompare(a.on_date+(a.at_time||''))).forEach(h=>{
+      const li=document.createElement('li');
+      const head=new Date(h.on_date+'T12:00').toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short'})+(h.at_time?' · '+h.at_time.slice(0,5):'')+(h.place?' · '+h.place:'');
+      const meta=[h.dropped_by?'Dropped off by '+whoName(h.dropped_by):'',h.picked_by?'Picked up by '+whoName(h.picked_by):'',h.notes].filter(Boolean).map(esc).join(' · ');
+      li.innerHTML='<div class="grow"><span></span><div class="meta">'+meta+'</div></div><button type="button" class="mini-btn">Edit</button>';
+      li.querySelector('.grow span').textContent=head; const eb=li.querySelector('.mini-btn'); eb.setAttribute('aria-label','Edit '+head); eb.addEventListener('click',()=>openHandover(h));
+      hl.appendChild(li);
+    });
+    // History of changes
+    const chSec=document.createElement('section'); chSec.className='panel chrome'; chSec.setAttribute('aria-labelledby','h-changes');
+    chSec.innerHTML='<div class="panel-head"><h3 id="h-changes">Schedule changes</h3></div><ul class="list"></ul>';
+    const cl=chSec.querySelector('ul'), done=SCH.reqs.filter(r=>r.status!=='pending');
+    if(!done.length) cl.innerHTML='<li class="empty">No changes yet.</li>';
+    done.forEach(r=>{
+      const li=document.createElement('li'), pill={approved:['ok','Approved'],declined:['late','Declined'],withdrawn:['later','Withdrawn']}[r.status];
+      const by=r.status==='withdrawn'?'Withdrawn':(r.status==='approved'?'Approved':'Declined')+(r.decided_role?' by '+nm(r.decided_role):'');
+      li.innerHTML='<div class="grow"><span></span><div class="meta"></div></div><span class="pill '+pill[0]+'">'+pill[1]+'</span>';
+      li.querySelector('.grow span').textContent=rangeText(r.from_date,r.to_date)+' → '+nm(r.new_parent);
+      li.querySelector('.meta').textContent=[r.reason,'Asked by '+(r.requested_by===meId()?'you':nm(r.requested_role)),by+(r.decided_at?' '+dmy(r.decided_at.slice(0,10)):'')].filter(Boolean).join(' · ');
+      cl.appendChild(li);
+    });
+    wrap.append(calSec,reqSec,hoSec,chSec); body.appendChild(wrap);
+    calSec.querySelector('#cal-prev').addEventListener('click',()=>{calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()-1,1);refreshCat()});
+    calSec.querySelector('#cal-next').addEventListener('click',()=>{calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()+1,1);refreshCat()});
+    calSec.querySelectorAll('.day').forEach(b=>b.addEventListener('click',()=>{ if(!hasDays){openCustody();return} const d=b.dataset.d; openRequest(d,d,otherOf(SCH.days[d]||FAM.me)) }));
+    const co=calSec.querySelector('#cust-open'); if(co) co.addEventListener('click',openCustody);
+    const ro=calSec.querySelector('#req-open'); if(ro) ro.addEventListener('click',()=>{const d=iso(addDays(now,1));openRequest(d,d,otherOf(SCH.days[d]||FAM.me))});
+    const ce=calSec.querySelector('#cust-extend'); if(ce) ce.addEventListener('click',extendCustody);
+    hoSec.querySelector('#ho-add').addEventListener('click',()=>openHandover(null));
+  }
+
+  // Set up the pattern
+  const custDlg=$('#cust-dialog');
+  const custExplain=()=>{const v=$('#cust-pattern').value; $('#cust-explain').textContent=
+    v==='week'?'The children spend a full week with one parent, then a full week with the other. Usually the hand-over is on a Friday, so start on a Friday.':
+    v==='2255'?'Over two weeks: 2 days with the first parent, 2 days with the other, then 5 and 5. Usually started on a Monday.':
+    'The first parent has the children every second weekend (Friday to Sunday). The other parent has them the rest of the time. Start on a Friday.'};
+  $('#cust-pattern').addEventListener('change',custExplain);
+  function openCustody(){
+    applyNames(); $('#cust-error').hidden=true;
+    $('#cust-pattern').value=SCH.plan?SCH.plan.pattern:'week'; custExplain();
+    $('#cust-start').value=iso(addDays(now,(4-todayIdx+7)%7)); $('#cust-first').value=FAM.me||'p1'; $('#cust-months').value='3';
+    custDlg.showModal();
+  }
+  $('#cust-cancel').addEventListener('click',()=>custDlg.close());
+  $('#cust-form').addEventListener('submit',async e=>{
+    e.preventDefault(); const err=$('#cust-error');
+    const pat=$('#cust-pattern').value, start=$('#cust-start').value, first=$('#cust-first').value, months=+$('#cust-months').value;
+    if(!start){err.textContent='Choose the date the pattern starts.';err.hidden=false;return}
+    if(USER&&FAM.id){
+      const {error}=await sb.rpc('setup_custody',{fid:FAM.id,p_pattern:pat,p_start:start,p_first:first,p_months:months});
+      if(error){err.textContent=error.message;err.hidden=false;return}
+      custDlg.close(); await loadSchedule();
+    }else{
+      Object.keys(SCH.days).forEach(d=>{if(d>=start) delete SCH.days[d]});
+      fillDays(SCH.days,pat,start,first,start,iso(addDays(new Date(addMonthsIso(start,months)+'T12:00'),-1)));
+      SCH.plan={pattern:pat,start_date:start,first_parent:first}; custDlg.close(); renderHandoverStat(); refreshCat();
+    }
+    calMonth=new Date(start.slice(0,4),+start.slice(5,7)-1,1); refreshCat();
+    toast('Custody calendar filled in for '+months+' months');
+  });
+  async function extendCustody(){
+    if(USER&&FAM.id){
+      const {data,error}=await sb.rpc('extend_custody',{fid:FAM.id,p_months:3});
+      if(error){toast(error.message);return}
+      await loadSchedule(); toast('Planned until '+dmy(data)+'. '+(SCH.members>1?nm(otherOf(FAM.me))+' can see it too.':''));
+    }else{
+      const last=lastPlanned(), until=addMonthsIso(last,3), p=SCH.plan;
+      fillDays(SCH.days,p.pattern,p.start_date,p.first_parent,iso(addDays(new Date(last+'T12:00'),1)),until);
+      renderHandoverStat(); refreshCat(); toast('Planned until '+dmy(until));
+    }
+  }
+
+  // Ask for a change
+  const reqDlg=$('#req-dialog');
+  function openRequest(from,to,parent){
+    applyNames(); $('#req-error').hidden=true;
+    $('#req-from').value=from; $('#req-to').value=to; $('#req-parent').value=parent||otherOf(FAM.me); $('#req-reason').value='';
+    const alone=(SCH.members||1)<2;
+    $('#req-who').textContent=alone?'You are the only parent in this family for now, so the change is made straight away.':nm(otherOf(FAM.me))+' will be asked to approve this. Nothing changes until they do.';
+    $('#req-send').textContent=alone?'Change the calendar':'Send request';
+    reqDlg.showModal();
+  }
+  $('#req-cancel').addEventListener('click',()=>reqDlg.close());
+  $('#req-form').addEventListener('submit',async e=>{
+    e.preventDefault(); const err=$('#req-error'); const fail=t=>{err.textContent=t;err.hidden=false};
+    const from=$('#req-from').value, to=$('#req-to').value||from, parent=$('#req-parent').value;
+    if(!from) return fail('Choose the first day.');
+    if(to<from) return fail('The last day is before the first day.');
+    if(dayDiff(from,to)>92) return fail('Ask for at most 3 months at a time.');
+    let reason=$('#req-reason').value.trim(); let softened=false;
+    if(reason){const r=friendly(reason); if(r.fixes.length){reason=r.text;softened=true}}
+    if(USER&&FAM.id){
+      const {data,error}=await sb.rpc('request_change',{fid:FAM.id,p_from:from,p_to:to,p_parent:parent,p_reason:reason});
+      if(error) return fail(error.message);
+      reqDlg.close(); await loadSchedule();
+      toast((softened?'Your reason was made friendlier. ':'')+(data.status==='pending'?'Sent. '+nm(otherOf(FAM.me))+' has been asked to approve it.':'Calendar updated.'));
+    }else{
+      SCH.reqs.unshift({id:'r'+Date.now(),from_date:from,to_date:to,new_parent:parent,reason,requested_by:'me',requested_role:FAM.me,status:'pending',created_at:new Date().toISOString()});
+      reqDlg.close(); refreshCat(); toast((softened?'Your reason was made friendlier. ':'')+'Sent. '+nm(otherOf(FAM.me))+' has been asked to approve it.');
+    }
+  });
+  async function answerRequest(r,act){
+    if(USER&&FAM.id){
+      const res=act==='withdraw'?await sb.rpc('withdraw_request',{p_id:r.id}):await sb.rpc('decide_request',{p_id:r.id,p_approve:act==='approve'});
+      if(res.error){toast(res.error.message);return}
+      await loadSchedule();
+    }else{
+      if(act==='approve') for(let d=r.from_date;d<=r.to_date;d=iso(addDays(new Date(d+'T12:00'),1))) SCH.days[d]=r.new_parent;
+      Object.assign(r,{status:act==='approve'?'approved':act==='decline'?'declined':'withdrawn',decided_role:FAM.me,decided_at:new Date().toISOString()});
+      renderHandoverStat(); refreshCat();
+    }
+    toast(act==='withdraw'?'Request withdrawn.':(act==='approve'?'Change approved. The calendar is updated. ':'Change declined. ')+(act==='withdraw'?'':nm(r.requested_role)+' can see your answer.'));
+  }
+
+  // Drop-offs and pickups
+  const hoDlg=$('#ho-dialog'); let editingHo=null;
+  function openHandover(h){
+    editingHo=h; applyNames(); $('#ho-error').hidden=true;
+    $('#ho-title').textContent=h?'Edit drop-off or pickup':'Add drop-off or pickup';
+    const cur=SCH.days[iso(now)]||FAM.me;
+    $('#ho-date').value=h?h.on_date:iso(now); $('#ho-time').value=h&&h.at_time?h.at_time.slice(0,5):'';
+    $('#ho-drop').value=h?h.dropped_by||'p1':cur; $('#ho-pick').value=h?h.picked_by||'p2':otherOf(cur);
+    $('#ho-place').value=h?h.place||'':''; $('#ho-notes').value=h?h.notes||'':'';
+    $('#ho-delete').hidden=!h; hoDlg.showModal();
+  }
+  $('#ho-cancel').addEventListener('click',()=>hoDlg.close());
+  $('#ho-delete').addEventListener('click',async()=>{
+    if(!editingHo) return;
+    if(USER&&FAM.id){const {error}=await sb.from('handovers').delete().eq('id',editingHo.id); if(error){toast('Could not remove: '+error.message);return}}
+    SCH.hand=SCH.hand.filter(x=>x!==editingHo); hoDlg.close(); refreshCat(); toast('Removed');
+  });
+  $('#ho-form').addEventListener('submit',async e=>{
+    e.preventDefault(); const err=$('#ho-error');
+    const row={on_date:$('#ho-date').value,at_time:$('#ho-time').value||null,place:$('#ho-place').value.trim()||null,dropped_by:$('#ho-drop').value,picked_by:$('#ho-pick').value,notes:$('#ho-notes').value.trim()||null};
+    if(!row.on_date){err.textContent='Choose the date.';err.hidden=false;return}
+    let saved={...row,id:editingHo?editingHo.id:'h'+Date.now()};
+    if(USER&&FAM.id){
+      const res=editingHo?await sb.from('handovers').update(row).eq('id',editingHo.id).select().single():await sb.from('handovers').insert({...row,family_id:FAM.id}).select().single();
+      if(res.error){err.textContent='Could not save: '+res.error.message;err.hidden=false;return}
+      saved=res.data;
+    }
+    if(editingHo) SCH.hand=SCH.hand.map(x=>x===editingHo?saved:x); else SCH.hand.push(saved);
+    hoDlg.close(); refreshCat(); toast((editingHo?'Saved. ':'Added. ')+(FAM.type==='two'?nm(otherOf(FAM.me))+' can see it too.':''));
+  });
+
+  async function loadSchedule(){
+    if(!USER||!FAM.id) return;
+    const [p,d,r,h,m]=await Promise.all([
+      sb.from('custody_plans').select('*').eq('family_id',FAM.id).maybeSingle(),
+      sb.from('custody_days').select('day,parent').eq('family_id',FAM.id).gte('day',iso(addDays(now,-150))).lte('day',iso(addDays(now,400))).order('day').limit(1000),
+      sb.from('schedule_requests').select('*').eq('family_id',FAM.id).order('created_at',{ascending:false}).limit(50),
+      sb.from('handovers').select('*').eq('family_id',FAM.id).order('on_date',{ascending:false}).limit(60),
+      sb.from('family_members').select('role').eq('family_id',FAM.id)]);
+    const bad=[p,d,r,h,m].find(x=>x.error); if(bad){toast('Could not load the schedule: '+bad.error.message);return}
+    SCH={plan:p.data,days:Object.fromEntries(d.data.map(x=>[x.day,x.parent])),reqs:r.data,hand:h.data,members:m.data.length};
+    renderHandoverStat(); refreshCat();
+  }
+  let schTimer=null; const schReload=()=>{clearTimeout(schTimer);schTimer=setTimeout(loadSchedule,400)};
+
   // ---------- Online data ----------
   const fromRow=r=>({id:r.id,type:r.kind,name:r.name,repeat:r.repeat,day:r.week_day,date:r.on_date||undefined,start:r.starts||'',end:r.ends||'',who:r.who,where:r.place||'',bring:r.bring||'',remind:r.remind||''});
   const toRow=a=>({family_id:FAM.id,kind:a.type,name:a.name,repeat:a.repeat,week_day:a.repeat==='weekly'?a.day:null,on_date:a.repeat==='weekly'?null:a.date,
@@ -1097,7 +1375,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   async function startCloud(user){
     USER=user; showApp(); toast('Signed in as '+user.email);
     // Start every account with empty lists instead of the demo examples
-    ['#chores','#shop','#today-acts'].forEach(s=>{$(s).innerHTML=''}); $('#note-sent').innerHTML=''; ACTS=[]; BILLS=[]; updateCounts(); renderToday(); renderBills();
+    ['#chores','#shop','#today-acts'].forEach(s=>{$(s).innerHTML=''}); $('#note-sent').innerHTML=''; ACTS=[]; BILLS=[]; SCH={plan:null,days:{},reqs:[],hand:[],members:1}; updateCounts(); renderToday(); renderBills(); renderHandoverStat();
     const {data,error}=await sb.from('family_members').select('role, families(*)').eq('user_id',user.id).limit(1);
     if(error){toast('Could not load your family. Has the database been set up? ('+error.message+')');return}
     await Promise.all([loadPersonal(),loadBills()]);
@@ -1106,12 +1384,20 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   }
   async function useFamily(f,role){
     Object.assign(FAM,{id:f.id,type:f.family_type,p1:f.p1,p2:f.p2,c1:f.c1,c2:f.c2,me:role||FAM.me,code:f.invite_code});
-    applyNames(); await Promise.all([loadActs(),loadNotes()]);
+    applyNames(); await Promise.all([loadActs(),loadNotes(),loadSchedule()]);
     if(CHANNEL) sb.removeChannel(CHANNEL);
     CHANNEL=sb.channel('family-'+f.id)
       .on('postgres_changes',{event:'*',schema:'public',table:'activities',filter:'family_id=eq.'+f.id},()=>loadActs())
       .on('postgres_changes',{event:'INSERT',schema:'public',table:'notes',filter:'family_id=eq.'+f.id},()=>loadNotes())
       .on('postgres_changes',{event:'UPDATE',schema:'public',table:'families',filter:'id=eq.'+f.id},p=>{const n=p.new;Object.assign(FAM,{type:n.family_type,p1:n.p1,p2:n.p2,c1:n.c1,c2:n.c2});applyNames();renderToday();refreshCat()})
+      .on('postgres_changes',{event:'*',schema:'public',table:'custody_days',filter:'family_id=eq.'+f.id},schReload)
+      .on('postgres_changes',{event:'*',schema:'public',table:'custody_plans',filter:'family_id=eq.'+f.id},schReload)
+      .on('postgres_changes',{event:'*',schema:'public',table:'handovers',filter:'family_id=eq.'+f.id},schReload)
+      .on('postgres_changes',{event:'*',schema:'public',table:'schedule_requests',filter:'family_id=eq.'+f.id},pl=>{
+        const n=pl.new||{}; schReload();
+        if(pl.eventType==='INSERT'&&n.status==='pending'&&n.requested_by!==USER.id) toast(nm(n.requested_role)+' asked to change days. Open Shared, then Schedule, to answer.');
+        if(pl.eventType==='UPDATE'&&n.requested_by===USER.id&&(n.status==='approved'||n.status==='declined')) toast(nm(n.decided_role)+(n.status==='approved'?' approved':' declined')+' your change for '+rangeText(n.from_date,n.to_date)+'.');
+      })
       .subscribe();
   }
   async function loadActs(){
@@ -1155,6 +1441,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     $$('.cat').forEach(b=>b.setAttribute('aria-selected',b.dataset.cat===c.id));
     const body=$('#cat-body'); body.innerHTML='';
     if(c.id==='activities'){renderActivities(body);return}
+    if(c.id==='schedule'){renderSchedule(body);return}
     const tpl=document.getElementById('tpl-'+c.id);
     if(c.prem||!tpl){
       body.innerHTML='<section class="panel chrome locked-panel" style="margin-top:16px"><span class="pill prem">Premium</span><h3>'+c.name+' is part of Premium</h3><p>Try every Premium section free for 30 days. After that it is a small monthly subscription, and you can cancel any time.</p><button class="btn" type="button" id="start-trial">Start 30-day free trial</button></section>';
@@ -1170,12 +1457,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
       items.forEach(a=>ul.appendChild(actItem(a))); body.querySelector('.grid').appendChild(sec);
     }
     applyNames();
-    if(c.id==='schedule') buildCal();
-    const req=$('#request');
-    if(req) req.addEventListener('click',e=>{
-      const a=e.target.dataset.act; if(!a) return;
-      req.innerHTML='<div><strong>'+(a==='approve'?'Change approved.':'Change declined.')+'</strong> '+esc(notifyWho().charAt(0).toUpperCase()+notifyWho().slice(1))+' has been notified.</div>';
-    });
+    if(c.id==='today'){const w=$('#td-with'),p=SCH.days[iso(now)]; if(w){w.hidden=!p; if(p){w.className='pill '+(p==='p1'?'mom':'dad'); w.textContent='With '+nm(p)}}}
   }
   $('#kid2').addEventListener('click',()=>toast('A second child profile needs Premium'));
 
@@ -1258,28 +1540,8 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   $('#note-send-friendly').addEventListener('click',()=>{const v=friendlyBox.value.trim(); if(!v) return; review(v)});
   $('#note-back').addEventListener('click',()=>{check.hidden=true; noteForm.hidden=false; noteBox.focus()});
 
-  // October 2026 calendar, Monday first. Weeks alternate at the Friday hand-over.
-  function buildCal(){
-    const t=$('#cal'); const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-    let html='<thead><tr>'+days.map(d=>'<th scope="col">'+d+'</th>').join('')+'</tr></thead><tbody>';
-    const start=new Date(2026,8,28); // Mon 28 Sep 2026
-    const anchor=new Date(2026,8,25); // Fri 25 Sep: Mother's week starts
-    for(let w=0;w<5;w++){
-      html+='<tr>';
-      for(let d=0;d<7;d++){
-        const dt=new Date(start); dt.setDate(start.getDate()+w*7+d);
-        const weeks=Math.floor((dt-anchor)/(7*864e5));
-        const who=weeks%2===0?'mom':'dad';
-        const cls=[who]; if(dt.getMonth()!==9) cls.push('out');
-        if(dt.getMonth()===9&&dt.getDate()===13) cls.push('today');
-        html+='<td class="'+cls.join(' ')+'" aria-label="'+dt.getDate()+' '+esc(who==='mom'?FAM.p1:FAM.p2)+'">'+dt.getDate()+'</td>';
-      }
-      html+='</tr>';
-    }
-    t.innerHTML=html+'</tbody>';
-  }
   $('#today-label').textContent=now.toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  applyNames(); renderToday(); renderBills();
+  applyNames(); renderToday(); renderBills(); renderHandoverStat();
   showCat(cats[0]);
 
   // ---------- Install on a phone ----------
