@@ -1,5 +1,16 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
-<title>Checky App</title>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#08070A;color:#FFF6EA}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
+<title>Checky</title>
+<meta name="description" content="Two homes, one plan.">
+<meta name="theme-color" content="#08070A">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Checky">
+</head><body>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Nunito:wght@400;600;700&display=swap">
@@ -281,6 +292,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
       <button type="button" class="linkish" id="demo-btn" style="justify-self:center">Look around first (no account)</button>
     </form>
     <p class="trial">Free to use. Premium includes a 30-day free trial.</p>
+    <button class="btn ghost install-btn" type="button" hidden>Install Checky on this phone</button>
   </div>
 </section>
 
@@ -293,7 +305,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
         <button type="button" data-view="personal" aria-pressed="true">Personal</button>
         <button type="button" data-view="shared" aria-pressed="false" id="seg-shared">Shared</button>
       </div>
-      <div style="display:flex;gap:8px"><button class="btn ghost small" type="button" id="family-btn">Family setup</button><button class="btn ghost small" type="button" id="signout">Sign out</button></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small install-btn" type="button" hidden>Install app</button><button class="btn ghost small" type="button" id="family-btn">Family setup</button><button class="btn ghost small" type="button" id="signout">Sign out</button></div>
     </div>
   </header>
 
@@ -463,6 +475,19 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     <div class="field"><label for="act-remind">Remind me</label><select id="act-remind"><option value="">No reminder</option><option value="30 minutes before">30 minutes before</option><option value="1 hour before">1 hour before</option><option value="The evening before">The evening before</option></select></div>
     <p class="hint" id="act-error" style="margin:0;color:var(--p-pink-lt)" hidden>Give the activity a name.</p>
     <div class="note-acts"><button class="btn" type="submit" value="save">Save</button><button class="btn ghost" type="button" id="act-cancel">Cancel</button><button class="btn ghost" type="button" id="act-delete" hidden>Remove</button></div>
+  </form>
+</dialog>
+
+<dialog id="ios-dialog" aria-labelledby="ios-title">
+  <form class="dlg" method="dialog">
+    <h3 id="ios-title">Install Checky</h3>
+    <p class="hint" style="margin:0">On iPhone or iPad, use <b>Safari</b>:</p>
+    <ol style="margin:0;padding-left:20px;display:grid;gap:8px;line-height:1.5">
+      <li>Tap the <b>Share</b> button (the square with an arrow pointing up) at the bottom of the screen.</li>
+      <li>Scroll down and tap <b>Add to Home Screen</b>.</li>
+      <li>Tap <b>Add</b>. The Checky shield appears on your home screen.</li>
+    </ol>
+    <div class="note-acts"><button class="btn" type="submit">Got it</button></div>
   </form>
 </dialog>
 
@@ -1157,6 +1182,22 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   $('#today-label').textContent=now.toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   applyNames(); renderToday();
   showCat(cats[0]);
+
+  // ---------- Install on a phone ----------
+  let installEvt=null;
+  const standalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+  const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  const showInstall=on=>$$('.install-btn').forEach(b=>{b.hidden=!on||standalone()});
+  window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvt=e;showInstall(true)});
+  window.addEventListener('appinstalled',()=>{installEvt=null;showInstall(false);toast('Checky is installed on this phone')});
+  if(isIOS) showInstall(true);
+  $$('.install-btn').forEach(b=>b.addEventListener('click',async()=>{
+    if(installEvt){installEvt.prompt();try{await installEvt.userChoice}catch(e){}installEvt=null;showInstall(false)}
+    else if(isIOS) $('#ios-dialog').showModal();
+  }));
+  if('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  window.addEventListener('offline',()=>toast('You are offline. Changes will not save until you are back online.'));
+  window.addEventListener('online',()=>toast('Back online'));
 })();
 </script>
 
