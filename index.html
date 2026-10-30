@@ -218,6 +218,9 @@ input::placeholder,textarea::placeholder{color:#7D756D}
 .dispute{margin-top:8px;padding:10px 12px;border-radius:14px;background:#2A1322;box-shadow:inset 0 0 0 1px var(--p-pink);font-size:.86rem;display:grid;gap:6px;justify-items:start}
 .dispute strong{color:var(--p-pink-lt)}
 .thumb.pdf{display:grid;place-items:center;font-weight:800;font-size:.8rem;color:var(--ink-dark);background:var(--p-orange);text-decoration:none}
+.personal-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:28px}
+.personal-head h2{font-size:2rem}
+.personal-head .hint{flex-basis:100%;margin:0}
 .prem-note{margin:18px 0 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .photo-dlg{padding:12px;background:#000;width:min(900px,calc(100% - 16px))}
 .photo-dlg img{display:block;width:100%;max-height:80vh;object-fit:contain;border-radius:12px;margin-bottom:10px}
@@ -412,6 +415,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
         <div class="note-acts"><button class="btn small" type="button" id="add-bill">Add bill</button></div>
       </section>
     </div>
+    <div id="personal-comm"></div>
   </main>
 
   <!-- -------- Shared -------- -->
@@ -805,7 +809,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   $('#demo-btn').addEventListener('click',()=>{USER=null;loginMsg('');showApp();toast('Demo mode: nothing is saved online')});
   $('#signout').addEventListener('click',async()=>{
     if(USER&&sb){try{await sb.auth.signOut()}catch(e){} if(CHANNEL){sb.removeChannel(CHANNEL);CHANNEL=null}}
-    USER=null; BILLS=store.get('checky.bills',null)||billSeed(); renderBills(); SCH=demoSchedule(); resetLists(); CHG=[]; renderPending(); renderHandoverStat(); $('#app').hidden=true;$('#login').hidden=false;document.body.classList.remove('inside');window.scrollTo(0,0);
+    USER=null; BILLS=store.get('checky.bills',null)||billSeed(); renderBills(); SCH=demoSchedule(); resetLists(); CHG=[]; renderPending(); renderPersonalComm(); renderHandoverStat(); $('#app').hidden=true;$('#login').hidden=false;document.body.classList.remove('inside');window.scrollTo(0,0);
   });
   $('#pw-form').addEventListener('submit',async e=>{
     e.preventDefault(); const pw=$('#pw-new').value; const m=$('#pw-msg');
@@ -1036,7 +1040,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   });
   $('#add-act-home').addEventListener('click',()=>openAct(null));
   $('#see-week').addEventListener('click',()=>{$('#seg-shared').click();showCat(cats.find(c=>c.id==='activities'))});
-  let currentCat=null; const refreshCat=()=>{if(currentCat&&!$('#shared').hidden) showCat(currentCat)};
+  let currentCat=null; const refreshCat=()=>{if(currentCat&&!$('#shared').hidden) showCat(currentCat); if(typeof renderPersonalComm==='function') try{renderPersonalComm()}catch(e){}};
 
   // ---------- Bills (private to each person) ----------
   const fmtR=n=>{const [i,c]=(Math.round(Number(n||0)*100)/100).toFixed(2).split('.');return 'R '+i.replace(/\B(?=(\d{3})+(?!\d))/g,' ')+(c==='00'?'':','+c)};
@@ -1399,8 +1403,8 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   const defineList=cfg=>{LISTDEF[cfg.key]=cfg; RECS[cfg.key]=[]};
   const resetLists=()=>Object.keys(LISTDEF).forEach(k=>{RECS[k]=[]});
   async function loadList(k){
-    if(!USER||!FAM.id) return; const c=LISTDEF[k];
-    const {data,error}=await sb.from(c.table).select('*').eq('family_id',FAM.id).limit(500);
+    const c=LISTDEF[k]; if(!USER||(!FAM.id&&!c.private)) return;
+    const {data,error}=c.private?await sb.from(c.table).select('*').limit(500):await sb.from(c.table).select('*').eq('family_id',FAM.id).limit(500);
     if(error){toast('Could not load '+c.plural+': '+error.message);return}
     await signPhotos(k,data); RECS[k]=data; refreshCat();
   }
@@ -1437,7 +1441,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     const {k,rec}=recCtx, c=LISTDEF[k];
     if(c.strict&&!isMine(rec)){toast("You can't remove the other parent's entry. Use Disagree instead.",4000);return}
     if(needsApproval()&&GUARD[c.table]){recDlg.close(); const it=c.item(rec); await askChange(c.table,rec,'delete',null,c.noun.charAt(0).toUpperCase()+c.noun.slice(1)+' "'+it.title+'"'); return}
-    if(USER&&FAM.id){const {error}=await sb.from(c.table).delete().eq('id',rec.id); if(error){toast('Could not remove: '+error.message);return} if(c.photo&&rec[c.photo]) sb.storage.from((c.bucket||'trip-photos')).remove([rec[c.photo]])}
+    if(USER&&(FAM.id||c.private)){const {error}=await sb.from(c.table).delete().eq('id',rec.id); if(error){toast('Could not remove: '+error.message);return} if(c.photo&&rec[c.photo]) sb.storage.from((c.bucket||'trip-photos')).remove([rec[c.photo]])}
     RECS[k]=RECS[k].filter(x=>x!==rec); recDlg.close(); refreshCat(); toast('Removed');
   }
   recForm.addEventListener('submit',async e=>{
@@ -1471,8 +1475,8 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     if(rec&&c.strict&&needsApproval()&&c.photo&&row[c.photo]!==rec[c.photo]){pendingDates=pendingDates||{}; pendingDates[c.photo]=row[c.photo]; row[c.photo]=rec[c.photo]; oldPhoto=null}
     let saved={...(rec||{}),...row,id:rec?rec.id:'x'+Date.now(),...(!rec&&c.perChild?{child:CHILD}:{})};
     if(localUrl) saved._url=localUrl; else if(c.photo&&!row[c.photo]) saved._url=null;
-    if(USER&&FAM.id){
-      const res=rec?await sb.from(c.table).update(row).eq('id',rec.id).select().single():await sb.from(c.table).insert({...row,family_id:FAM.id,...(c.perChild?{child:CHILD}:{})}).select().single();
+    if(USER&&(FAM.id||c.private)){
+      const res=rec?await sb.from(c.table).update(row).eq('id',rec.id).select().single():await sb.from(c.table).insert({...row,...(c.private?{}:{family_id:FAM.id}),...(c.perChild?{child:CHILD}:{})}).select().single();
       if(res.error) return fail('Could not save: '+res.error.message);
       saved=res.data;
       if(c.photo){ if(oldPhoto&&oldPhoto!==saved[c.photo]) sb.storage.from((c.bucket||'trip-photos')).remove([oldPhoto]); await signPhotos(k,[saved]) }
@@ -1768,9 +1772,10 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
 
   // Communication
   const COMM_KIND={call:'Call',notice:'Important notice',message:'Parent message',request:'Request'};
-  defineList({key:'comm',table:'communications',noun:'entry',plural:'communication',perChild:true,
+  defineList({key:'comm',table:'communications',noun:'entry',plural:'communication',private:true,
     fields:[
       {k:'kind',label:'Type',type:'select',options:Object.entries(COMM_KIND),def:'call'},
+      {k:'child',label:'Child',type:'select',options:()=>[['c1',nm('c1')],['c2',nm('c2')]],def:'c1'},
       {k:'happened_on',label:'Date',type:'date',req:true,reqMsg:'Choose the date.'},
       {k:'at_time',label:'Time',type:'time',showIf:v=>v.kind==='call'},
       {k:'by_role',label:'Call with',type:'select',options:who3,def:()=>otherOf(FAM.me),showIf:v=>v.kind==='call'},
@@ -1781,14 +1786,16 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     validate:r=>r.kind!=='call'&&!r.title&&!r.notes?'Add a subject or notes.':r.duration_min!=null&&(!Number.isInteger(r.duration_min)||r.duration_min<0)?'Type the minutes as a whole number.':null,
     sort:(a,b)=>((b.happened_on||'')+(b.at_time||'')).localeCompare((a.happened_on||'')+(a.at_time||'')),
     item:r=>r.kind==='call'
-      ?{title:'Call with '+(r.by_role==='other'?'someone else':nm(r.by_role||otherOf(FAM.me)))+(r.duration_min!=null?' · '+r.duration_min+' min':''),meta:[dmy(r.happened_on)+(r.at_time?' '+r.at_time.slice(0,5):''),r.mood?'Mood: '+r.mood:'',r.notes]}
-      :{title:r.title||COMM_KIND[r.kind],meta:[dmy(r.happened_on),r.notes]}});
+      ?{title:'Call with '+(r.by_role==='other'?'someone else':nm(r.by_role||otherOf(FAM.me)))+(r.duration_min!=null?' · '+r.duration_min+' min':''),meta:[nm(r.child||'c1'),dmy(r.happened_on)+(r.at_time?' '+r.at_time.slice(0,5):''),r.mood?'Mood: '+r.mood:'',r.notes]}
+      :{title:r.title||COMM_KIND[r.kind],meta:[nm(r.child||'c1'),dmy(r.happened_on),r.notes]}});
   function renderComm(body){
+    const head=document.createElement('div'); head.className='personal-head';
+    head.innerHTML='<h2 id="h-pcomm">Communication</h2><span class="pill prem">Premium</span><p class="hint">Only you can see this. The other parent can&#39;t. Free preview while we test.</p>';
     const wrap=document.createElement('div'); wrap.className='grid';
     const panel=(kind,id,title,empty)=>listPanel('comm',{id,title,add:'Add',empty,filter:r=>r.kind===kind,preset:{kind}});
     wrap.append(panel('call','h-calls','Calls','No calls logged yet.'),panel('notice','h-notices','Important notices','No notices yet.'),
       panel('message','h-pmsg','Parent messages','No messages yet.'),panel('request','h-requests','Requests','No requests yet.'));
-    body.append(premiumNote(),wrap);
+    body.append(head,wrap);
   }
 
   // Health
@@ -1850,7 +1857,8 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     wrap.append(...Object.entries(DOC_KIND).map(([kind,title])=>listPanel('docs',{id:'h-doc-'+kind,title,add:'Add',empty:'No documents yet.',filter:r=>r.kind===kind,preset:{kind}})));
     body.append(premiumNote(),wrap);
   }
-  const PREMIUM_KEYS=['money','comm','health','docs'];
+  const PREMIUM_KEYS=['money','health','docs'];
+  function renderPersonalComm(){const box=$('#personal-comm'); if(!box) return; box.innerHTML=''; if(PREMIUM_PREVIEW) renderComm(box)}
   const loadPremium=()=>Promise.all(PREMIUM_KEYS.map(loadList));
 
   // Choosing a child
@@ -1913,10 +1921,10 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
 
   // ---------- Once a date is set, it's set: date changes and removals need the other parent ----------
   const GUARD={activities:['repeat','week_day','on_date','starts','ends'],handovers:['on_date','at_time'],school_work:['given_date','due_date'],reading_log:['read_on'],
-    teacher_contacts:['contacted_on'],school_events:['on_date','at_time'],holiday_records:['occasion','year','parent','from_date','to_date'],trips:['trip_date','end_date','with_who'],belongings:['bought_on','swapped_on'],who_has:['has_parent','asked_on','expected_on','returned_on'],money_entries:['kind','description','amount','entry_date','repeats','paid_by','owed_by','notes','file_path','proof_path','dispute_note','dispute_amount','dispute_proof_path'],communications:['happened_on','at_time'],health_records:['given_on','at_time','to_date','follow_up'],documents:['doc_date','at_time','held_by']};
+    teacher_contacts:['contacted_on'],school_events:['on_date','at_time'],holiday_records:['occasion','year','parent','from_date','to_date'],trips:['trip_date','end_date','with_who'],belongings:['bought_on','swapped_on'],who_has:['has_parent','asked_on','expected_on','returned_on'],money_entries:['kind','description','amount','entry_date','repeats','paid_by','owed_by','notes','file_path','proof_path','dispute_note','dispute_amount','dispute_proof_path'],health_records:['given_on','at_time','to_date','follow_up'],documents:['doc_date','at_time','held_by']};
   const COL_LABEL={repeat:'how often',week_day:'day',on_date:'date',starts:'start time',ends:'end time',at_time:'time',given_date:'date given',due_date:'due date',
     read_on:'date',contacted_on:'date',year:'year',from_date:'from',to_date:'until',trip_date:'from',end_date:'until',parent:'who had the children',occasion:'occasion',with_who:'with who',bought_on:'bought',swapped_on:'swapped',has_parent:'who has it',asked_on:'asked',expected_on:'back by',returned_on:'returned',entry_date:'date',paid_by:'who paid',owed_by:'who owes',happened_on:'date',given_on:'date',follow_up:'follow-up',doc_date:'date',held_by:'who has the original',kind:'type',description:'what for',amount:'amount',repeats:'how often',notes:'notes',file_path:'receipt',proof_path:'proof of payment',dispute_note:'disagreement',dispute_amount:'amount agreed to',dispute_proof_path:'their proof'};
-  const TBL_KEY={school_work:'work',reading_log:'reading',teacher_contacts:'contacts',school_events:'events',holiday_records:'holidays',trips:'trips',belongings:'belong',who_has:'whohas',money_entries:'money',communications:'comm',health_records:'health',documents:'docs'};
+  const TBL_KEY={school_work:'work',reading_log:'reading',teacher_contacts:'contacts',school_events:'events',holiday_records:'holidays',trips:'trips',belongings:'belong',who_has:'whohas',money_entries:'money',health_records:'health',documents:'docs'};
   let CHG=[];
   const needsApproval=()=>!!(USER&&FAM.id&&(SCH.members||1)>1);
   const normV=(k,v)=>v==null||v===''?'':/^(starts|ends|at_time)$/.test(k)?String(v).slice(0,5):/^(amount|dispute_amount|year|quantity|duration_min|week_day)$/.test(k)&&!isNaN(+v)?String(+v):String(v);
@@ -1983,7 +1991,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     ['#chores','#shop','#today-acts'].forEach(s=>{$(s).innerHTML=''}); $('#note-sent').innerHTML=''; ACTS=[]; BILLS=[]; SCH={plan:null,days:{},reqs:[],hand:[],members:1}; PAINT=null; resetLists(); CHG=[]; renderPending(); updateCounts(); renderToday(); renderBills(); renderHandoverStat();
     const {data,error}=await sb.from('family_members').select('role, families(*)').eq('user_id',user.id).limit(1);
     if(error){toast('Could not load your family. Has the database been set up? ('+error.message+')');return}
-    await Promise.all([loadPersonal(),loadBills()]);
+    await Promise.all([loadPersonal(),loadBills(),loadList('comm')]);
     if(!data.length){delete FAM.id;delete FAM.code;openFamily(true);return}
     await useFamily(data[0].families,data[0].role);
   }
@@ -2006,7 +2014,6 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
       .on('postgres_changes',{event:'*',schema:'public',table:'belongings',filter:'family_id=eq.'+f.id},()=>reloadList('belong'))
       .on('postgres_changes',{event:'*',schema:'public',table:'who_has',filter:'family_id=eq.'+f.id},()=>reloadList('whohas'))
       .on('postgres_changes',{event:'*',schema:'public',table:'money_entries',filter:'family_id=eq.'+f.id},()=>reloadList('money'))
-      .on('postgres_changes',{event:'*',schema:'public',table:'communications',filter:'family_id=eq.'+f.id},()=>reloadList('comm'))
       .on('postgres_changes',{event:'*',schema:'public',table:'health_records',filter:'family_id=eq.'+f.id},()=>reloadList('health'))
       .on('postgres_changes',{event:'*',schema:'public',table:'documents',filter:'family_id=eq.'+f.id},()=>reloadList('docs'))
       .on('postgres_changes',{event:'*',schema:'public',table:'record_changes',filter:'family_id=eq.'+f.id},pl=>{
@@ -2050,7 +2057,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   const cats=[
     {id:'today',name:'Today'},{id:'activities',name:'Activities'},{id:'schedule',name:'Schedule'},{id:'school',name:'School'},
     {id:'belongings',name:'Belongings'},{id:'holidays',name:'Holidays'},
-    {id:'money',name:'Money',prem:1},{id:'communication',name:'Communication',prem:1},
+    {id:'money',name:'Money',prem:1},
     {id:'health',name:'Health',prem:1},{id:'documents',name:'Documents',prem:1}
   ];
   const catBox=$('#cats');
@@ -2069,7 +2076,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     if(c.id==='holidays'){renderHolidays(body);return}
     if(c.id==='belongings'){renderBelongings(body);return}
     const tpl=document.getElementById('tpl-'+c.id);
-    if(PREMIUM_PREVIEW){const R={money:renderMoney,communication:renderComm,health:renderHealth,documents:renderDocs}[c.id]; if(R){R(body);applyNames();return}}
+    if(PREMIUM_PREVIEW){const R={money:renderMoney,health:renderHealth,documents:renderDocs}[c.id]; if(R){R(body);applyNames();return}}
     if(c.prem||!tpl){
       body.innerHTML='<section class="panel chrome locked-panel" style="margin-top:16px"><span class="pill prem">Premium</span><h3>'+c.name+' is part of Premium</h3><p>Try every Premium section free for 30 days. After that it is a small monthly subscription, and you can cancel any time.</p><button class="btn" type="button" id="start-trial">Start 30-day free trial</button></section>';
       $('#start-trial').addEventListener('click',()=>toast('Payments are not set up yet'));
@@ -2179,7 +2186,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
 
   $('#today-label').textContent=now.toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   applyNames(); renderToday(); renderBills(); renderHandoverStat();
-  showCat(cats[0]);
+  showCat(cats[0]); renderPersonalComm();
 
   // ---------- Install on a phone ----------
   let installEvt=null;
