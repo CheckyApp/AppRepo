@@ -189,6 +189,8 @@ input::placeholder,textarea::placeholder{color:#7D756D}
 .cal-nav{display:flex;align-items:center;gap:6px}
 .cal-nav b{font-family:var(--display);font-weight:400;font-size:1.3rem;min-width:7.5em;text-align:center}
 .req-item{padding:14px 16px;border-radius:24px 24px 24px 10px;display:grid;gap:8px;background:#2A1322;box-shadow:inset 0 0 0 1px #4A2238}
+.app-pend{}
+#pending-box > section{margin-top:18px}
 .req-item.mine{background:var(--row-mid);box-shadow:inset 0 0 0 1px var(--line)}
 .req-item .acts{display:flex;gap:8px;flex-wrap:wrap}
 .paint-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;border-radius:18px;background:var(--row-lo);box-shadow:inset 0 0 0 1px var(--line)}
@@ -401,6 +403,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
 
   <!-- -------- Shared -------- -->
   <main id="shared" class="wrap" hidden>
+    <div id="pending-box" hidden></div>
     <section class="hero" aria-labelledby="h-shared">
       <div>
         <div class="eyebrow" id="shared-eyebrow">Shared with your co-parent</div>
@@ -780,7 +783,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   $('#demo-btn').addEventListener('click',()=>{USER=null;loginMsg('');showApp();toast('Demo mode: nothing is saved online')});
   $('#signout').addEventListener('click',async()=>{
     if(USER&&sb){try{await sb.auth.signOut()}catch(e){} if(CHANNEL){sb.removeChannel(CHANNEL);CHANNEL=null}}
-    USER=null; BILLS=store.get('checky.bills',null)||billSeed(); renderBills(); SCH=demoSchedule(); resetLists(); renderHandoverStat(); $('#app').hidden=true;$('#login').hidden=false;document.body.classList.remove('inside');window.scrollTo(0,0);
+    USER=null; BILLS=store.get('checky.bills',null)||billSeed(); renderBills(); SCH=demoSchedule(); resetLists(); CHG=[]; renderPending(); renderHandoverStat(); $('#app').hidden=true;$('#login').hidden=false;document.body.classList.remove('inside');window.scrollTo(0,0);
   });
   $('#pw-form').addEventListener('submit',async e=>{
     e.preventDefault(); const pw=$('#pw-new').value; const m=$('#pw-msg');
@@ -984,6 +987,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   $('#act-cancel').addEventListener('click',()=>actDlg.close());
   $('#act-delete').addEventListener('click',async()=>{
     if(!editing) return;
+    if(needsApproval()){actDlg.close(); await askChange('activities',{...toRow(editing),id:editing.id},'delete',null,'Activity "'+editing.name+'"'); return}
     if(USER&&FAM.id){const {error}=await sb.from('activities').delete().eq('id',editing.id); if(error){toast('Could not remove: '+error.message);return}}
     ACTS=ACTS.filter(x=>x!==editing); saveActs(); actDlg.close(); renderToday(); refreshCat(); toast('Activity removed');
   });
@@ -997,10 +1001,12 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
       start:$('#act-start').value,end:$('#act-end').value,who:$('#act-who').value,where:$('#act-where').value.trim(),
       bring:$('#act-bring').value.trim(),remind:$('#act-remind').value};
     if(USER&&FAM.id){
-      const row=toRow(a);
+      const row=toRow(a); let actDates=null;
+      if(editing&&needsApproval()){const old={...toRow(editing),id:editing.id}, ch=dateDiff('activities',old,row); if(Object.keys(ch).length){actDates={ch,old}; Object.keys(ch).forEach(k=>{row[k]=old[k]})}}
       const res=editing?await sb.from('activities').update(row).eq('id',editing.id).select().single():await sb.from('activities').insert(row).select().single();
       if(res.error){$('#act-error').textContent='Could not save: '+res.error.message;$('#act-error').hidden=false;return}
       Object.assign(a,fromRow(res.data));
+      if(actDates){ACTS=ACTS.map(x=>x===editing?a:x); actDlg.close(); renderToday(); refreshCat(); await askChange('activities',actDates.old,'update',actDates.ch,a.name); return}
     }
     if(editing) ACTS=ACTS.map(x=>x===editing?a:x); else ACTS.push(a);
     saveActs(); actDlg.close(); renderToday(); refreshCat();
@@ -1329,6 +1335,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   $('#ho-cancel').addEventListener('click',()=>hoDlg.close());
   $('#ho-delete').addEventListener('click',async()=>{
     if(!editingHo) return;
+    if(needsApproval()){hoDlg.close(); await askChange('handovers',editingHo,'delete',null,'Drop-off/pickup on '+dmy(editingHo.on_date)); return}
     if(USER&&FAM.id){const {error}=await sb.from('handovers').delete().eq('id',editingHo.id); if(error){toast('Could not remove: '+error.message);return}}
     SCH.hand=SCH.hand.filter(x=>x!==editingHo); hoDlg.close(); refreshCat(); toast('Removed');
   });
@@ -1336,6 +1343,8 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     e.preventDefault(); const err=$('#ho-error');
     const row={on_date:$('#ho-date').value,at_time:$('#ho-time').value||null,place:$('#ho-place').value.trim()||null,dropped_by:$('#ho-drop').value,picked_by:$('#ho-pick').value,notes:$('#ho-notes').value.trim()||null};
     if(!row.on_date){err.textContent='Choose the date.';err.hidden=false;return}
+    let hoDates=null;
+    if(editingHo&&needsApproval()){const ch=dateDiff('handovers',editingHo,row); if(Object.keys(ch).length){hoDates=ch; Object.keys(ch).forEach(k=>{row[k]=editingHo[k]??null})}}
     let saved={...row,id:editingHo?editingHo.id:'h'+Date.now()};
     if(USER&&FAM.id){
       const res=editingHo?await sb.from('handovers').update(row).eq('id',editingHo.id).select().single():await sb.from('handovers').insert({...row,family_id:FAM.id}).select().single();
@@ -1343,6 +1352,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
       saved=res.data;
     }
     if(editingHo) SCH.hand=SCH.hand.map(x=>x===editingHo?saved:x); else SCH.hand.push(saved);
+    if(hoDates){hoDlg.close(); refreshCat(); await askChange('handovers',saved,'update',hoDates,'Drop-off/pickup on '+dmy(editingHo.on_date)); return}
     hoDlg.close(); refreshCat(); toast((editingHo?'Saved. ':'Added. ')+(FAM.type==='two'?nm(otherOf(FAM.me))+' can see it too.':''));
   });
 
@@ -1401,6 +1411,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   }
   async function removeRecord(){
     const {k,rec}=recCtx, c=LISTDEF[k];
+    if(needsApproval()&&GUARD[c.table]){recDlg.close(); const it=c.item(rec); await askChange(c.table,rec,'delete',null,c.noun.charAt(0).toUpperCase()+c.noun.slice(1)+' "'+it.title+'"'); return}
     if(USER&&FAM.id){const {error}=await sb.from(c.table).delete().eq('id',rec.id); if(error){toast('Could not remove: '+error.message);return} if(c.photo&&rec[c.photo]) sb.storage.from('trip-photos').remove([rec[c.photo]])}
     RECS[k]=RECS[k].filter(x=>x!==rec); recDlg.close(); refreshCat(); toast('Removed');
   }
@@ -1412,6 +1423,8 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     for(const f of c.fields){ if(f.req&&(!f.showIf||f.showIf(row))&&(row[f.k]==null)) return fail(f.reqMsg||('Fill in: '+f.label),f.k);
       if(f.type==='number'&&row[f.k]!=null&&isNaN(row[f.k])) return fail('Type a number for: '+f.label,f.k) }
     const bad=c.validate&&c.validate(row); if(bad) return fail(bad);
+    let pendingDates=null;
+    if(rec&&needsApproval()&&GUARD[c.table]){const ch=dateDiff(c.table,rec,row); if(Object.keys(ch).length){pendingDates=ch; Object.keys(ch).forEach(k=>{row[k]=rec[k]??null})}}
     let oldPhoto=null, localUrl=null;
     if(c.photo){
       const inp=$('#rf-'+c.photo), file=inp&&inp.files[0], rm=$('#rf-'+c.photo+'-remove');
@@ -1437,6 +1450,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
       if(c.photo){ if(oldPhoto&&oldPhoto!==saved[c.photo]) sb.storage.from('trip-photos').remove([oldPhoto]); await signPhotos(k,[saved]) }
     }
     if(rec) RECS[k]=RECS[k].map(x=>x===rec?saved:x); else RECS[k].push(saved);
+    if(pendingDates){recDlg.close(); refreshCat(); await askChange(c.table,saved,'update',pendingDates,c.item(saved).title); return}
     recDlg.close(); refreshCat(); toast((rec?'Saved. ':'Added. ')+(FAM.type==='two'?nm(otherOf(FAM.me))+' can see it too.':''));
   });
   async function patchRecord(k,rec,patch){
@@ -1456,6 +1470,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
       li.innerHTML=(it.check?'<input type="checkbox" class="check">':'')+(it.thumb?'<button type="button" class="thumb"><img alt=""></button>':'')+'<div class="grow"><span></span><div class="meta"></div>'+(it.links?'<div class="meta rec-links">'+it.links+'</div>':'')+'</div><div class="bill-side">'+(it.pill?'<span class="pill '+it.pill[0]+'">'+esc(it.pill[1])+'</span>':'')+'</div>';
       li.querySelector('.grow span').textContent=it.title; li.querySelector('.grow .meta').textContent=(it.meta||[]).filter(Boolean).join(' · ');
       if(it.done) li.classList.add('done');
+      if(pendingFor(r.id)){const pp=document.createElement('span');pp.className='pill later';pp.textContent='Change waiting';li.querySelector('.bill-side').prepend(pp)}
       if(it.thumb){const tb=li.querySelector('.thumb');tb.querySelector('img').src=it.thumb;tb.setAttribute('aria-label','Open photo: '+it.title);tb.addEventListener('click',()=>showPhoto(it.thumb,it.title))}
       if(it.check){const cb=li.querySelector('.check'); cb.checked=!!it.check.on; cb.setAttribute('aria-label',it.check.label||it.title); cb.addEventListener('change',e=>{e.stopPropagation(); it.check.fn(cb.checked)})}
       const side=li.querySelector('.bill-side');
@@ -1616,6 +1631,59 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   $('#photo-close').addEventListener('click',()=>photoDlg.close());
   photoDlg.addEventListener('click',e=>{if(e.target===photoDlg) photoDlg.close()});
 
+  // ---------- Once a date is set, it's set: date changes and removals need the other parent ----------
+  const GUARD={activities:['repeat','week_day','on_date','starts','ends'],handovers:['on_date','at_time'],school_work:['given_date','due_date'],reading_log:['read_on'],
+    teacher_contacts:['contacted_on'],school_events:['on_date','at_time'],holiday_records:['year','from_date','to_date'],trips:['trip_date','end_date']};
+  const COL_LABEL={repeat:'how often',week_day:'day',on_date:'date',starts:'start time',ends:'end time',at_time:'time',given_date:'date given',due_date:'due date',
+    read_on:'date',contacted_on:'date',year:'year',from_date:'from',to_date:'until',trip_date:'from',end_date:'until'};
+  const TBL_KEY={school_work:'work',reading_log:'reading',teacher_contacts:'contacts',school_events:'events',holiday_records:'holidays',trips:'trips'};
+  let CHG=[];
+  const needsApproval=()=>!!(USER&&FAM.id&&(SCH.members||1)>1);
+  const normV=(k,v)=>v==null||v===''?'':/^(starts|ends|at_time)$/.test(k)?String(v).slice(0,5):String(v);
+  const showV=(k,v)=>{v=normV(k,v); if(!v) return 'none'; if(/_date$|_on$/.test(k)) return dmy(v); if(k==='week_day') return DAYS[+v]; if(k==='repeat') return ({weekly:'every week',game:'game or match',once:'once'})[v]||v; return v};
+  function dateDiff(tbl,oldRec,row){const ch={};(GUARD[tbl]||[]).forEach(k=>{if(k in row&&normV(k,row[k])!==normV(k,oldRec[k])) ch[k]=row[k]===''?null:row[k]});return ch}
+  const changeText=(ch,oldRec)=>Object.keys(ch).map(k=>COL_LABEL[k]+' '+showV(k,oldRec[k])+' → '+showV(k,ch[k])).join(', ');
+  const pendingFor=id=>CHG.find(c=>c.status==='pending'&&c.record_id===id);
+  async function askChange(tbl,rec,action,changes,title){
+    const summary=action==='delete'?'Remove: '+title:title+': '+changeText(changes,rec);
+    const {data,error}=await sb.rpc('request_record_change',{fid:FAM.id,p_table:tbl,p_record:rec.id,p_action:action,p_changes:action==='delete'?null:changes,p_summary:summary});
+    if(error){toast(error.message);return false}
+    await loadChanges();
+    toast(data.status==='pending'?'Sent to '+nm(otherOf(FAM.me))+' for approval. Nothing changes until they approve.':'Done.');
+    return true;
+  }
+  async function loadChanges(){
+    if(!USER||!FAM.id) return;
+    const {data,error}=await sb.from('record_changes').select('*').eq('family_id',FAM.id).order('created_at',{ascending:false}).limit(40);
+    if(error) return; CHG=data; renderPending(); refreshCat();
+  }
+  function renderPending(){
+    const box=$('#pending-box'); if(!box) return;
+    const pend=CHG.filter(c=>c.status==='pending'); box.innerHTML=''; box.hidden=!pend.length; if(!pend.length) return;
+    const sec=document.createElement('section'); sec.className='panel chrome'; sec.setAttribute('aria-labelledby','h-pend');
+    sec.innerHTML='<div class="panel-head"><h3 id="h-pend">Changes waiting for approval</h3><span class="hint">Dates only change once approved</span></div><div class="pend-list" style="display:grid;gap:10px"></div>';
+    const list=sec.querySelector('.pend-list');
+    pend.forEach(c=>{
+      const mine=c.requested_by===(USER&&USER.id), it=document.createElement('div'); it.className='req-item'+(mine?' mine':'');
+      it.innerHTML='<div>'+(mine?'You asked':'<span class="pill '+(c.requested_role==='p1'?'mom':'dad')+'">'+esc(nm(c.requested_role))+'</span> asked')+'</div><div><strong></strong></div>'+
+        '<div class="hint">'+(mine?'Waiting for '+esc(nm(otherOf(c.requested_role)))+' to answer':'Asked '+esc(new Date(c.created_at).toLocaleString('en-ZA',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})))+'</div>'+
+        '<div class="acts">'+(mine?'<button type="button" class="btn ghost small" data-a="withdraw">Withdraw</button>':'<button type="button" class="btn small" data-a="approve">Approve</button><button type="button" class="btn ghost small" data-a="decline">Decline</button>')+'</div>';
+      it.querySelector('strong').textContent=c.summary||'A change';
+      it.querySelectorAll('[data-a]').forEach(b=>b.addEventListener('click',()=>answerChange(c,b.dataset.a)));
+      list.appendChild(it);
+    });
+    box.appendChild(sec);
+  }
+  async function answerChange(c,a){
+    let photo=null; if(a==='approve'&&c.action==='delete'&&c.tbl==='trips'){const t=RECS.trips.find(x=>x.id===c.record_id); photo=t&&t.photo_path}
+    const res=a==='withdraw'?await sb.rpc('withdraw_record_change',{p_id:c.id}):await sb.rpc('decide_record_change',{p_id:c.id,p_approve:a==='approve'});
+    if(res.error){toast(res.error.message);return}
+    if(photo) sb.storage.from('trip-photos').remove([photo]);
+    await loadChanges();
+    if(c.tbl==='activities') loadActs(); else if(c.tbl==='handovers') loadSchedule(); else if(TBL_KEY[c.tbl]) loadList(TBL_KEY[c.tbl]);
+    toast(a==='withdraw'?'Request withdrawn.':(a==='approve'?'Approved. ':'Declined. ')+nm(c.requested_role)+' can see your answer.');
+  }
+
   // ---------- Online data ----------
   const fromRow=r=>({id:r.id,type:r.kind,name:r.name,repeat:r.repeat,day:r.week_day,date:r.on_date||undefined,start:r.starts||'',end:r.ends||'',who:r.who,where:r.place||'',bring:r.bring||'',remind:r.remind||''});
   const toRow=a=>({family_id:FAM.id,kind:a.type,name:a.name,repeat:a.repeat,week_day:a.repeat==='weekly'?a.day:null,on_date:a.repeat==='weekly'?null:a.date,
@@ -1623,7 +1691,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   async function startCloud(user){
     USER=user; showApp(); toast('Signed in as '+user.email);
     // Start every account with empty lists instead of the demo examples
-    ['#chores','#shop','#today-acts'].forEach(s=>{$(s).innerHTML=''}); $('#note-sent').innerHTML=''; ACTS=[]; BILLS=[]; SCH={plan:null,days:{},reqs:[],hand:[],members:1}; PAINT=null; resetLists(); updateCounts(); renderToday(); renderBills(); renderHandoverStat();
+    ['#chores','#shop','#today-acts'].forEach(s=>{$(s).innerHTML=''}); $('#note-sent').innerHTML=''; ACTS=[]; BILLS=[]; SCH={plan:null,days:{},reqs:[],hand:[],members:1}; PAINT=null; resetLists(); CHG=[]; renderPending(); updateCounts(); renderToday(); renderBills(); renderHandoverStat();
     const {data,error}=await sb.from('family_members').select('role, families(*)').eq('user_id',user.id).limit(1);
     if(error){toast('Could not load your family. Has the database been set up? ('+error.message+')');return}
     await Promise.all([loadPersonal(),loadBills()]);
@@ -1632,7 +1700,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   }
   async function useFamily(f,role){
     Object.assign(FAM,{id:f.id,type:f.family_type,p1:f.p1,p2:f.p2,c1:f.c1,c2:f.c2,me:role||FAM.me,code:f.invite_code});
-    applyNames(); await Promise.all([loadActs(),loadNotes(),loadSchedule(),loadSchool(),loadHolidays()]);
+    applyNames(); await Promise.all([loadActs(),loadNotes(),loadSchedule(),loadSchool(),loadHolidays(),loadChanges()]);
     if(CHANNEL) sb.removeChannel(CHANNEL);
     CHANNEL=sb.channel('family-'+f.id)
       .on('postgres_changes',{event:'*',schema:'public',table:'activities',filter:'family_id=eq.'+f.id},()=>loadActs())
@@ -1646,6 +1714,11 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
       .on('postgres_changes',{event:'*',schema:'public',table:'school_events',filter:'family_id=eq.'+f.id},()=>reloadList('events'))
       .on('postgres_changes',{event:'*',schema:'public',table:'holiday_records',filter:'family_id=eq.'+f.id},()=>reloadList('holidays'))
       .on('postgres_changes',{event:'*',schema:'public',table:'trips',filter:'family_id=eq.'+f.id},()=>reloadList('trips'))
+      .on('postgres_changes',{event:'*',schema:'public',table:'record_changes',filter:'family_id=eq.'+f.id},pl=>{
+        const n=pl.new||{}; loadChanges();
+        if(pl.eventType==='INSERT'&&n.status==='pending'&&n.requested_by!==USER.id) toast(nm(n.requested_role)+' asked for a change. Open Shared to approve or decline.');
+        if(pl.eventType==='UPDATE'&&n.requested_by===USER.id&&(n.status==='approved'||n.status==='declined')) toast(nm(n.decided_role)+(n.status==='approved'?' approved: ':' declined: ')+(n.summary||'your change'));
+      })
       .on('postgres_changes',{event:'*',schema:'public',table:'custody_plans',filter:'family_id=eq.'+f.id},schReload)
       .on('postgres_changes',{event:'*',schema:'public',table:'handovers',filter:'family_id=eq.'+f.id},schReload)
       .on('postgres_changes',{event:'*',schema:'public',table:'schedule_requests',filter:'family_id=eq.'+f.id},pl=>{
