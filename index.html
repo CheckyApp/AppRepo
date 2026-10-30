@@ -191,6 +191,11 @@ input::placeholder,textarea::placeholder{color:#7D756D}
 .req-item{padding:14px 16px;border-radius:24px 24px 24px 10px;display:grid;gap:8px;background:#2A1322;box-shadow:inset 0 0 0 1px #4A2238}
 .req-item.mine{background:var(--row-mid);box-shadow:inset 0 0 0 1px var(--line)}
 .req-item .acts{display:flex;gap:8px;flex-wrap:wrap}
+.paint-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;border-radius:18px;background:var(--row-lo);box-shadow:inset 0 0 0 1px var(--line)}
+.brush{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:6px 14px;border:0;border-radius:999px;cursor:pointer;font-weight:700;color:var(--ink);background:var(--row-hi);box-shadow:inset 0 0 0 1px var(--line)}
+.brush i{width:14px;height:14px;border-radius:50%;display:inline-block}
+.brush[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--p-yellow);background:#2A2412}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.84rem;color:var(--ink-soft)}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px}
 
@@ -1128,22 +1133,15 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   }
   const addMonthsIso=(s,m)=>{let x=s;for(let k=0;k<m;k++)x=addMonth(x);return x};
   function fillDays(target,pat,start,first,from,to){for(let d=from;d<=to;d=iso(addDays(new Date(d+'T12:00'),1))) target[d]=patternParent(pat,start,first,d)}
-  const PATTERN_TEXT={week:'Week on, week off',2255:'2-2-5-5',weekend:'Every second weekend'};
+  const PATTERN_TEXT={week:'Week on, week off',2255:'2-2-5-5',weekend:'Every second weekend',manual:'Filled in by hand'};
   const meId=()=>USER?USER.id:'me';
-  function demoSchedule(){
-    const lastFri=iso(addDays(now,-((todayIdx-4+7)%7))), start=iso(addDays(new Date(lastFri+'T12:00'),-42));
-    const days={}; fillDays(days,'week',start,'p1',start,iso(addDays(new Date(addMonthsIso(start,3)+'T12:00'),-1)));
-    // the sample request: Parent 2 asks for the next weekend that Parent 1 has
-    let nextSat=iso(addDays(now,(5-todayIdx+7)%7||7)); while(days[nextSat]!=='p1') nextSat=iso(addDays(new Date(nextSat+'T12:00'),7));
-    const nextSun=iso(addDays(new Date(nextSat+'T12:00'),1));
-    return {plan:{pattern:'week',start_date:start,first_parent:'p1'},days,members:2,
-      reqs:[{id:'r1',from_date:nextSat,to_date:nextSun,new_parent:'p2',reason:'Family visiting from Cape Town that weekend. I can swap for the weekend after.',requested_by:'other',requested_role:'p2',status:'pending',created_at:new Date(Date.now()-864e5).toISOString()},
-        {id:'r0',from_date:iso(addDays(now,-20)),to_date:iso(addDays(now,-20)),new_parent:'p1',reason:'School sports day ran late',requested_by:'me',requested_role:'p1',status:'approved',decided_role:'p2',created_at:new Date(Date.now()-22*864e5).toISOString(),decided_at:new Date(Date.now()-21*864e5).toISOString()}],
-      hand:[{id:'h1',on_date:lastFri,at_time:'14:00',place:'School gate',dropped_by:'p2',picked_by:'p1',notes:''},
-        {id:'h2',on_date:iso(addDays(new Date(lastFri+'T12:00'),-7)),at_time:'17:30',place:"Gran's house",dropped_by:'p1',picked_by:'p2',notes:'Sports bag handed over'}]};
-  }
+  // Every calendar starts clean: no days, requests or drop-offs until a parent adds them
+  const demoSchedule=()=>({plan:null,days:{},reqs:[],hand:[],members:2});
   let SCH=demoSchedule();
   let calMonth=new Date(now.getFullYear(),now.getMonth(),1);
+  let PAINT=null; // {brush:'p1'|'p2'|'', changes:{day:parent|''}} while filling in by hand
+  const canHandEdit=()=>!SCH.plan||(SCH.members||1)<2;
+  const shownParent=d=>PAINT&&d in PAINT.changes?PAINT.changes[d]:SCH.days[d];
   const lastPlanned=()=>Object.keys(SCH.days).sort().pop()||null;
   const rangeText=(a,b)=>a===b?dmy(a):dmy(a)+' – '+dmy(b);
   const whoName=r=>r==='other'?'Someone else':nm(r);
@@ -1166,15 +1164,15 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     const mLabel=calMonth.toLocaleDateString('en-ZA',{month:'long',year:'numeric'});
     calSec.innerHTML='<div class="panel-head"><h3 id="h-cal">50/50 calendar</h3><div class="cal-nav"><button type="button" class="mini-btn" id="cal-prev" aria-label="Previous month">‹</button><b>'+esc(mLabel)+'</b><button type="button" class="mini-btn" id="cal-next" aria-label="Next month">›</button></div></div>'+
       '<div class="legend"><span><i style="background:var(--mother)"></i>'+esc(nm('p1'))+'</span><span><i style="background:var(--father)"></i>'+esc(nm('p2'))+'</span><span><i style="box-shadow:inset 0 0 0 2px var(--p-yellow)"></i>Today</span><span><i style="outline:2px dashed var(--p-yellow);outline-offset:-2px"></i>Waiting for approval</span></div>'+
-      '<div class="table-scroll"><table class="cal" id="cal"></table></div><div id="cal-foot" style="display:grid;gap:10px"></div>';
+      (PAINT?'<div class="paint-bar" role="group" aria-label="Colour days for"><span class="hint">Colour days for:</span><button type="button" class="brush" data-b="p1" aria-pressed="'+(PAINT.brush==='p1')+'"><i style="background:var(--mother)"></i>'+esc(nm('p1'))+'</button><button type="button" class="brush" data-b="p2" aria-pressed="'+(PAINT.brush==='p2')+'"><i style="background:var(--father)"></i>'+esc(nm('p2'))+'</button><button type="button" class="brush" data-b="" aria-pressed="'+(PAINT.brush==='')+'">Clear</button></div>':'')+'<div class="table-scroll"><table class="cal" id="cal"></table></div><div id="cal-foot" style="display:grid;gap:10px"></div>';
     const pendingDays=new Set(); SCH.reqs.filter(r=>r.status==='pending').forEach(r=>{for(let d=r.from_date;d<=r.to_date;d=iso(addDays(new Date(d+'T12:00'),1))) pendingDays.add(d)});
     const first=new Date(calMonth), gridStart=addDays(first,-((first.getDay()+6)%7));
-    let html='<caption class="hint" style="text-align:left;padding-bottom:4px">Tap a day to ask for a change</caption><thead><tr>'+['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>'<th scope="col">'+d+'</th>').join('')+'</tr></thead><tbody>';
+    let html='<caption class="hint" style="text-align:left;padding-bottom:4px">'+(PAINT?'Tap days to colour them':hasDays?'Tap a day to ask for a change':'Tap a day to start filling in')+'</caption><thead><tr>'+['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>'<th scope="col">'+d+'</th>').join('')+'</tr></thead><tbody>';
     for(let w=0;w<6;w++){
       const rowStart=addDays(gridStart,w*7); if(w>3&&rowStart.getMonth()!==calMonth.getMonth()) break;
       html+='<tr>';
       for(let k=0;k<7;k++){
-        const dt=addDays(gridStart,w*7+k), d=iso(dt), p=SCH.days[d];
+        const dt=addDays(gridStart,w*7+k), d=iso(dt), p=shownParent(d);
         const cls=[p==='p1'?'mom':p==='p2'?'dad':'none']; if(dt.getMonth()!==calMonth.getMonth()) cls.push('out'); if(d===t) cls.push('today'); if(pendingDays.has(d)) cls.push('pend');
         html+='<td class="'+cls.join(' ')+'"><button type="button" class="day" data-d="'+d+'" aria-label="'+esc(dt.toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long'}))+': '+(p?esc(nm(p)):'not planned')+(pendingDays.has(d)?', change waiting for approval':'')+'">'+dt.getDate()+'</button></td>';
       }
@@ -1182,12 +1180,15 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     }
     calSec.querySelector('#cal').innerHTML=html+'</tbody>';
     const foot=calSec.querySelector('#cal-foot');
-    if(!hasDays){
-      foot.innerHTML='<p class="hint" style="margin:0">No custody days planned yet. Set up the pattern you agreed on and Checky fills in the next months.</p><div class="note-acts"><button type="button" class="btn small" id="cust-open">Set up the custody calendar</button></div>';
+    if(PAINT){
+      const n=Object.keys(PAINT.changes).length, lock=(SCH.members||1)>1;
+      foot.innerHTML='<p class="hint" style="margin:0">'+(n?n+(n===1?' day changed.':' days changed.'):'Choose a colour above, then tap the days. Use the arrows to go to other months.')+(lock?' After you save, any change needs '+esc(nm(otherOf(FAM.me)))+"'s approval.":'')+'</p><div class="note-acts"><button type="button" class="btn small" id="paint-save"'+(n?'':' disabled')+'>Save calendar</button><button type="button" class="btn ghost small" id="paint-cancel">Cancel</button></div>';
+    }else if(!hasDays){
+      foot.innerHTML='<p class="hint" style="margin:0">The calendar is empty. Fill it in by hand, or use a repeating pattern you agreed on.</p><div class="note-acts"><button type="button" class="btn small" id="paint-start">Fill in by hand</button><button type="button" class="btn ghost small" id="cust-open">Use a repeating pattern</button></div>';
     }else{
-      const soon=last<iso(addDays(now,30));
-      foot.innerHTML='<p class="hint" style="margin:0'+(soon?';color:var(--p-yellow)':'')+'">'+(SCH.plan?esc(PATTERN_TEXT[SCH.plan.pattern]||'')+'. ':'')+'Planned until '+esc(new Date(last+'T12:00').toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'}))+'.'+(soon?' Time to plan the next 3 months.':'')+'</p>'+
-        '<div class="note-acts"><button type="button" class="btn small" id="req-open">Ask to change days</button>'+(SCH.plan?'<button type="button" class="btn ghost small" id="cust-extend">Plan 3 more months</button>':'')+((SCH.members||1)<2?'<button type="button" class="btn ghost small" id="cust-open">Change the pattern</button>':'')+'</div>';
+      const soon=last<iso(addDays(now,30)), pat=SCH.plan&&SCH.plan.pattern;
+      foot.innerHTML='<p class="hint" style="margin:0'+(soon?';color:var(--p-yellow)':'')+'">'+(pat?esc(PATTERN_TEXT[pat]||'')+'. ':'')+'Planned until '+esc(new Date(last+'T12:00').toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'}))+'.'+(soon?' Time to plan the next months.':'')+'</p>'+
+        '<div class="note-acts"><button type="button" class="btn small" id="req-open">Ask to change days</button>'+(pat&&pat!=='manual'?'<button type="button" class="btn ghost small" id="cust-extend">Plan 3 more months</button>':'')+(canHandEdit()?'<button type="button" class="btn ghost small" id="paint-start">Edit by hand</button><button type="button" class="btn ghost small" id="cust-open">Use a pattern</button>':'')+'</div>';
     }
     // Waiting for approval
     const reqSec=document.createElement('section'); reqSec.className='panel chrome'; reqSec.setAttribute('aria-labelledby','h-req');
@@ -1232,7 +1233,16 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     wrap.append(calSec,reqSec,hoSec,chSec); body.appendChild(wrap);
     calSec.querySelector('#cal-prev').addEventListener('click',()=>{calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()-1,1);refreshCat()});
     calSec.querySelector('#cal-next').addEventListener('click',()=>{calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()+1,1);refreshCat()});
-    calSec.querySelectorAll('.day').forEach(b=>b.addEventListener('click',()=>{ if(!hasDays){openCustody();return} const d=b.dataset.d; openRequest(d,d,otherOf(SCH.days[d]||FAM.me)) }));
+    calSec.querySelectorAll('.day').forEach(b=>b.addEventListener('click',()=>{
+      const d=b.dataset.d;
+      if(!PAINT&&!hasDays&&canHandEdit()) PAINT={brush:FAM.me||'p1',changes:{}};
+      if(PAINT){ if((SCH.days[d]||'')===PAINT.brush) delete PAINT.changes[d]; else PAINT.changes[d]=PAINT.brush; refreshCat(); return }
+      openRequest(d,d,otherOf(SCH.days[d]||FAM.me));
+    }));
+    calSec.querySelectorAll('.brush').forEach(b=>b.addEventListener('click',()=>{PAINT.brush=b.dataset.b;refreshCat()}));
+    const ps=calSec.querySelector('#paint-start'); if(ps) ps.addEventListener('click',()=>{PAINT={brush:FAM.me||'p1',changes:{}};refreshCat()});
+    const pc=calSec.querySelector('#paint-cancel'); if(pc) pc.addEventListener('click',()=>{PAINT=null;refreshCat()});
+    const pv=calSec.querySelector('#paint-save'); if(pv) pv.addEventListener('click',savePaint);
     const co=calSec.querySelector('#cust-open'); if(co) co.addEventListener('click',openCustody);
     const ro=calSec.querySelector('#req-open'); if(ro) ro.addEventListener('click',()=>{const d=iso(addDays(now,1));openRequest(d,d,otherOf(SCH.days[d]||FAM.me))});
     const ce=calSec.querySelector('#cust-extend'); if(ce) ce.addEventListener('click',extendCustody);
@@ -1249,7 +1259,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   function openCustody(){
     applyNames(); $('#cust-error').hidden=true;
     $('#cust-pattern').value=SCH.plan?SCH.plan.pattern:'week'; custExplain();
-    $('#cust-start').value=iso(addDays(now,(4-todayIdx+7)%7)); $('#cust-first').value=FAM.me||'p1'; $('#cust-months').value='3';
+    $('#cust-start').value=''; $('#cust-first').value=FAM.me||'p1'; $('#cust-months').value='3'; PAINT=null;
     custDlg.showModal();
   }
   $('#cust-cancel').addEventListener('click',()=>custDlg.close());
@@ -1269,6 +1279,19 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     calMonth=new Date(start.slice(0,4),+start.slice(5,7)-1,1); refreshCat();
     toast('Custody calendar filled in for '+months+' months');
   });
+  async function savePaint(){
+    const changes=Object.entries(PAINT.changes).map(([day,parent])=>({day,parent}));
+    if(!changes.length) return;
+    if(USER&&FAM.id){
+      const {error}=await sb.rpc('set_custody_days',{fid:FAM.id,p_days:changes});
+      if(error){toast(error.message);return}
+      PAINT=null; await loadSchedule();
+    }else{
+      changes.forEach(c=>{if(c.parent) SCH.days[c.day]=c.parent; else delete SCH.days[c.day]});
+      SCH.plan=Object.keys(SCH.days).length?{pattern:'manual'}:null; PAINT=null; renderHandoverStat(); refreshCat();
+    }
+    toast('Calendar saved. '+((SCH.members||1)>1?nm(otherOf(FAM.me))+' can see it too.':''));
+  }
   async function extendCustody(){
     if(USER&&FAM.id){
       const {data,error}=await sb.rpc('extend_custody',{fid:FAM.id,p_months:3});
@@ -1375,7 +1398,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   async function startCloud(user){
     USER=user; showApp(); toast('Signed in as '+user.email);
     // Start every account with empty lists instead of the demo examples
-    ['#chores','#shop','#today-acts'].forEach(s=>{$(s).innerHTML=''}); $('#note-sent').innerHTML=''; ACTS=[]; BILLS=[]; SCH={plan:null,days:{},reqs:[],hand:[],members:1}; updateCounts(); renderToday(); renderBills(); renderHandoverStat();
+    ['#chores','#shop','#today-acts'].forEach(s=>{$(s).innerHTML=''}); $('#note-sent').innerHTML=''; ACTS=[]; BILLS=[]; SCH={plan:null,days:{},reqs:[],hand:[],members:1}; PAINT=null; updateCounts(); renderToday(); renderBills(); renderHandoverStat();
     const {data,error}=await sb.from('family_members').select('role, families(*)').eq('user_id',user.id).limit(1);
     if(error){toast('Could not load your family. Has the database been set up? ('+error.message+')');return}
     await Promise.all([loadPersonal(),loadBills()]);
