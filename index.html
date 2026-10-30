@@ -188,10 +188,17 @@ input::placeholder,textarea::placeholder{color:#7D756D}
 .cal .day:focus-visible{outline:2px solid var(--p-yellow);outline-offset:1px}
 .cal-nav{display:flex;align-items:center;gap:6px}
 .cal-nav b{font-family:var(--display);font-weight:400;font-size:1.3rem;min-width:7.5em;text-align:center}
-.req-item{padding:14px 16px;border-radius:24px 24px 24px 10px;display:grid;gap:8px;background:#2A1322;box-shadow:inset 0 0 0 1px #4A2238}
-.app-pend{}
 #pending-box > section{margin-top:18px}
-.req-item.mine{background:var(--row-mid);box-shadow:inset 0 0 0 1px var(--line)}
+.req-item{padding:16px;border-radius:24px 24px 24px 10px;display:grid;gap:8px;background:linear-gradient(147deg,var(--p-yellow-lt) 0%,var(--p-yellow) 45%,#FFC400 100%);color:var(--ink-dark);
+  box-shadow:0 0 0 3px rgba(255,210,31,.35),0 10px 30px rgba(255,210,31,.25)}
+.req-item .hint{color:#3D3200}
+.req-item strong{font-weight:800}
+.req-item .btn{color:var(--p-yellow);background:var(--ink-dark);box-shadow:none}
+.req-item .btn.ghost{color:var(--ink-dark);background:transparent;box-shadow:inset 0 0 0 2px var(--ink-dark)}
+.req-item.mine{background:#221C0B;color:var(--ink);box-shadow:inset 0 0 0 2px var(--p-yellow)}
+.req-item.mine .hint{color:var(--p-yellow-lt)}
+.req-item.mine .btn.ghost{color:var(--ink);box-shadow:inset 0 0 0 2px var(--p-yellow)}
+.seg .badge{display:inline-grid;place-items:center;min-width:22px;height:22px;margin-left:6px;padding:0 6px;border-radius:999px;background:var(--p-yellow);color:var(--ink-dark);font-size:.75rem;font-weight:800}
 .req-item .acts{display:flex;gap:8px;flex-wrap:wrap}
 .paint-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;border-radius:18px;background:var(--row-lo);box-shadow:inset 0 0 0 1px var(--line)}
 .brush{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:6px 14px;border:0;border-radius:999px;cursor:pointer;font-weight:700;color:var(--ink);background:var(--row-hi);box-shadow:inset 0 0 0 1px var(--line)}
@@ -848,7 +855,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     $$('[data-name]').forEach(el=>{el.textContent=nm(el.dataset.name)});
     $$('[data-initial]').forEach(el=>{el.textContent=(nm(el.dataset.initial)||'?').trim().charAt(0).toUpperCase()});
     const one=FAM.type==='one';
-    $('#seg-shared').textContent=one?'Family':'Shared';
+    $('#seg-shared').textContent=one?'Family':'Shared'; if(typeof updateBadge==='function') try{updateBadge()}catch(e){}
     $('#shared-eyebrow').textContent=one?'Shared with your family':'Shared with your co-parent';
     $('#shared-sub').textContent=one?'When you add something here, everyone in the family gets notified.':'When you add something here, the other parent gets notified.';
     $('#h-note').textContent=one?'Note to the family':'Note to the other parent';
@@ -1166,7 +1173,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
         '<div class="note-acts"><button type="button" class="btn small" id="req-open">Ask to change days</button>'+(pat&&pat!=='manual'?'<button type="button" class="btn ghost small" id="cust-extend">Plan 3 more months</button>':'')+(canHandEdit()?'<button type="button" class="btn ghost small" id="paint-start">Edit by hand</button><button type="button" class="btn ghost small" id="cust-open">Use a pattern</button>':'')+'</div>';
     }
     // Waiting for approval
-    const reqSec=document.createElement('section'); reqSec.className='panel chrome'; reqSec.setAttribute('aria-labelledby','h-req');
+    const reqSec=document.createElement('section'); reqSec.className='panel chrome'+(SCH.reqs.some(r=>r.status==='pending')?' rim-yellow':''); reqSec.setAttribute('aria-labelledby','h-req');
     reqSec.innerHTML='<div class="panel-head"><h3 id="h-req">Waiting for approval</h3></div><div id="req-list" style="display:grid;gap:10px"></div>';
     const rl=reqSec.querySelector('#req-list'), pend=SCH.reqs.filter(r=>r.status==='pending');
     if(!pend.length) rl.innerHTML='<p class="empty" style="margin:0">No changes waiting.</p>';
@@ -1366,7 +1373,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
       sb.from('family_members').select('role').eq('family_id',FAM.id)]);
     const bad=[p,d,r,h,m].find(x=>x.error); if(bad){toast('Could not load the schedule: '+bad.error.message);return}
     SCH={plan:p.data,days:Object.fromEntries(d.data.map(x=>[x.day,x.parent])),reqs:r.data,hand:h.data,members:m.data.length};
-    renderHandoverStat(); refreshCat();
+    renderHandoverStat(); refreshCat(); updateBadge();
   }
   let schTimer=null; const schReload=()=>{clearTimeout(schTimer);schTimer=setTimeout(loadSchedule,400)};
 
@@ -1633,14 +1640,14 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
 
   // ---------- Once a date is set, it's set: date changes and removals need the other parent ----------
   const GUARD={activities:['repeat','week_day','on_date','starts','ends'],handovers:['on_date','at_time'],school_work:['given_date','due_date'],reading_log:['read_on'],
-    teacher_contacts:['contacted_on'],school_events:['on_date','at_time'],holiday_records:['year','from_date','to_date'],trips:['trip_date','end_date']};
+    teacher_contacts:['contacted_on'],school_events:['on_date','at_time'],holiday_records:['occasion','year','parent','from_date','to_date'],trips:['trip_date','end_date','with_who']};
   const COL_LABEL={repeat:'how often',week_day:'day',on_date:'date',starts:'start time',ends:'end time',at_time:'time',given_date:'date given',due_date:'due date',
-    read_on:'date',contacted_on:'date',year:'year',from_date:'from',to_date:'until',trip_date:'from',end_date:'until'};
+    read_on:'date',contacted_on:'date',year:'year',from_date:'from',to_date:'until',trip_date:'from',end_date:'until',parent:'who had the children',occasion:'occasion',with_who:'with who'};
   const TBL_KEY={school_work:'work',reading_log:'reading',teacher_contacts:'contacts',school_events:'events',holiday_records:'holidays',trips:'trips'};
   let CHG=[];
   const needsApproval=()=>!!(USER&&FAM.id&&(SCH.members||1)>1);
   const normV=(k,v)=>v==null||v===''?'':/^(starts|ends|at_time)$/.test(k)?String(v).slice(0,5):String(v);
-  const showV=(k,v)=>{v=normV(k,v); if(!v) return 'none'; if(/_date$|_on$/.test(k)) return dmy(v); if(k==='week_day') return DAYS[+v]; if(k==='repeat') return ({weekly:'every week',game:'game or match',once:'once'})[v]||v; return v};
+  const showV=(k,v)=>{v=normV(k,v); if(!v) return 'none'; if(/_date$|_on$/.test(k)) return dmy(v); if(k==='week_day') return DAYS[+v]; if(k==='repeat') return ({weekly:'every week',game:'game or match',once:'once'})[v]||v; if(k==='parent') return (WITH[v]||(()=>v))(); if(k==='occasion') return OCCASION[v]||v; return v};
   function dateDiff(tbl,oldRec,row){const ch={};(GUARD[tbl]||[]).forEach(k=>{if(k in row&&normV(k,row[k])!==normV(k,oldRec[k])) ch[k]=row[k]===''?null:row[k]});return ch}
   const changeText=(ch,oldRec)=>Object.keys(ch).map(k=>COL_LABEL[k]+' '+showV(k,oldRec[k])+' → '+showV(k,ch[k])).join(', ');
   const pendingFor=id=>CHG.find(c=>c.status==='pending'&&c.record_id===id);
@@ -1657,11 +1664,19 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     const {data,error}=await sb.from('record_changes').select('*').eq('family_id',FAM.id).order('created_at',{ascending:false}).limit(40);
     if(error) return; CHG=data; renderPending(); refreshCat();
   }
+  function updateBadge(){
+    const me=USER&&USER.id, n=CHG.filter(c=>c.status==='pending'&&c.requested_by!==me).length+SCH.reqs.filter(r=>r.status==='pending'&&r.requested_by!==(me||'me')).length;
+    const b=$('#seg-shared'); if(!b) return; let el=b.querySelector('.badge');
+    if(!n){if(el) el.remove(); b.removeAttribute('aria-description'); return}
+    if(!el){el=document.createElement('span');el.className='badge';b.appendChild(el)}
+    el.textContent=n; b.setAttribute('aria-description',n+(n===1?' change waits':' changes wait')+' for your approval');
+  }
   function renderPending(){
+    updateBadge();
     const box=$('#pending-box'); if(!box) return;
     const pend=CHG.filter(c=>c.status==='pending'); box.innerHTML=''; box.hidden=!pend.length; if(!pend.length) return;
-    const sec=document.createElement('section'); sec.className='panel chrome'; sec.setAttribute('aria-labelledby','h-pend');
-    sec.innerHTML='<div class="panel-head"><h3 id="h-pend">Changes waiting for approval</h3><span class="hint">Dates only change once approved</span></div><div class="pend-list" style="display:grid;gap:10px"></div>';
+    const sec=document.createElement('section'); sec.className='panel chrome rim-yellow'; sec.setAttribute('aria-labelledby','h-pend');
+    sec.innerHTML='<div class="panel-head"><h3 id="h-pend">Changes waiting for approval</h3><span class="hint">Nothing changes until it is approved</span></div><div class="pend-list" style="display:grid;gap:10px"></div>';
     const list=sec.querySelector('.pend-list');
     pend.forEach(c=>{
       const mine=c.requested_by===(USER&&USER.id), it=document.createElement('div'); it.className='req-item'+(mine?' mine':'');
