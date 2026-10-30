@@ -196,6 +196,9 @@ input::placeholder,textarea::placeholder{color:#7D756D}
 .brush i{width:14px;height:14px;border-radius:50%;display:inline-block}
 .brush[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--p-yellow);background:#2A2412}
 .btn[disabled]{opacity:.45;cursor:not-allowed}
+.two-col .field.wide{grid-column:1/-1}
+.rec-links a{color:var(--p-blue-lt);font-weight:700}
+.field textarea{min-height:64px}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.84rem;color:var(--ink-soft)}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px}
 
@@ -525,6 +528,8 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<dialog id="rec-dialog" aria-labelledby="rec-title"><form id="rec-form" class="dlg" method="dialog" novalidate></form></dialog>
+
 <dialog id="cust-dialog" aria-labelledby="cust-title">
   <form id="cust-form" class="dlg" method="dialog" novalidate>
     <h3 id="cust-title">Set up the custody calendar</h3>
@@ -575,35 +580,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   </form>
 </dialog>
 
-<template id="tpl-school">
-  <div class="grid">
-    <section class="panel chrome" style="grid-column:1/-1" aria-labelledby="h-assign">
-      <div class="panel-head"><h3 id="h-assign">Assignments &amp; tests</h3><span class="hint">Grade 4 · Term 4</span></div>
-      <div class="table-scroll"><table class="log">
-        <thead><tr><th>Item</th><th>Subject</th><th>Given</th><th>Due / date</th><th>Mark</th></tr></thead>
-        <tbody>
-          <tr><td>Water cycle poster</td><td>Natural Sciences</td><td>5 Oct</td><td>16 Oct</td><td class="hint">Add when marked</td></tr>
-          <tr><td>Spelling test</td><td>Afrikaans</td><td>—</td><td>9 Oct</td><td class="mark">18/20</td></tr>
-          <tr><td>Fractions test</td><td>Mathematics</td><td>—</td><td>2 Oct</td><td class="mark">34/40</td></tr>
-        </tbody>
-      </table></div>
-    </section>
-    <section class="panel chrome" aria-labelledby="h-read">
-      <div class="panel-head"><h3 id="h-read">Reading</h3></div>
-      <ul class="list">
-        <li><div class="grow"><span>Pages 24–31</span><div class="meta">12 Oct · Afrikaans</div></div></li>
-        <li><div class="grow"><span>Pages 40–46</span><div class="meta">10 Oct · English</div></div></li>
-      </ul>
-    </section>
-    <section class="panel chrome" aria-labelledby="h-teach">
-      <div class="panel-head"><h3 id="h-teach">Teacher</h3></div>
-      <ul class="list">
-        <li><div class="grow"><span>Mrs Botha · Class 4B</span><div class="meta">Parent evening 22 Oct, 18:00</div></div></li>
-        <li><div class="grow"><span>Last contact 7 Oct</span><div class="meta">About the reading level</div></div></li>
-      </ul>
-    </section>
-  </div>
-</template>
+
 
 <template id="tpl-today">
   <div class="grid">
@@ -812,7 +789,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   $('#demo-btn').addEventListener('click',()=>{USER=null;loginMsg('');showApp();toast('Demo mode: nothing is saved online')});
   $('#signout').addEventListener('click',async()=>{
     if(USER&&sb){try{await sb.auth.signOut()}catch(e){} if(CHANNEL){sb.removeChannel(CHANNEL);CHANNEL=null}}
-    USER=null; BILLS=store.get('checky.bills',null)||billSeed(); renderBills(); SCH=demoSchedule(); renderHandoverStat(); $('#app').hidden=true;$('#login').hidden=false;document.body.classList.remove('inside');window.scrollTo(0,0);
+    USER=null; BILLS=store.get('checky.bills',null)||billSeed(); renderBills(); SCH=demoSchedule(); resetLists(); renderHandoverStat(); $('#app').hidden=true;$('#login').hidden=false;document.body.classList.remove('inside');window.scrollTo(0,0);
   });
   $('#pw-form').addEventListener('submit',async e=>{
     e.preventDefault(); const pw=$('#pw-new').value; const m=$('#pw-msg');
@@ -1391,6 +1368,177 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   }
   let schTimer=null; const schReload=()=>{clearTimeout(schTimer);schTimer=setTimeout(loadSchedule,400)};
 
+  // ---------- Shared lists: one form and list system used by School (and later sections) ----------
+  const RECS={}, LISTDEF={};
+  const defineList=cfg=>{LISTDEF[cfg.key]=cfg; RECS[cfg.key]=[]};
+  const resetLists=()=>Object.keys(LISTDEF).forEach(k=>{RECS[k]=[]});
+  async function loadList(k){
+    if(!USER||!FAM.id) return; const c=LISTDEF[k];
+    const {data,error}=await sb.from(c.table).select('*').eq('family_id',FAM.id).limit(500);
+    if(error){toast('Could not load '+c.plural+': '+error.message);return}
+    RECS[k]=data; refreshCat();
+  }
+  const listTimers={}; const reloadList=k=>{clearTimeout(listTimers[k]);listTimers[k]=setTimeout(()=>loadList(k),400)};
+  const recDlg=$('#rec-dialog'), recForm=$('#rec-form'); let recCtx=null;
+  const optList=f=>typeof f.options==='function'?f.options():f.options;
+  function fieldHtml(f,val){
+    const id='rf-'+f.k, v=val==null?'':String(val), ph=f.ph?' placeholder="'+esc(f.ph)+'"':'', mx=f.max?' maxlength="'+f.max+'"':'';
+    let input;
+    if(f.type==='select') input='<select id="'+id+'">'+optList(f).map(([ov,ol])=>'<option value="'+esc(ov)+'"'+(String(ov)===v?' selected':'')+'>'+esc(ol)+'</option>').join('')+'</select>';
+    else if(f.type==='longtext') input='<textarea id="'+id+'" rows="2"'+mx+ph+'>'+esc(v)+'</textarea>';
+    else{const t={number:'number',date:'date',time:'time',tel:'tel',email:'email'}[f.type]||'text';
+      input='<input id="'+id+'" type="'+t+'"'+(t==='number'?' inputmode="decimal" step="any" min="0"':'')+' value="'+esc(t==='time'?v.slice(0,5):v)+'"'+mx+ph+'>'}
+    return '<div class="field'+(f.wide||f.type==='longtext'?' wide':'')+'" data-k="'+f.k+'"><label for="'+id+'">'+esc(f.label)+'</label>'+input+'</div>';
+  }
+  function formValues(c){const o={};c.fields.forEach(f=>{const el=$('#rf-'+f.k); if(!el) return; let v=el.value.trim(); o[f.k]=v===''?null:f.type==='number'?+v:v});return o}
+  function syncShow(c){const vals=formValues(c); c.fields.forEach(f=>{if(f.showIf){const w=recForm.querySelector('[data-k="'+f.k+'"]'); if(w) w.hidden=!f.showIf(vals)}})}
+  function openRecord(k,rec,opts={}){
+    const c=LISTDEF[k]; recCtx={k,rec};
+    const init=rec?{...rec}:Object.fromEntries(c.fields.map(f=>[f.k,typeof f.def==='function'?f.def():f.def]));
+    Object.assign(init,opts.preset||{});
+    recForm.innerHTML='<h3 id="rec-title">'+esc((rec?'Edit ':'Add ')+c.noun)+'</h3><div class="two-col">'+c.fields.map(f=>fieldHtml(f,init[f.k])).join('')+'</div>'+
+      '<p class="hint" id="rec-error" role="alert" style="margin:0;color:var(--p-pink-lt)" hidden></p>'+
+      '<div class="note-acts"><button class="btn" type="submit">Save</button><button class="btn ghost" type="button" id="rec-cancel">Cancel</button>'+(rec?'<button class="btn ghost" type="button" id="rec-delete">Remove</button>':'')+'</div>';
+    recForm.querySelectorAll('select,input').forEach(el=>el.addEventListener('change',()=>syncShow(c)));
+    $('#rec-cancel').addEventListener('click',()=>recDlg.close());
+    if(rec) $('#rec-delete').addEventListener('click',removeRecord);
+    syncShow(c); recDlg.showModal();
+    const fe=$('#rf-'+(opts.focus||c.fields.find(f=>!f.showIf&&f.type!=='select').k)); if(fe) fe.focus();
+  }
+  async function removeRecord(){
+    const {k,rec}=recCtx, c=LISTDEF[k];
+    if(USER&&FAM.id){const {error}=await sb.from(c.table).delete().eq('id',rec.id); if(error){toast('Could not remove: '+error.message);return}}
+    RECS[k]=RECS[k].filter(x=>x!==rec); recDlg.close(); refreshCat(); toast('Removed');
+  }
+  recForm.addEventListener('submit',async e=>{
+    e.preventDefault(); const {k,rec}=recCtx, c=LISTDEF[k], err=$('#rec-error');
+    const fail=(t,fk)=>{err.textContent=t;err.hidden=false;if(fk){const el=$('#rf-'+fk);el&&el.focus()}};
+    const row=formValues(c);
+    c.fields.forEach(f=>{if(f.showIf&&!f.showIf(row)) row[f.k]=null});
+    for(const f of c.fields){ if(f.req&&(!f.showIf||f.showIf(row))&&(row[f.k]==null)) return fail(f.reqMsg||('Fill in: '+f.label),f.k);
+      if(f.type==='number'&&row[f.k]!=null&&isNaN(row[f.k])) return fail('Type a number for: '+f.label,f.k) }
+    const bad=c.validate&&c.validate(row); if(bad) return fail(bad);
+    let saved={...(rec||{}),...row,id:rec?rec.id:'x'+Date.now()};
+    if(USER&&FAM.id){
+      const res=rec?await sb.from(c.table).update(row).eq('id',rec.id).select().single():await sb.from(c.table).insert({...row,family_id:FAM.id}).select().single();
+      if(res.error) return fail('Could not save: '+res.error.message);
+      saved=res.data;
+    }
+    if(rec) RECS[k]=RECS[k].map(x=>x===rec?saved:x); else RECS[k].push(saved);
+    recDlg.close(); refreshCat(); toast((rec?'Saved. ':'Added. ')+(FAM.type==='two'?nm(otherOf(FAM.me))+' can see it too.':''));
+  });
+  async function patchRecord(k,rec,patch){
+    const c=LISTDEF[k];
+    if(USER&&FAM.id){const {error}=await sb.from(c.table).update(patch).eq('id',rec.id); if(error){toast('Could not save: '+error.message);return false}}
+    Object.assign(rec,patch); refreshCat(); return true;
+  }
+  // A panel with a heading, an Add button and a list of records
+  function listPanel(k,{id,title,add,empty,wide,hint}){
+    const c=LISTDEF[k], sec=document.createElement('section'); sec.className='panel chrome'; sec.setAttribute('aria-labelledby',id); if(wide) sec.style.gridColumn='1/-1';
+    sec.innerHTML='<div class="panel-head"><h3 id="'+id+'">'+esc(title)+'</h3><button type="button" class="btn small">'+esc(add)+'</button></div>'+(hint?'<p class="hint" style="margin:0">'+hint+'</p>':'')+'<ul class="list"></ul>';
+    sec.querySelector('.panel-head .btn').addEventListener('click',()=>openRecord(k,null));
+    const ul=sec.querySelector('ul'), rows=[...RECS[k]].sort(c.sort||(()=>0));
+    if(!rows.length) ul.innerHTML='<li class="empty">'+esc(empty)+'</li>';
+    rows.forEach(r=>{
+      const it=c.item(r), li=document.createElement('li'); li.className='bill-li';
+      li.innerHTML=(it.check?'<input type="checkbox" class="check">':'')+'<div class="grow"><span></span><div class="meta"></div>'+(it.links?'<div class="meta rec-links">'+it.links+'</div>':'')+'</div><div class="bill-side">'+(it.pill?'<span class="pill '+it.pill[0]+'">'+esc(it.pill[1])+'</span>':'')+'</div>';
+      li.querySelector('.grow span').textContent=it.title; li.querySelector('.grow .meta').textContent=(it.meta||[]).filter(Boolean).join(' · ');
+      if(it.done) li.classList.add('done');
+      if(it.check){const cb=li.querySelector('.check'); cb.checked=!!it.check.on; cb.setAttribute('aria-label',it.check.label||it.title); cb.addEventListener('change',e=>{e.stopPropagation(); it.check.fn(cb.checked)})}
+      const side=li.querySelector('.bill-side');
+      [...(it.buttons||[]),{label:'Edit',fn:()=>openRecord(k,r)}].forEach(bd=>{const b=document.createElement('button');b.type='button';b.className='mini-btn';b.textContent=bd.label;b.setAttribute('aria-label',bd.label+': '+it.title);b.addEventListener('click',bd.fn);side.appendChild(b)});
+      ul.appendChild(li);
+    });
+    return sec;
+  }
+
+  // ---------- School (shared by both parents) ----------
+  const todayIso=()=>iso(now);
+  const pct=(m,o)=>o?Math.round(m/o*100):null;
+  const markText=r=>r.mark==null?'':(r.out_of?r.mark+'/'+r.out_of+' · '+pct(r.mark,r.out_of)+'%':String(r.mark));
+  const daysTo=d=>dayDiff(todayIso(),d);
+  defineList({key:'work',table:'school_work',noun:'assignment or test',plural:'assignments and tests',
+    fields:[
+      {k:'kind',label:'Type',type:'select',options:[['assignment','Assignment'],['test','Test']],def:'assignment'},
+      {k:'title',label:'What',max:100,req:true,ph:'e.g. Water cycle poster',reqMsg:'Say what the assignment or test is.'},
+      {k:'subject',label:'Subject',max:60,ph:'e.g. Natural Sciences'},
+      {k:'given_date',label:'Date given',type:'date',def:()=>todayIso(),showIf:v=>v.kind==='assignment'},
+      {k:'due_date',label:'Due date (or test date)',type:'date',req:true,reqMsg:'Choose the due date or test date.'},
+      {k:'mark',label:'Mark (add when marked)',type:'number',ph:'e.g. 18'},
+      {k:'out_of',label:'Out of',type:'number',ph:'e.g. 20'},
+      {k:'notes',label:'Notes',type:'longtext',max:300,ph:'e.g. Needs a poster board and glue'}],
+    validate:r=>r.mark!=null&&r.out_of!=null&&r.mark>r.out_of?'The mark is higher than the total it is out of.':r.given_date&&r.due_date&&r.due_date<r.given_date?'The due date is before the date it was given.':null,
+    sort:(a,b)=>((a.mark!=null)-(b.mark!=null))||(a.mark==null?(a.due_date||'').localeCompare(b.due_date||''):(b.due_date||'').localeCompare(a.due_date||'')),
+    item:r=>{
+      const isTest=r.kind==='test', n=r.due_date?daysTo(r.due_date):null;
+      const when=isTest?'Test '+(r.due_date?dmy(r.due_date):''):[r.given_date?'Given '+dmy(r.given_date):'',r.due_date?'Due '+dmy(r.due_date):''].filter(Boolean).join(', ');
+      let pill=null;
+      if(r.mark!=null) pill=['ok',markText(r)];
+      else if(n!=null) pill=n<0?['late',isTest?'Mark?':'Past due']:n===0?['due','Today']:n<=7?['due',n===1?'Tomorrow':'In '+n+' days']:['later',dmy(r.due_date)];
+      return {title:r.title,meta:[isTest?'Test':'Assignment',r.subject,when,r.notes],pill,
+        buttons:r.mark==null?[{label:'Add mark',fn:()=>openRecord('work',r,{focus:'mark'})}]:[]};
+    }});
+  defineList({key:'reading',table:'reading_log',noun:'reading',plural:'reading',
+    fields:[
+      {k:'read_on',label:'Date',type:'date',req:true,def:()=>todayIso()},
+      {k:'pages',label:'Pages',max:40,ph:'e.g. 24–31'},
+      {k:'book',label:'Book',max:100,ph:'e.g. Die Wonderwerk'},
+      {k:'language',label:'Language',type:'select',options:[['Afrikaans','Afrikaans'],['English','English'],['Other','Other']],def:'Afrikaans'},
+      {k:'notes',label:'Notes',type:'longtext',max:200,ph:'e.g. Read well, struggled with long words'}],
+    validate:r=>!r.pages&&!r.book?'Fill in the pages or the book.':null,
+    sort:(a,b)=>(b.read_on||'').localeCompare(a.read_on||''),
+    item:r=>({title:[r.pages?'Pages '+r.pages:'',r.book].filter(Boolean).join(' · '),meta:[dmy(r.read_on),r.language,r.notes]})});
+  defineList({key:'teachers',table:'teachers',noun:'teacher',plural:'teachers',
+    fields:[
+      {k:'name',label:'Teacher',max:80,req:true,ph:'e.g. Mrs Botha',reqMsg:"Type the teacher's name."},
+      {k:'subject',label:'Subject',max:60,ph:'e.g. Class teacher, Maths'},
+      {k:'class_name',label:'Class',max:40,ph:'e.g. Grade 4B'},
+      {k:'class_number',label:'Class number',max:20,ph:'e.g. Room 12'},
+      {k:'phone',label:'Phone',type:'tel',max:30,ph:'e.g. 082 123 4567'},
+      {k:'email',label:'Email',type:'email',max:120,ph:'e.g. botha@school.co.za'},
+      {k:'notes',label:'Notes',type:'longtext',max:200}],
+    sort:(a,b)=>a.name.localeCompare(b.name),
+    item:r=>({title:r.name,meta:[r.subject,r.class_name,r.class_number?'Class no. '+r.class_number:'',r.notes],
+      links:[r.phone?'<a href="tel:'+esc(r.phone.replace(/[^+\d]/g,''))+'">'+esc(r.phone)+'</a>':'',r.email?'<a href="mailto:'+esc(r.email)+'">'+esc(r.email)+'</a>':''].filter(Boolean).join(' · '),
+      buttons:[{label:'Log contact',fn:()=>openRecord('contacts',null,{preset:{teacher_id:r.id}})}]})});
+  const teacherName=id=>{const t=RECS.teachers.find(x=>x.id===id);return t?t.name:''};
+  defineList({key:'contacts',table:'teacher_contacts',noun:'contact with a teacher',plural:'teacher contacts',
+    fields:[
+      {k:'teacher_id',label:'Teacher',type:'select',options:()=>[['','Not listed'],...[...RECS.teachers].sort((a,b)=>a.name.localeCompare(b.name)).map(t=>[t.id,t.name])],def:''},
+      {k:'contacted_on',label:'When',type:'date',req:true,def:()=>todayIso()},
+      {k:'how',label:'How',type:'select',options:[['','—'],['Message','Message'],['Phone call','Phone call'],['Email','Email'],['Meeting','Meeting'],['Letter or note','Letter or note']],def:''},
+      {k:'about',label:'What was it about',type:'longtext',max:300,req:true,ph:'e.g. Reading level, asked for extra practice',reqMsg:'Say what it was about.'},
+      {k:'by_role',label:'Who made contact',type:'select',options:()=>[['p1',nm('p1')],['p2',nm('p2')]],def:()=>FAM.me}],
+    sort:(a,b)=>(b.contacted_on||'').localeCompare(a.contacted_on||''),
+    item:r=>({title:dmy(r.contacted_on)+(r.teacher_id&&teacherName(r.teacher_id)?' · '+teacherName(r.teacher_id):''),meta:[r.about,r.how,r.by_role?'By '+nm(r.by_role):'']})});
+  const EVENT_KIND={parent_evening:'Parent evening',event:'School event',sport:'Sport',holiday:'School holiday or closed',other:'Other'};
+  defineList({key:'events',table:'school_events',noun:'school date',plural:'school dates',
+    fields:[
+      {k:'kind',label:'Type',type:'select',options:Object.entries(EVENT_KIND),def:'event'},
+      {k:'title',label:'What',max:100,req:true,ph:'e.g. Term 4 parent evening',reqMsg:'Say what is happening.'},
+      {k:'on_date',label:'Date',type:'date',req:true,def:()=>todayIso()},
+      {k:'at_time',label:'Time',type:'time'},
+      {k:'details',label:'More information',type:'longtext',max:300,ph:'e.g. Classroom 12, bring the report'}],
+    sort:(a,b)=>(a.done-b.done)||((a.on_date<todayIso())-(b.on_date<todayIso()))||(a.on_date<todayIso()?b.on_date.localeCompare(a.on_date):a.on_date.localeCompare(b.on_date)),
+    item:r=>{const n=daysTo(r.on_date);
+      return {title:r.title,meta:[EVENT_KIND[r.kind],dmy(r.on_date)+(r.at_time?' '+r.at_time.slice(0,5):''),r.details],done:r.done,
+        pill:r.done?null:n<0?['later','Past']:n===0?['due','Today']:n<=7?['due',n===1?'Tomorrow':'In '+n+' days']:r.kind==='parent_evening'?['prem','Parent evening']:null,
+        check:{on:r.done,label:'Mark '+r.title+' as done',fn:v=>patchRecord('events',r,{done:v})}}}});
+  const SCHOOL_KEYS=['work','reading','teachers','contacts','events'];
+  const loadSchool=()=>Promise.all(SCHOOL_KEYS.map(loadList));
+
+  function renderSchool(body){
+    const wrap=document.createElement('div'); wrap.className='grid';
+    const marked=RECS.work.filter(r=>r.mark!=null&&r.out_of), avg=marked.length?Math.round(marked.reduce((s,r)=>s+r.mark/r.out_of*100,0)/marked.length):null;
+    wrap.append(
+      listPanel('work',{id:'h-work',title:'Assignments & tests',add:'Add',empty:'No assignments or tests yet. Add one with its due date; add the mark when it comes back.',wide:true,hint:avg!=null?'Average of '+marked.length+' marked: '+avg+'%':''}),
+      listPanel('events',{id:'h-sevents',title:'School calendar',add:'Add',empty:'No school dates yet. Add parent evenings, sports days and school closures.'}),
+      listPanel('reading',{id:'h-read',title:'Reading',add:'Add',empty:'No reading recorded yet.'}),
+      listPanel('teachers',{id:'h-teach',title:'Teachers',add:'Add',empty:'No teachers added yet.'}),
+      listPanel('contacts',{id:'h-contacts',title:'Contact with teachers',add:'Add',empty:'No contact with teachers logged yet.'}));
+    body.appendChild(wrap);
+  }
+
   // ---------- Online data ----------
   const fromRow=r=>({id:r.id,type:r.kind,name:r.name,repeat:r.repeat,day:r.week_day,date:r.on_date||undefined,start:r.starts||'',end:r.ends||'',who:r.who,where:r.place||'',bring:r.bring||'',remind:r.remind||''});
   const toRow=a=>({family_id:FAM.id,kind:a.type,name:a.name,repeat:a.repeat,week_day:a.repeat==='weekly'?a.day:null,on_date:a.repeat==='weekly'?null:a.date,
@@ -1398,7 +1546,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   async function startCloud(user){
     USER=user; showApp(); toast('Signed in as '+user.email);
     // Start every account with empty lists instead of the demo examples
-    ['#chores','#shop','#today-acts'].forEach(s=>{$(s).innerHTML=''}); $('#note-sent').innerHTML=''; ACTS=[]; BILLS=[]; SCH={plan:null,days:{},reqs:[],hand:[],members:1}; PAINT=null; updateCounts(); renderToday(); renderBills(); renderHandoverStat();
+    ['#chores','#shop','#today-acts'].forEach(s=>{$(s).innerHTML=''}); $('#note-sent').innerHTML=''; ACTS=[]; BILLS=[]; SCH={plan:null,days:{},reqs:[],hand:[],members:1}; PAINT=null; resetLists(); updateCounts(); renderToday(); renderBills(); renderHandoverStat();
     const {data,error}=await sb.from('family_members').select('role, families(*)').eq('user_id',user.id).limit(1);
     if(error){toast('Could not load your family. Has the database been set up? ('+error.message+')');return}
     await Promise.all([loadPersonal(),loadBills()]);
@@ -1407,13 +1555,18 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   }
   async function useFamily(f,role){
     Object.assign(FAM,{id:f.id,type:f.family_type,p1:f.p1,p2:f.p2,c1:f.c1,c2:f.c2,me:role||FAM.me,code:f.invite_code});
-    applyNames(); await Promise.all([loadActs(),loadNotes(),loadSchedule()]);
+    applyNames(); await Promise.all([loadActs(),loadNotes(),loadSchedule(),loadSchool()]);
     if(CHANNEL) sb.removeChannel(CHANNEL);
     CHANNEL=sb.channel('family-'+f.id)
       .on('postgres_changes',{event:'*',schema:'public',table:'activities',filter:'family_id=eq.'+f.id},()=>loadActs())
       .on('postgres_changes',{event:'INSERT',schema:'public',table:'notes',filter:'family_id=eq.'+f.id},()=>loadNotes())
       .on('postgres_changes',{event:'UPDATE',schema:'public',table:'families',filter:'id=eq.'+f.id},p=>{const n=p.new;Object.assign(FAM,{type:n.family_type,p1:n.p1,p2:n.p2,c1:n.c1,c2:n.c2});applyNames();renderToday();refreshCat()})
       .on('postgres_changes',{event:'*',schema:'public',table:'custody_days',filter:'family_id=eq.'+f.id},schReload)
+      .on('postgres_changes',{event:'*',schema:'public',table:'school_work',filter:'family_id=eq.'+f.id},()=>reloadList('work'))
+      .on('postgres_changes',{event:'*',schema:'public',table:'reading_log',filter:'family_id=eq.'+f.id},()=>reloadList('reading'))
+      .on('postgres_changes',{event:'*',schema:'public',table:'teachers',filter:'family_id=eq.'+f.id},()=>reloadList('teachers'))
+      .on('postgres_changes',{event:'*',schema:'public',table:'teacher_contacts',filter:'family_id=eq.'+f.id},()=>reloadList('contacts'))
+      .on('postgres_changes',{event:'*',schema:'public',table:'school_events',filter:'family_id=eq.'+f.id},()=>reloadList('events'))
       .on('postgres_changes',{event:'*',schema:'public',table:'custody_plans',filter:'family_id=eq.'+f.id},schReload)
       .on('postgres_changes',{event:'*',schema:'public',table:'handovers',filter:'family_id=eq.'+f.id},schReload)
       .on('postgres_changes',{event:'*',schema:'public',table:'schedule_requests',filter:'family_id=eq.'+f.id},pl=>{
@@ -1465,6 +1618,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     const body=$('#cat-body'); body.innerHTML='';
     if(c.id==='activities'){renderActivities(body);return}
     if(c.id==='schedule'){renderSchedule(body);return}
+    if(c.id==='school'){renderSchool(body);return}
     const tpl=document.getElementById('tpl-'+c.id);
     if(c.prem||!tpl){
       body.innerHTML='<section class="panel chrome locked-panel" style="margin-top:16px"><span class="pill prem">Premium</span><h3>'+c.name+' is part of Premium</h3><p>Try every Premium section free for 30 days. After that it is a small monthly subscription, and you can cancel any time.</p><button class="btn" type="button" id="start-trial">Start 30-day free trial</button></section>';
@@ -1478,6 +1632,13 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
       const ul=sec.querySelector('ul'); const items=ACTS.filter(a=>onDate(a,now)).sort(byTime);
       if(!items.length) ul.innerHTML='<li class="empty">Nothing planned for today.</li>';
       items.forEach(a=>ul.appendChild(actItem(a))); body.querySelector('.grid').appendChild(sec);
+      const soon=[...RECS.work.filter(r=>r.mark==null&&r.due_date&&daysTo(r.due_date)>=0&&daysTo(r.due_date)<=7).map(r=>({d:r.due_date,t:(r.kind==='test'?'Test: ':'Due: ')+r.title,m:r.subject})),
+        ...RECS.events.filter(r=>!r.done&&daysTo(r.on_date)>=0&&daysTo(r.on_date)<=7).map(r=>({d:r.on_date,t:r.title,m:EVENT_KIND[r.kind]+(r.at_time?' · '+r.at_time.slice(0,5):'')}))].sort((a,b)=>a.d.localeCompare(b.d));
+      const ss=document.createElement('section'); ss.className='panel chrome'; ss.setAttribute('aria-labelledby','h-td-school');
+      ss.innerHTML='<div class="panel-head"><h3 id="h-td-school">School this week</h3></div><ul class="list"></ul>'; const sl=ss.querySelector('ul');
+      if(!soon.length) sl.innerHTML='<li class="empty">Nothing due at school in the next 7 days.</li>';
+      soon.forEach(x=>{const li=document.createElement('li');li.innerHTML='<div class="grow"><span></span><div class="meta"></div></div>';li.querySelector('span').textContent=x.t;li.querySelector('.meta').textContent=[dmy(x.d),x.m].filter(Boolean).join(' · ');sl.appendChild(li)});
+      body.querySelector('.grid').appendChild(ss);
     }
     applyNames();
     if(c.id==='today'){const w=$('#td-with'),p=SCH.days[iso(now)]; if(w){w.hidden=!p; if(p){w.className='pill '+(p==='p1'?'mom':'dad'); w.textContent='With '+nm(p)}}}
