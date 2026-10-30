@@ -614,24 +614,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   </div>
 </template>
 
-<template id="tpl-belongings">
-  <div class="grid">
-    <section class="panel chrome" aria-labelledby="h-who">
-      <div class="panel-head"><h3 id="h-who">Who's got it?</h3></div>
-      <ul class="list">
-        <li><input type="checkbox" class="check" aria-label="School jersey returned"><div class="grow"><span>School jersey</span><div class="meta">Asked 6 Oct · Expected back 9 Oct</div></div><span class="pill dad"><span data-name="p2">Father</span></span></li>
-        <li><input type="checkbox" class="check" checked aria-label="Tablet charger returned"><div class="grow"><span>Tablet charger</span><div class="meta">Returned 5 Oct</div></div><span class="pill mom"><span data-name="p1">Mother</span></span></li>
-      </ul>
-    </section>
-    <section class="panel chrome" aria-labelledby="h-shoes">
-      <div class="panel-head"><h3 id="h-shoes">Shoes</h3></div>
-      <ul class="list">
-        <li><div class="grow"><span>School shoes · size 2</span><div class="meta">Bought 14 Jul 2026</div></div></li>
-        <li><div class="grow"><span>Takkies · size 2</span><div class="meta">Bought 3 Mar 2026</div></div></li>
-      </ul>
-    </section>
-  </div>
-</template>
+
 
 
 
@@ -1640,17 +1623,69 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   $('#photo-close').addEventListener('click',()=>photoDlg.close());
   photoDlg.addEventListener('click',e=>{if(e.target===photoDlg) photoDlg.close()});
 
+  // ---------- Belongings (shared): clothing, uniform, school items, shoes, sports bag, and who's got it ----------
+  const BELONG={clothing:'Clothing',uniform:'School uniform',school_items:'School items',shoes:'Shoes',sports:'Sports bag'};
+  const houseName=h=>h?nm(h)+"'s house":'';
+  defineList({key:'belong',table:'belongings',noun:'item',plural:'belongings',photo:'photo_path',
+    fields:[
+      {k:'category',label:'Type',type:'select',options:Object.entries(BELONG),def:'clothing'},
+      {k:'name',label:'Item',max:100,req:true,ph:'e.g. School jersey',reqMsg:'Say what the item is.'},
+      {k:'size',label:'Size',max:20,ph:'e.g. 9-10 or size 2',showIf:v=>['clothing','uniform','shoes'].includes(v.category)},
+      {k:'quantity',label:'How many',type:'number',ph:'e.g. 2',showIf:v=>v.category!=='shoes'},
+      {k:'at_house',label:'Where is it',type:'select',options:()=>[['','Not sure'],['p1',houseName('p1')],['p2',houseName('p2')]],def:''},
+      {k:'bought_on',label:'Bought or replaced on',type:'date'},
+      {k:'swapped_on',label:'Swapped on',type:'date',showIf:v=>['clothing','uniform'].includes(v.category)},
+      {k:'notes',label:'Notes',type:'longtext',max:300,ph:'e.g. Name label sewn in'},
+      {k:'photo_path',label:'Receipt (photo)',type:'photo',showIf:v=>v.category==='school_items'}],
+    validate:r=>r.quantity!=null&&(!Number.isInteger(r.quantity)||r.quantity<0)?'Type how many as a whole number, for example 2.':null,
+    sort:(a,b)=>a.name.localeCompare(b.name),
+    item:r=>({title:r.name+(r.size?' · size '+r.size:''),
+      meta:[r.quantity!=null?r.quantity+(r.quantity===1?' item':' items'):'',r.at_house?'At '+houseName(r.at_house):'',r.bought_on?(r.category==='school_items'||r.category==='uniform'?'Bought/replaced ':'Bought ')+dmy(r.bought_on):'',r.swapped_on?'Swapped '+dmy(r.swapped_on):'',r.notes],
+      thumb:r._url||null})});
+  defineList({key:'whohas',table:'who_has',noun:'item someone has',plural:"who's got it",
+    fields:[
+      {k:'item',label:'What',max:100,req:true,ph:'e.g. Tablet charger',reqMsg:'Say what the item is.'},
+      {k:'has_parent',label:'Who has it',type:'select',options:()=>[['p1',nm('p1')],['p2',nm('p2')],['other','Someone else']],def:()=>otherOf(FAM.me)},
+      {k:'asked_on',label:'Asked for it on',type:'date'},
+      {k:'expected_on',label:'Should be back by',type:'date'},
+      {k:'returned_on',label:'Returned on',type:'date'},
+      {k:'notes',label:'Notes',type:'longtext',max:300,ph:'e.g. Needed for school on Monday'}],
+    validate:r=>r.asked_on&&r.expected_on&&r.expected_on<r.asked_on?'The "back by" date is before the date it was asked for.':null,
+    sort:(a,b)=>((!!a.returned_on)-(!!b.returned_on))||(a.returned_on?(b.returned_on||'').localeCompare(a.returned_on||''):(a.expected_on||'9999').localeCompare(b.expected_on||'9999')),
+    item:r=>{const n=r.expected_on?daysTo(r.expected_on):null;
+      return {title:r.item,done:!!r.returned_on,
+        meta:[r.has_parent?'With '+(r.has_parent==='other'?'someone else':nm(r.has_parent)):'',r.asked_on?'Asked '+dmy(r.asked_on):'',r.expected_on?'Back by '+dmy(r.expected_on):'',r.returned_on?'Returned '+dmy(r.returned_on):'',r.notes],
+        pill:r.returned_on?['ok','Back']:n==null?null:n<0?['late','Overdue']:n<=2?['due',n===0?'Due today':n===1?'Due tomorrow':'Due in 2 days']:['later','Back by '+dmy(r.expected_on)],
+        check:{on:!!r.returned_on,label:'Mark '+r.item+' as returned',fn:async v=>{
+          if(v) return patchRecord('whohas',r,{returned_on:todayIso()});
+          if(needsApproval()){refreshCat(); return askChange('who_has',r,'update',{returned_on:null},r.item)}
+          return patchRecord('whohas',r,{returned_on:null})}}}}});
+  const BELONG_KEYS=['belong','whohas'];
+  const loadBelongings=()=>Promise.all(BELONG_KEYS.map(loadList));
+  function renderBelongings(body){
+    const wrap=document.createElement('div'); wrap.className='grid';
+    const panel=(cat,id,title,empty)=>listPanel('belong',{id,title,add:'Add',empty,filter:r=>r.category===cat,preset:{category:cat}});
+    wrap.append(
+      listPanel('whohas',{id:'h-whohas',title:"Who's got it?",add:'Add',empty:'Nothing borrowed or left behind. Add an item someone needs to bring back.',wide:true}),
+      panel('clothing','h-cloth','Clothing','No clothing added yet.'),
+      panel('uniform','h-uniform','School uniform','No uniform items added yet.'),
+      panel('school_items','h-sitems','School items','No school items added yet. Add stationery, books and receipts.'),
+      panel('shoes','h-shoes','Shoes','No shoes added yet.'),
+      panel('sports','h-sports','Sports bag',"Nothing in the sports bag list yet."));
+    body.appendChild(wrap);
+  }
+
   // ---------- Once a date is set, it's set: date changes and removals need the other parent ----------
   const GUARD={activities:['repeat','week_day','on_date','starts','ends'],handovers:['on_date','at_time'],school_work:['given_date','due_date'],reading_log:['read_on'],
-    teacher_contacts:['contacted_on'],school_events:['on_date','at_time'],holiday_records:['occasion','year','parent','from_date','to_date'],trips:['trip_date','end_date','with_who']};
+    teacher_contacts:['contacted_on'],school_events:['on_date','at_time'],holiday_records:['occasion','year','parent','from_date','to_date'],trips:['trip_date','end_date','with_who'],belongings:['bought_on','swapped_on'],who_has:['has_parent','asked_on','expected_on','returned_on']};
   const COL_LABEL={repeat:'how often',week_day:'day',on_date:'date',starts:'start time',ends:'end time',at_time:'time',given_date:'date given',due_date:'due date',
-    read_on:'date',contacted_on:'date',year:'year',from_date:'from',to_date:'until',trip_date:'from',end_date:'until',parent:'who had the children',occasion:'occasion',with_who:'with who'};
-  const TBL_KEY={school_work:'work',reading_log:'reading',teacher_contacts:'contacts',school_events:'events',holiday_records:'holidays',trips:'trips'};
+    read_on:'date',contacted_on:'date',year:'year',from_date:'from',to_date:'until',trip_date:'from',end_date:'until',parent:'who had the children',occasion:'occasion',with_who:'with who',bought_on:'bought',swapped_on:'swapped',has_parent:'who has it',asked_on:'asked',expected_on:'back by',returned_on:'returned'};
+  const TBL_KEY={school_work:'work',reading_log:'reading',teacher_contacts:'contacts',school_events:'events',holiday_records:'holidays',trips:'trips',belongings:'belong',who_has:'whohas'};
   let CHG=[];
   const needsApproval=()=>!!(USER&&FAM.id&&(SCH.members||1)>1);
   const normV=(k,v)=>v==null||v===''?'':/^(starts|ends|at_time)$/.test(k)?String(v).slice(0,5):String(v);
-  const showV=(k,v)=>{v=normV(k,v); if(!v) return 'none'; if(/_date$|_on$/.test(k)) return dmy(v); if(k==='week_day') return DAYS[+v]; if(k==='repeat') return ({weekly:'every week',game:'game or match',once:'once'})[v]||v; if(k==='parent') return (WITH[v]||(()=>v))(); if(k==='occasion') return OCCASION[v]||v; return v};
-  function dateDiff(tbl,oldRec,row){const ch={};(GUARD[tbl]||[]).forEach(k=>{if(k in row&&normV(k,row[k])!==normV(k,oldRec[k])) ch[k]=row[k]===''?null:row[k]});return ch}
+  const showV=(k,v)=>{v=normV(k,v); if(!v) return 'none'; if(/_date$|_on$/.test(k)) return dmy(v); if(k==='week_day') return DAYS[+v]; if(k==='repeat') return ({weekly:'every week',game:'game or match',once:'once'})[v]||v; if(k==='parent') return (WITH[v]||(()=>v))(); if(k==='occasion') return OCCASION[v]||v; if(k==='has_parent') return v==='other'?'someone else':nm(v); return v};
+  function dateDiff(tbl,oldRec,row){const ch={};(GUARD[tbl]||[]).forEach(k=>{if(k in row&&normV(k,oldRec[k])!==''&&normV(k,row[k])!==normV(k,oldRec[k])) ch[k]=row[k]===''?null:row[k]});return ch}
   const changeText=(ch,oldRec)=>Object.keys(ch).map(k=>COL_LABEL[k]+' '+showV(k,oldRec[k])+' → '+showV(k,ch[k])).join(', ');
   const pendingFor=id=>CHG.find(c=>c.status==='pending'&&c.record_id===id);
   async function askChange(tbl,rec,action,changes,title){
@@ -1717,7 +1752,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   }
   async function useFamily(f,role){
     Object.assign(FAM,{id:f.id,type:f.family_type,p1:f.p1,p2:f.p2,c1:f.c1,c2:f.c2,me:role||FAM.me,code:f.invite_code});
-    applyNames(); await Promise.all([loadActs(),loadNotes(),loadSchedule(),loadSchool(),loadHolidays(),loadChanges()]);
+    applyNames(); await Promise.all([loadActs(),loadNotes(),loadSchedule(),loadSchool(),loadHolidays(),loadBelongings(),loadChanges()]);
     if(CHANNEL) sb.removeChannel(CHANNEL);
     CHANNEL=sb.channel('family-'+f.id)
       .on('postgres_changes',{event:'*',schema:'public',table:'activities',filter:'family_id=eq.'+f.id},()=>loadActs())
@@ -1731,6 +1766,8 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
       .on('postgres_changes',{event:'*',schema:'public',table:'school_events',filter:'family_id=eq.'+f.id},()=>reloadList('events'))
       .on('postgres_changes',{event:'*',schema:'public',table:'holiday_records',filter:'family_id=eq.'+f.id},()=>reloadList('holidays'))
       .on('postgres_changes',{event:'*',schema:'public',table:'trips',filter:'family_id=eq.'+f.id},()=>reloadList('trips'))
+      .on('postgres_changes',{event:'*',schema:'public',table:'belongings',filter:'family_id=eq.'+f.id},()=>reloadList('belong'))
+      .on('postgres_changes',{event:'*',schema:'public',table:'who_has',filter:'family_id=eq.'+f.id},()=>reloadList('whohas'))
       .on('postgres_changes',{event:'*',schema:'public',table:'record_changes',filter:'family_id=eq.'+f.id},pl=>{
         const n=pl.new||{}; loadChanges();
         if(pl.eventType==='INSERT'&&n.status==='pending'&&n.requested_by!==USER.id) toast(nm(n.requested_role)+' asked for a change. Open Shared to approve or decline.');
@@ -1789,6 +1826,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     if(c.id==='schedule'){renderSchedule(body);return}
     if(c.id==='school'){renderSchool(body);return}
     if(c.id==='holidays'){renderHolidays(body);return}
+    if(c.id==='belongings'){renderBelongings(body);return}
     const tpl=document.getElementById('tpl-'+c.id);
     if(c.prem||!tpl){
       body.innerHTML='<section class="panel chrome locked-panel" style="margin-top:16px"><span class="pill prem">Premium</span><h3>'+c.name+' is part of Premium</h3><p>Try every Premium section free for 30 days. After that it is a small monthly subscription, and you can cancel any time.</p><button class="btn" type="button" id="start-trial">Start 30-day free trial</button></section>';
