@@ -318,6 +318,9 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
 .nav-tile.y{background:var(--p-yellow);color:var(--ink-dark)} .nav-tile.o{background:var(--p-orange);color:var(--ink-dark)} .nav-tile.g{background:var(--row-hi);color:var(--ink)}
 .nav-tag{font-size:.68rem;font-weight:800;padding:3px 8px;border-radius:999px;background:var(--p-yellow);color:var(--ink-dark)}
 .nav-tag.new{background:var(--p-blue);color:var(--father-ink)}
+.hh-row .nav-tile{font-weight:800}
+.hh-row[aria-current="true"]{background:#262130;box-shadow:inset 0 0 0 1px var(--line)}
+.hh-add{color:var(--p-blue-lt)}
 .nav-foot{margin-top:auto;padding-top:12px;border-top:1px solid var(--line);display:grid;gap:2px}
 .panel,.personal-head{scroll-margin-top:84px}
 #personal .grid > section{grid-column:1/-1}
@@ -396,9 +399,10 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       <div class="who"><b id="drawer-name">You</b><span id="drawer-fam">Your family</span></div>
       <button type="button" class="menu-btn" id="menu-close" aria-label="Close menu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
+    <div id="hh-box"></div>
     <nav id="nav" aria-label="Sections"></nav>
     <div class="nav-foot">
-      <button type="button" class="nav-row" id="family-btn"><span class="nav-tile g" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9L7 7M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg></span><span class="lbl">Family setup</span></button>
+      <button type="button" class="nav-row" id="family-btn"><span class="nav-tile g" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9L7 7M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg></span><span class="lbl">Household setup</span></button>
       <button type="button" class="nav-row" id="nav-alerts" data-nav="p-alerts"><span class="nav-tile g" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></svg></span><span class="lbl">Alerts on this phone</span></button>
       <button type="button" class="nav-row install-btn" hidden><span class="nav-tile g" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg></span><span class="lbl">Install app</span></button>
       <button type="button" class="nav-row" id="signout"><span class="nav-tile g" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></svg></span><span class="lbl">Sign out</span></button>
@@ -513,10 +517,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       </section>
     </div>
 
-    <div class="kids" role="group" aria-label="Child" data-page="s-cat">
-      <button type="button" class="kid chrome" data-child="c1" aria-pressed="true"><span class="av" data-initial="c1">1</span><span data-name="c1">Child 1</span></button>
-      <button type="button" class="kid chrome" id="kid2" data-child="c2" aria-pressed="false"><span class="av" data-initial="c2">2</span><span data-name="c2">Child 2</span> <span class="pill prem">Premium</span></button>
-    </div>
+    <div class="kids" role="group" aria-label="Child" data-page="s-cat" id="kids-row"></div>
 
     <div class="cats" role="tablist" aria-label="Categories" id="cats" hidden></div>
 
@@ -526,8 +527,8 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
 
 <dialog id="family-dialog" aria-labelledby="fam-title">
   <form id="family-form" class="dlg" method="dialog" novalidate>
-    <h3 id="fam-title">Family setup</h3>
-    <p class="hint" style="margin:0">Change the names to suit your family. Checky works for two homes (co-parenting) and for one home.</p>
+    <h3 id="fam-title">Household setup</h3>
+    <p class="hint" style="margin:0" id="fam-intro">Change the names to suit your family. Checky works for two homes (co-parenting) and for one home.</p>
     <fieldset class="opts"><legend class="hint">How does your family live?</legend>
       <label class="opt"><input type="radio" name="famtype" value="two" checked> Two homes (co-parenting)</label>
       <label class="opt"><input type="radio" name="famtype" value="one"> One home, together</label>
@@ -535,12 +536,15 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     <div class="two-col">
       <div class="field"><label for="fam-p1">Parent 1</label><input id="fam-p1" maxlength="24" placeholder="e.g. Mom or Lindiwe"></div>
       <div class="field"><label for="fam-p2">Parent 2</label><input id="fam-p2" maxlength="24" placeholder="e.g. Dad or Pieter"></div>
-      <div class="field"><label for="fam-c1">First child</label><input id="fam-c1" maxlength="24" placeholder="e.g. Mia"></div>
-      <div class="field"><label for="fam-c2">Second child</label><input id="fam-c2" maxlength="24" placeholder="e.g. Ben"></div>
     </div>
+    <fieldset class="opts"><legend class="hint">Children (up to 9)</legend>
+      <div class="two-col" id="fam-kids"></div>
+      <button type="button" class="btn ghost small" id="fam-add-kid" style="justify-self:start">+ Add child</button>
+    </fieldset>
+    <div class="field"><label for="fam-label">Household name</label><input id="fam-label" maxlength="40" placeholder="e.g. Mia &amp; Ben, or Our home"></div>
     <div class="field"><label for="fam-me">Who are you?</label><select id="fam-me"><option value="p1">Parent 1</option><option value="p2">Parent 2</option></select></div>
     <div class="invite" id="fam-invite" hidden>
-      <span class="hint">Invite code for the other parent: they create an account, open Family setup and type this code.</span>
+      <span class="hint">Invite code for the other parent: they create an account, then open the menu, tap Add a household and type this code.</span>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><b id="fam-code" class="code">------</b><button type="button" class="mini-btn" id="fam-copy">Copy code</button></div>
       <div class="field" style="margin-top:6px"><label for="fam-inv-email">Or invite them by email</label><input id="fam-inv-email" type="email" autocomplete="off" placeholder="e.g. their@email.com"></div>
       <button type="button" class="btn small" id="fam-inv-send" style="justify-self:start">Send invite</button>
@@ -548,7 +552,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     </div>
     <div class="invite" id="fam-join" hidden>
       <div class="field"><label for="fam-join-code">Already have an invite code?</label><input id="fam-join-code" maxlength="6" autocomplete="off" placeholder="e.g. 4F9K2B" style="text-transform:uppercase"></div>
-      <button type="button" class="btn ghost" id="fam-join-btn">Join that family</button>
+      <button type="button" class="btn ghost" id="fam-join-btn">Join that household</button>
     </div>
     <p class="hint" id="fam-msg" role="status" style="margin:0;color:var(--p-pink-lt)" hidden></p>
     <div class="note-acts"><button class="btn" type="submit" value="save">Save</button><button class="btn ghost" type="button" id="fam-cancel">Cancel</button></div>
@@ -589,7 +593,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       <div class="field"><label for="act-repeat">How often</label><select id="act-repeat"><option value="weekly">Every week</option><option value="game">Game or match</option><option value="once">Once only</option></select></div>
       <div class="field" id="act-day-wrap"><label for="act-day">Day</label><select id="act-day"><option value="0">Monday</option><option value="1">Tuesday</option><option value="2">Wednesday</option><option value="3">Thursday</option><option value="4">Friday</option><option value="5">Saturday</option><option value="6">Sunday</option></select></div>
       <div class="field" id="act-date-wrap" hidden><label for="act-date">Date</label><input id="act-date" type="date"></div>
-      <div class="field"><label for="act-who">Who</label><select id="act-who"><option value="c1" data-name="c1">Child 1</option><option value="c2" data-name="c2">Child 2</option><option value="both">Both children</option><option value="family">Whole family</option></select></div>
+      <div class="field"><label for="act-who">Who</label><select id="act-who"></select></div>
       <div class="field"><label for="act-start">Starts</label><input id="act-start" type="time"></div>
       <div class="field"><label for="act-end">Ends</label><input id="act-end" type="time"></div>
     </div>
@@ -936,9 +940,12 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   // Saved on this device only for now; accounts and sync come with the live app.
   const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},
     set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
-  const FAM=Object.assign({type:'two',p1:'Mother',p2:'Father',c1:'Child 1',c2:'Child 2',me:'p1'},store.get('checky.family',{}));
+  const FAM=Object.assign({type:'two',p1:'Mother',p2:'Father',c1:'Child 1',c2:'Child 2',kids:2,me:'p1'},store.get('checky.family',{}));
+  const KIDS=()=>Array.from({length:Math.min(9,Math.max(1,FAM.kids||2))},(_,i)=>'c'+(i+1));
+  const KIDCOLS=['c1','c2','c3','c4','c5','c6','c7','c8','c9'];
+  let HH=[]; // the households this account belongs to: [{f, role}]
   const esc=t=>String(t).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-  const nm=k=>k==='other'?FAM[FAM.me==='p1'?'p2':'p1']:(k==='both'?FAM.c1+' & '+FAM.c2:(k==='family'?'Whole family':FAM[k]));
+  const nm=k=>k==='other'?FAM[FAM.me==='p1'?'p2':'p1']:(k==='both'?(KIDS().length===2?FAM.c1+' & '+FAM.c2:'All children'):(k==='family'?'Whole family':(FAM[k]||(/^c\d$/.test(k)?'Child '+k.slice(1):FAM[k]))));
   const notifyWho=()=>FAM.type==='two'?nm('other'):'the family';
   function applyNames(){
     $$('[data-name]').forEach(el=>{el.textContent=nm(el.dataset.name)});
@@ -950,17 +957,32 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     $('#h-note').textContent=one?'Note to the family':'Note to the other parent';
     $('#stat-handover').hidden=one;
     $$('.cat[data-cat="schedule"]').forEach(b=>{b.hidden=one});
+    if(!KIDS().includes(CHILD)) CHILD='c1';
+    const row=$('#kids-row'); if(row){ row.innerHTML=''; KIDS().forEach(k=>{const b=document.createElement('button'); b.type='button'; b.className='kid chrome'; b.dataset.child=k; b.setAttribute('aria-pressed',k===CHILD);
+      b.innerHTML='<span class="av"></span><span></span>'; b.querySelector('.av').textContent=(nm(k)||'?').trim().charAt(0).toUpperCase(); b.lastChild.textContent=nm(k);
+      b.addEventListener('click',()=>setChild(k)); row.appendChild(b)}); row.hidden=row.hidden; }
+    const aw=$('#act-who'); if(aw){const v=aw.value; aw.innerHTML=[...KIDS().map(k=>[k,nm(k)]),...(KIDS().length>1?[['both',KIDS().length===2?'Both children':'All children']]:[]),['family','Whole family']].map(([o,l])=>'<option value="'+esc(o)+'">'+esc(l)+'</option>').join(''); if(v) aw.value=v; if(!aw.value) aw.selectedIndex=0}
   }
   const famDlg=$('#family-dialog');
+  let FAMMODE='edit';
+  function kidInput(i,val){const d=document.createElement('div'); d.className='field';
+    d.innerHTML='<label for="fam-k'+i+'">Child '+i+'</label><input id="fam-k'+i+'" maxlength="24" placeholder="'+(i===1?'e.g. Mia':i===2?'e.g. Ben':'Name')+'">'; d.querySelector('input').value=val||''; return d}
   function openFamily(first){
-    $$('input[name=famtype]').forEach(r=>{r.checked=r.value===FAM.type});
-    ['p1','p2','c1','c2'].forEach(k=>{$('#fam-'+k).value=FAM[k]});
-    $('#fam-me').value=FAM.me; $('#fam-msg').hidden=true;
-    $('#fam-title').textContent=first?'Welcome! Set up your family':'Family setup';
-    $('#fam-invite').hidden=!(USER&&FAM.id); $('#fam-code').textContent=FAM.code||'------';
-    $('#fam-join').hidden=!(USER&&!FAM.id);
+    FAMMODE=first==='new'?'new':'edit';
+    const src=FAMMODE==='new'?{type:'two',p1:'',p2:'',kids:1,me:'p1',label:''}:FAM;
+    $$('input[name=famtype]').forEach(r=>{r.checked=r.value===(src.type||'two')});
+    ['p1','p2'].forEach(k=>{$('#fam-'+k).value=src[k]||''});
+    const box=$('#fam-kids'); box.innerHTML=''; const n=FAMMODE==='new'?1:KIDS().length;
+    for(let i=1;i<=n;i++) box.appendChild(kidInput(i,FAMMODE==='new'?'':FAM['c'+i]));
+    $('#fam-add-kid').hidden=n>=9; $('#fam-label').value=src.label||'';
+    $('#fam-me').value=src.me||'p1'; $('#fam-msg').hidden=true; $('#fam-inv-msg').hidden=true;
+    $('#fam-title').textContent=FAMMODE==='new'?'Add a household':first?'Welcome! Set up your household':'Household setup';
+    $('#fam-intro').textContent=FAMMODE==='new'?'A household is completely separate and private. Use it, for example, for a child with a new partner. Only the people in this household can see it.':'Change the names to suit your family. Checky works for two homes (co-parenting) and for one home.';
+    $('#fam-invite').hidden=!(USER&&FAM.id&&FAMMODE==='edit'); $('#fam-code').textContent=FAM.code||'------';
+    $('#fam-join').hidden=!(USER&&(!FAM.id||FAMMODE==='new'));
     famDlg.showModal();
   }
+  $('#fam-add-kid').addEventListener('click',()=>{const box=$('#fam-kids'), n=box.children.length; if(n>=9) return; box.appendChild(kidInput(n+1,'')); $('#fam-k'+(n+1)).focus(); $('#fam-add-kid').hidden=n+1>=9});
   $('#family-btn').addEventListener('click',()=>{$('#menu').close(); openFamily(false)});
   $('#fam-copy').addEventListener('click',()=>{const c=FAM.code||'';
     navigator.clipboard.writeText(c).then(()=>toast('Code copied')).catch(()=>{const r=document.createRange();r.selectNodeContents($('#fam-code'));const sel=getSelection();sel.removeAllRanges();sel.addRange(r);toast('Code selected: copy it')})});
@@ -969,7 +991,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     if(code.length<6){m.textContent='The code has 6 letters and numbers.';m.hidden=false;return}
     const {data,error}=await sb.rpc('join_family',{p_code:code,p_role:$('#fam-me').value});
     if(error){m.textContent=/not found/i.test(error.message)?'That code wasn\'t found. Check it with the other parent.':error.message;m.hidden=false;return}
-    famDlg.close(); await useFamily(data,$('#fam-me').value); toast('You joined the family');
+    famDlg.close(); await loadHouseholds(); await switchHousehold(data.id); toast('You joined the household');
   });
   $('#fam-inv-send').addEventListener('click',async()=>{
     const m=$('#fam-inv-msg'), email=$('#fam-inv-email').value.trim(), btn=$('#fam-inv-send');
@@ -977,35 +999,37 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return say("Type the other parent's email address.",true);
     btn.disabled=true; say('Sending…');
     try{
-      const {data,error}=await sb.functions.invoke('invite-parent',{body:{email}});
+      const {data,error}=await sb.functions.invoke('invite-parent',{body:{email,family_id:FAM.id}});
       let d=data; if(error){ try{d=await error.context.json()}catch(e){d={error:error.message}} }
       if(d&&d.sent){say('Invite sent to '+email+'. They tap the link in the email, choose a password and are joined to your family.'); $('#fam-inv-email').value=''}
-      else if(d&&d.already) say('That email already has a Checky account. Ask them to open Family setup and type the code '+d.code+'.');
+      else if(d&&d.already) say('That email already has a Checky account. Ask them to open the menu, tap Add a household and type the code '+d.code+'.');
       else say((d&&d.error)||'The invite could not be sent.',true);
     }catch(e){say('The invite could not be sent. Check your internet and try again.',true)}
     btn.disabled=false;
   });
   $('#fam-cancel').addEventListener('click',()=>famDlg.close());
   $('#family-form').addEventListener('submit',async e=>{
-    e.preventDefault();
-    FAM.type=($$('input[name=famtype]').find(r=>r.checked)||{}).value||'two';
-    const defaults={p1:'Mother',p2:'Father',c1:'Child 1',c2:'Child 2'};
-    ['p1','p2','c1','c2'].forEach(k=>{FAM[k]=$('#fam-'+k).value.trim()||defaults[k]});
-    FAM.me=$('#fam-me').value;
+    e.preventDefault(); const m=$('#fam-msg');
+    const type=($$('input[name=famtype]').find(r=>r.checked)||{}).value||'two';
+    const p1=$('#fam-p1').value.trim()||'Mother', p2=$('#fam-p2').value.trim()||'Father', me=$('#fam-me').value;
+    const names=[...$('#fam-kids').querySelectorAll('input')].map((el,i)=>el.value.trim()||'Child '+(i+1));
+    const kids={kids:names.length}; KIDCOLS.forEach((k,i)=>{kids[k]=names[i]||null});
+    const label=$('#fam-label').value.trim()||null;
     if(USER){
-      const m=$('#fam-msg');
-      if(FAM.id){
-        const {error}=await sb.from('families').update({family_type:FAM.type,p1:FAM.p1,p2:FAM.p2,c1:FAM.c1,c2:FAM.c2}).eq('id',FAM.id);
+      if(FAMMODE==='edit'&&FAM.id){
+        const {error}=await sb.from('families').update({family_type:type,p1,p2,label,...kids}).eq('id',FAM.id);
         if(error){m.textContent='Could not save: '+error.message;m.hidden=false;return}
-        await sb.from('family_members').update({role:FAM.me}).eq('family_id',FAM.id).eq('user_id',USER.id);
+        await sb.from('family_members').update({role:me}).eq('family_id',FAM.id).eq('user_id',USER.id);
+        Object.assign(FAM,{type,p1,p2,label,me,...kids}); const h=HH.find(x=>x.f.id===FAM.id); if(h){Object.assign(h.f,{family_type:type,p1,p2,label,...kids}); h.role=me}
       }else{
-        const {data,error}=await sb.rpc('create_family',{p_type:FAM.type,p_p1:FAM.p1,p_p2:FAM.p2,p_c1:FAM.c1,p_c2:FAM.c2,p_role:FAM.me});
-        if(error){m.textContent='Could not create your family: '+error.message;m.hidden=false;return}
-        await useFamily(data,FAM.me); applyNames(); openFamily(false); toast('Family created. Share the invite code with the other parent.'); return;
+        const {data,error}=await sb.rpc('create_family',{p_type:type,p_p1:p1,p_p2:p2,p_c1:kids.c1,p_c2:kids.c2||'Child 2',p_role:me});
+        if(error){m.textContent='Could not create the household: '+error.message;m.hidden=false;return}
+        await sb.from('families').update({label,...kids}).eq('id',data.id);
+        famDlg.close(); await loadHouseholds(); await switchHousehold(data.id); openFamily(false); toast('Household created. Invite the other parent with the code or by email.'); return;
       }
-    }else store.set('checky.family',FAM);
-    famDlg.close(); applyNames(); renderToday(); refreshCat();
-    toast('Family details saved');
+    }else{Object.assign(FAM,{type,p1,p2,label,me,...kids}); store.set('checky.family',FAM)}
+    famDlg.close(); applyNames(); renderToday(); refreshCat(); if(typeof buildNav==='function') buildNav();
+    toast('Household details saved');
   });
 
   // ---------- Activities: sport, games, coding, lessons and reminders ----------
@@ -1561,7 +1585,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     let saved={...(rec||{}),...row,id:rec?rec.id:'x'+Date.now(),...(!rec&&c.perChild?{child:CHILD}:{})};
     if(localUrl) saved._url=localUrl; else if(c.photo&&!row[c.photo]) saved._url=null;
     if(USER&&(FAM.id||c.private)){
-      const res=rec?await sb.from(c.table).update(row).eq('id',rec.id).select().single():await sb.from(c.table).insert({...row,...(c.private?{}:{family_id:FAM.id}),...(c.perChild?{child:CHILD}:{})}).select().single();
+      const res=rec?await sb.from(c.table).update(row).eq('id',rec.id).select().single():await sb.from(c.table).insert({...row,...(c.private&&!c.scopeFamily?{}:FAM.id?{family_id:FAM.id}:{}),...(c.perChild?{child:CHILD}:{})}).select().single();
       if(res.error) return fail('Could not save: '+res.error.message);
       saved=res.data;
       if(c.photo){ if(oldPhoto&&oldPhoto!==saved[c.photo]) sb.storage.from((c.bucket||'trip-photos')).remove([oldPhoto]); await signPhotos(k,[saved]) }
@@ -1581,7 +1605,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     const c=LISTDEF[k], sec=document.createElement('section'); sec.className='panel chrome'; sec.setAttribute('aria-labelledby',id); if(wide) sec.style.gridColumn='1/-1';
     sec.innerHTML='<div class="panel-head"><h3 id="'+id+'">'+esc(title)+'</h3><button type="button" class="btn small">'+esc(add)+'</button></div>'+(hint?'<p class="hint" style="margin:0">'+hint+'</p>':'')+'<ul class="list"></ul>';
     sec.querySelector('.panel-head .btn').addEventListener('click',()=>openRecord(k,null,{preset:preset||{}}));
-    const ul=sec.querySelector('ul'), rows=RECS[k].filter(r=>!c.perChild||(r.child||'c1')===CHILD).filter(filter||(()=>true)).sort(c.sort||(()=>0));
+    const ul=sec.querySelector('ul'), rows=RECS[k].filter(r=>!c.scopeFamily||!r.family_id||!FAM.id||r.family_id===FAM.id).filter(r=>!c.perChild||(r.child||'c1')===CHILD).filter(filter||(()=>true)).sort(c.sort||(()=>0));
     if(!rows.length) ul.innerHTML='<li class="empty">'+esc(empty)+'</li>';
     rows.forEach(r=>{
       const it=c.item(r), li=document.createElement('li'); li.className='bill-li';
@@ -1858,10 +1882,10 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
 
   // Communication
   const COMM_KIND={call:'Call',notice:'Important notice',message:'Parent message',request:'Request'};
-  defineList({key:'comm',table:'communications',noun:'entry',plural:'communication',private:true,
+  defineList({key:'comm',table:'communications',noun:'entry',plural:'communication',private:true,scopeFamily:true,
     fields:[
       {k:'kind',label:'Type',type:'select',options:Object.entries(COMM_KIND),def:'call'},
-      {k:'child',label:'Child',type:'select',options:()=>[['c1',nm('c1')],['c2',nm('c2')]],def:'c1'},
+      {k:'child',label:'Child',type:'select',options:()=>KIDS().map(k=>[k,nm(k)]),def:()=>CHILD},
       {k:'happened_on',label:'Date',type:'date',req:true,reqMsg:'Choose the date.'},
       {k:'at_time',label:'Time',type:'time',showIf:v=>v.kind==='call'},
       {k:'by_role',label:'Call with',type:'select',options:who3,def:()=>otherOf(FAM.me),showIf:v=>v.kind==='call'},
@@ -2096,7 +2120,6 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
 
   // Choosing a child
   function setChild(c){
-    if(c==='c2'&&!PREMIUM_PREVIEW){toast('A second child profile needs Premium');return}
     CHILD=c; $$('.kid[data-child]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.child===c)); refreshCat();
   }
 
@@ -2279,28 +2302,45 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     USER=user; showApp(); toast('Signed in as '+user.email);
     // Start every account with empty lists instead of the demo examples
     ['#chores','#shop','#today-acts'].forEach(s=>{$(s).innerHTML=''}); $('#note-sent').innerHTML=''; ACTS=[]; BILLS=[]; SCH={plan:null,days:{},reqs:[],hand:[],members:1}; PAINT=null; resetLists(); CHG=[]; renderPending(); updateCounts(); renderToday(); renderBills(); renderHandoverStat();
-    const {data,error}=await sb.from('family_members').select('role, families(*)').eq('user_id',user.id).limit(1);
-    if(error){toast('Could not load your family. Has the database been set up? ('+error.message+')');return}
+    const ok=await loadHouseholds(); if(!ok) return; const data=HH;
     await Promise.all([loadPersonal(),loadBills(),loadList('comm'),loadList('pets'),loadList('petrec')]); syncAlerts();
     if(location.hash==='#shared'){history.replaceState(null,'',location.pathname); $('#seg-shared').click()}
     const meta=user.user_metadata||{};
-    if(!data.length&&meta.invite_code){
+    if(meta.invite_code&&!HH.some(h=>h.f.invite_code===meta.invite_code)){
       const {data:f,error:je}=await sb.rpc('join_family',{p_code:meta.invite_code,p_role:meta.invite_role||'p2'});
-      if(!je&&f){await useFamily(f,meta.invite_role||'p2'); toast('Welcome! You joined '+(meta.invited_by||'the other parent')+"'s family",5000);
+      if(!je&&f){await loadHouseholds(); await switchHousehold(f.id); toast('Welcome! You joined '+(meta.invited_by||'the other parent')+"'s family",5000);
         if(FROM_INVITE){$('#pw-title').textContent='Welcome to Checky! Choose a password'; $('#pw-dialog').showModal()} return}
     }
     if(FROM_INVITE&&!$('#pw-dialog').open){$('#pw-title').textContent='Welcome to Checky! Choose a password'; $('#pw-dialog').showModal()}
     if(!data.length){delete FAM.id;delete FAM.code;openFamily(true);return}
-    await useFamily(data[0].families,data[0].role);
+    const saved=store.get('checky.household',null), pick=HH.find(h=>h.f.id===saved)||HH[0];
+    await useFamily(pick.f,pick.role);
+  }
+  async function loadHouseholds(){
+    const {data,error}=await sb.from('family_members').select('role, families(*)').eq('user_id',USER.id);
+    if(error){toast('Could not load your households ('+error.message+')');return false}
+    HH=data.filter(x=>x.families).map(x=>({f:x.families,role:x.role})).sort((a,b)=>(a.f.created_at||'').localeCompare(b.f.created_at||''));
+    return true;
+  }
+  const hhName=f=>f.label||Array.from({length:f.kids||2},(_,i)=>f['c'+(i+1)]).filter(Boolean).join(' & ')||'Household';
+  async function switchHousehold(id){
+    const h=HH.find(x=>x.f.id===id); if(!h) return;
+    $('#note-sent').innerHTML=''; ACTS=[]; SCH={plan:null,days:{},reqs:[],hand:[],members:1}; PAINT=null; CHG=[];
+    Object.keys(LISTDEF).forEach(k=>{if(!LISTDEF[k].private) RECS[k]=[]}); CHILD='c1';
+    await useFamily(h.f,h.role); renderPending(); renderToday(); renderHandoverStat();
+    if(typeof showPage==='function') showPage(NAVCUR&&NAVCUR.startsWith('s-')?NAVCUR:'p-today');
+    toast('Now showing: '+hhName(h.f));
   }
   async function useFamily(f,role){
-    Object.assign(FAM,{id:f.id,type:f.family_type,p1:f.p1,p2:f.p2,c1:f.c1,c2:f.c2,me:role||FAM.me,code:f.invite_code});
+    const kc={}; KIDCOLS.forEach(k=>{kc[k]=f[k]||null});
+    Object.assign(FAM,{id:f.id,type:f.family_type,p1:f.p1,p2:f.p2,...kc,kids:f.kids||2,label:f.label||null,me:role||FAM.me,code:f.invite_code});
+    store.set('checky.household',f.id);
     applyNames(); await Promise.all([loadActs(),loadNotes(),loadSchedule(),loadSchool(),loadHolidays(),loadBelongings(),loadPremium(),loadChanges()]);
     if(CHANNEL) sb.removeChannel(CHANNEL);
     CHANNEL=sb.channel('family-'+f.id)
       .on('postgres_changes',{event:'*',schema:'public',table:'activities',filter:'family_id=eq.'+f.id},()=>loadActs())
       .on('postgres_changes',{event:'INSERT',schema:'public',table:'notes',filter:'family_id=eq.'+f.id},()=>loadNotes())
-      .on('postgres_changes',{event:'UPDATE',schema:'public',table:'families',filter:'id=eq.'+f.id},p=>{const n=p.new;Object.assign(FAM,{type:n.family_type,p1:n.p1,p2:n.p2,c1:n.c1,c2:n.c2});applyNames();renderToday();refreshCat()})
+      .on('postgres_changes',{event:'UPDATE',schema:'public',table:'families',filter:'id=eq.'+f.id},p=>{const n=p.new,kc={}; KIDCOLS.forEach(k=>{kc[k]=n[k]||null}); Object.assign(FAM,{type:n.family_type,p1:n.p1,p2:n.p2,...kc,kids:n.kids||2,label:n.label||null}); const h=HH.find(x=>x.f.id===n.id); if(h) Object.assign(h.f,n); applyNames();renderToday();refreshCat()})
       .on('postgres_changes',{event:'*',schema:'public',table:'custody_days',filter:'family_id=eq.'+f.id},schReload)
       .on('postgres_changes',{event:'*',schema:'public',table:'school_work',filter:'family_id=eq.'+f.id},()=>reloadList('work'))
       .on('postgres_changes',{event:'*',schema:'public',table:'reading_log',filter:'family_id=eq.'+f.id},()=>reloadList('reading'))
@@ -2399,7 +2439,6 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     if(c.id==='today'){const tc=$('#td-child'); if(tc){tc.dataset.name=CHILD; tc.textContent=nm(CHILD)}} 
     if(c.id==='today'){const w=$('#td-with'),p=SCH.days[iso(now)]; if(w){w.hidden=!p; if(p){w.className='pill '+(p==='p1'?'mom':'dad'); w.textContent='With '+nm(p)}}}
   }
-  $$('.kid').forEach(b=>b.addEventListener('click',()=>setChild(b.dataset.child)));
 
   // ---------- Friendly-note check ----------
   // Notes to the other parent may not contain swear words, name-calling, shouting or blame.
@@ -2548,7 +2587,19 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     });
     setNav(NAVCUR); if(typeof updateBadge==='function') updateBadge();
     const me=nm(FAM.me)||'You'; $('#drawer-name').textContent=USER&&USER.email?me:me+' (preview)'; $('#drawer-av').textContent=me.charAt(0).toUpperCase();
-    $('#drawer-fam').textContent=FAM.type==='one'?'One home':[FAM.c1,FAM.c2].filter(Boolean).join(' & ')||'Your family';
+    $('#drawer-fam').textContent=FAM.label||KIDS().map(nm).join(' & ')||'Your household';
+    const hb=$('#hh-box'); hb.innerHTML='';
+    if(USER&&HH.length){
+      const g=document.createElement('div'); g.className='nav-group'; g.textContent='Households'; hb.appendChild(g);
+      const cols=['p','b','y','o'];
+      HH.forEach((h,i)=>{const b=document.createElement('button'); b.type='button'; b.className='nav-row hh-row'; if(h.f.id===FAM.id) b.setAttribute('aria-current','true');
+        b.innerHTML='<span class="nav-tile '+cols[i%4]+'" aria-hidden="true"></span><span class="lbl"></span>'+(h.f.id===FAM.id?'<span class="nav-tag new">Showing</span>':'');
+        b.querySelector('.nav-tile').textContent=hhName(h.f).charAt(0).toUpperCase(); b.querySelector('.lbl').textContent=hhName(h.f);
+        b.addEventListener('click',()=>{menuDlg.close(); if(h.f.id!==FAM.id) switchHousehold(h.f.id)}); hb.appendChild(b)});
+      if(HH.length<3){const a=document.createElement('button'); a.type='button'; a.className='nav-row hh-add';
+        a.innerHTML='<span class="nav-tile g" aria-hidden="true">+</span><span class="lbl">Add a household</span>';
+        a.addEventListener('click',()=>{menuDlg.close(); openFamily('new')}); hb.appendChild(a)}
+    }
   }
   function setNav(id){
     NAVCUR=id; let label='';
