@@ -837,6 +837,10 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   let sb=null; try{ if(window.supabase) sb=window.supabase.createClient(SB_URL,SB_KEY) }catch(e){ sb=null }
   let USER=null, CHANNEL=null;
   const loginMsg=t=>{const m=$('#login-msg'); m.textContent=t||''; m.hidden=!t};
+  // An email link that was already used or replaced by a newer one comes back with an error in the address
+  {const h=new URLSearchParams(location.hash.slice(1)); if(h.get('error')||h.get('error_code')){
+    loginMsg(/expired|invalid/i.test(h.get('error_description')||h.get('error_code')||'')?'That email link has expired or was already used. Each new email replaces the one before, so always open the newest email, or tap Forgot password? again.':'That email link did not work: '+(h.get('error_description')||'').replace(/\+/g,' '));
+    history.replaceState(null,'',location.pathname)}}
   const netMsg=err=>/fetch|network|load failed/i.test(String(err&&err.message||err))
     ?'Checky can\'t reach its server from here. It works once the app is online at checkyapp.co.za. Tap "Look around first" to explore.'
     :String(err&&err.message||err);
