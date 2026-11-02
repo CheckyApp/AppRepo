@@ -374,7 +374,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       <button class="btn ghost" type="button" id="trial-btn">Create an account</button>
       <button type="button" class="linkish" id="demo-btn" style="justify-self:center">Look around first (no account)</button>
     </form>
-    <p class="trial">Free to use. Premium includes a 30-day free trial.</p>
+    <p class="trial">By creating an account you confirm you are 18 or older and agree to the <a href="/terms" target="_blank" rel="noopener">Terms of Use</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</p>
     <button class="btn ghost install-btn" type="button" hidden>Install Checky on this phone</button>
   </div>
 </section>
@@ -405,6 +405,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       <button type="button" class="nav-row" id="family-btn"><span class="nav-tile g" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9L7 7M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg></span><span class="lbl">Household setup</span></button>
       <button type="button" class="nav-row" id="nav-alerts" data-nav="p-alerts"><span class="nav-tile g" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></svg></span><span class="lbl">Alerts on this phone</span></button>
       <button type="button" class="nav-row install-btn" hidden><span class="nav-tile g" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg></span><span class="lbl">Install app</span></button>
+      <a class="nav-row" href="/privacy" target="_blank" rel="noopener" style="text-decoration:none"><span class="nav-tile g" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></svg></span><span class="lbl">Privacy and terms</span></a>
       <button type="button" class="nav-row" id="signout"><span class="nav-tile g" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></svg></span><span class="lbl">Sign out</span></button>
     </div>
   </dialog>
@@ -556,6 +557,13 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     </div>
     <p class="hint" id="fam-msg" role="status" style="margin:0;color:var(--p-pink-lt)" hidden></p>
     <div class="note-acts"><button class="btn" type="submit" value="save">Save</button><button class="btn ghost" type="button" id="fam-cancel">Cancel</button></div>
+    <div class="invite" id="fam-delete" hidden style="margin-top:10px">
+      <strong>Delete my account</strong>
+      <span class="hint">Deletes your account and Personal space for good. Households you share with another parent stay for them. <a href="/delete-account" target="_blank" rel="noopener" style="color:var(--p-blue-lt)">What is deleted?</a></span>
+      <div class="field"><label for="del-confirm">Type DELETE to confirm</label><input id="del-confirm" autocomplete="off" placeholder="DELETE"></div>
+      <button type="button" class="btn ghost small" id="del-btn" style="justify-self:start;box-shadow:inset 0 0 0 2px var(--p-pink)">Delete my account</button>
+      <p class="hint" id="del-msg" role="status" style="margin:0;color:var(--p-pink-lt)" hidden></p>
+    </div>
   </form>
 </dialog>
 
@@ -980,6 +988,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     $('#fam-intro').textContent=FAMMODE==='new'?'A household is completely separate and private. Use it, for example, for a child with a new partner. Only the people in this household can see it.':'Change the names to suit your family. Checky works for two homes (co-parenting) and for one home.';
     $('#fam-invite').hidden=!(USER&&FAM.id&&FAMMODE==='edit'); $('#fam-code').textContent=FAM.code||'------';
     $('#fam-join').hidden=!(USER&&(!FAM.id||FAMMODE==='new'));
+    $('#fam-delete').hidden=!(USER&&FAMMODE!=='new'); $('#del-confirm').value=''; $('#del-msg').hidden=true;
     famDlg.showModal();
   }
   $('#fam-add-kid').addEventListener('click',()=>{const box=$('#fam-kids'), n=box.children.length; if(n>=9) return; box.appendChild(kidInput(n+1,'')); $('#fam-k'+(n+1)).focus(); $('#fam-add-kid').hidden=n+1>=9});
@@ -1008,6 +1017,19 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     btn.disabled=false;
   });
   $('#fam-cancel').addEventListener('click',()=>famDlg.close());
+  $('#del-btn').addEventListener('click',async()=>{
+    const m=$('#del-msg'), v=$('#del-confirm').value.trim().toUpperCase(), btn=$('#del-btn');
+    if(v!=='DELETE'){m.textContent='Type DELETE in the box to confirm.';m.hidden=false;$('#del-confirm').focus();return}
+    btn.disabled=true; m.textContent='Deleting…'; m.hidden=false;
+    try{
+      const {data,error}=await sb.functions.invoke('delete-account',{body:{confirm:'DELETE'}});
+      let d=data; if(error){ try{d=await error.context.json()}catch(e){d={error:error.message}} }
+      if(d&&d.deleted){famDlg.close(); try{localStorage.removeItem('checky.household')}catch(e){} await sb.auth.signOut().catch(()=>{}); location.href='/?deleted=1'; return}
+      m.textContent=(d&&d.error)||'Could not delete the account.';
+    }catch(e){m.textContent='Could not delete the account. Check your internet and try again.'}
+    btn.disabled=false;
+  });
+  if(/[?&]deleted=1/.test(location.search)){history.replaceState(null,'',location.pathname); setTimeout(()=>loginMsg('Your account has been deleted. Thank you for using Checky.'),0)}
   $('#family-form').addEventListener('submit',async e=>{
     e.preventDefault(); const m=$('#fam-msg');
     const type=($$('input[name=famtype]').find(r=>r.checked)||{}).value||'two';
