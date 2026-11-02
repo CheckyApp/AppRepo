@@ -320,6 +320,9 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
 .nav-tag.new{background:var(--p-blue);color:var(--father-ink)}
 .nav-foot{margin-top:auto;padding-top:12px;border-top:1px solid var(--line);display:grid;gap:2px}
 .panel,.personal-head{scroll-margin-top:84px}
+#personal .grid > section{grid-column:1/-1}
+.approve-bar{display:flex;width:100%;margin-top:12px;align-items:center;justify-content:space-between;gap:10px;border:0;cursor:pointer;text-align:left;
+  padding:12px 16px;border-radius:18px;font-weight:800;color:var(--ink-dark);background:linear-gradient(147deg,var(--p-yellow-lt) 0%,var(--p-yellow) 45%,#FFC400 100%);box-shadow:0 0 0 3px rgba(255,210,31,.35)}
 
 @media (prefers-reduced-motion: reduce){
   dialog.drawer[open]{animation:none}
@@ -396,15 +399,17 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     <nav id="nav" aria-label="Sections"></nav>
     <div class="nav-foot">
       <button type="button" class="nav-row" id="family-btn"><span class="nav-tile g" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9L7 7M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg></span><span class="lbl">Family setup</span></button>
-      <button type="button" class="nav-row" id="nav-alerts" hidden><span class="nav-tile g" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></svg></span><span class="lbl">Alerts on this phone</span></button>
+      <button type="button" class="nav-row" id="nav-alerts" data-nav="p-alerts"><span class="nav-tile g" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></svg></span><span class="lbl">Alerts on this phone</span></button>
       <button type="button" class="nav-row install-btn" hidden><span class="nav-tile g" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg></span><span class="lbl">Install app</span></button>
       <button type="button" class="nav-row" id="signout"><span class="nav-tile g" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></svg></span><span class="lbl">Sign out</span></button>
     </div>
   </dialog>
 
+  <div class="wrap" id="approve-bar" hidden><button type="button" class="approve-bar" id="approve-bar-btn"></button></div>
+
   <!-- -------- Personal -------- -->
   <main id="personal" class="wrap">
-    <section class="hero" aria-labelledby="hello">
+    <section class="hero" aria-labelledby="hello" data-page="p-today">
       <div>
         <div class="eyebrow" id="today-label">Tuesday, 13 October 2026</div>
         <h2 id="hello">Good afternoon. Here's your home today.</h2>
@@ -420,12 +425,12 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     </section>
 
     <div class="grid">
-      <section class="panel chrome" aria-labelledby="h-today-acts" id="today-acts-card">
+      <section class="panel chrome" aria-labelledby="h-today-acts" id="today-acts-card" data-page="p-today">
         <div class="panel-head"><h3 id="h-today-acts">Happening today</h3><span class="hint" id="today-acts-date"></span></div>
         <ul class="list" id="today-acts"></ul>
         <div class="note-acts"><button class="btn small" type="button" id="add-act-home">Add activity or reminder</button><button class="btn ghost small" type="button" id="see-week">See the week</button></div>
       </section>
-      <section class="panel chrome" aria-labelledby="h-chores">
+      <section class="panel chrome" aria-labelledby="h-chores" data-page="p-chores">
         <div class="panel-head"><h3 id="h-chores">Chores</h3><span class="hint">Today</span></div>
         <form class="add-row" id="chore-form">
           <input id="chore-input" aria-label="Add a chore" placeholder="Add a chore, e.g. feed the dog">
@@ -439,7 +444,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
         </ul>
       </section>
 
-      <section class="panel chrome" aria-labelledby="h-shop">
+      <section class="panel chrome" aria-labelledby="h-shop" data-page="p-shop">
         <div class="panel-head"><h3 id="h-shop">Shopping list</h3><span class="hint" id="shop-hint">5 items</span></div>
         <form class="add-row" id="shop-form">
                     <input id="shop-input" aria-label="Add an item" placeholder="Add an item, e.g. bread">
@@ -454,22 +459,18 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
         </ul>
       </section>
 
-      <section class="panel chrome" aria-labelledby="h-bills">
+      <section class="panel chrome" aria-labelledby="h-bills" data-page="p-bills">
         <div class="panel-head"><h3 id="h-bills">Bills</h3><span class="hint" id="bills-hint"></span></div>
         <ul class="list" id="bills"></ul>
         <div class="note-acts"><button class="btn small" type="button" id="add-bill">Add bill</button></div>
       </section>
-      <section class="panel chrome" aria-labelledby="h-pets-card" id="pets-card">
-        <div class="panel-head"><h3 id="h-pets-card">Pets</h3><span class="hint">Only you</span></div>
-        <ul class="list" id="pets-due"></ul>
-        <div class="note-acts"><button class="btn small" type="button" id="open-pets">Open pets</button></div>
-      </section>
     </div>
-    <div id="personal-comm"></div>
-    <section class="panel chrome rim-blue" id="alerts-card" aria-labelledby="h-alerts" hidden style="margin-top:28px">
+    <div id="personal-comm" data-page="p-comm"></div>
+    <div data-page="p-alerts"><p class="empty" id="alerts-signin" style="margin-top:18px">Sign in to turn on alerts for this phone.</p>
+    <section class="panel chrome rim-blue" id="alerts-card" aria-labelledby="h-alerts" hidden style="margin-top:18px">
       <div class="panel-head"><h3 id="h-alerts">Alerts on this phone</h3><span class="pill later alerts-state">Off</span></div>
       <div class="alerts-body" style="display:grid;gap:10px"></div>
-    </section>
+    </section></div>
   </main>
 
   <!-- -------- Pets (personal, private) -------- -->
@@ -477,8 +478,8 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
 
   <!-- -------- Shared -------- -->
   <main id="shared" class="wrap" hidden>
-    <div id="pending-box" hidden></div>
-    <section class="hero" aria-labelledby="h-shared">
+    <div data-page="s-approvals"><div id="pending-box" hidden></div><div id="approvals-extra"></div></div>
+    <section class="hero" aria-labelledby="h-shared" data-page="s-today">
       <div>
         <div class="eyebrow" id="shared-eyebrow">Shared with your co-parent</div>
         <h2 id="h-shared">Everything about the children, in one place.</h2>
@@ -486,7 +487,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       </div>
     </section>
 
-    <div class="grid">
+    <div class="grid" data-page="s-notes">
       <section class="panel chrome" aria-labelledby="h-note">
         <div class="panel-head"><h3 id="h-note">Note to the other parent</h3><span class="hint">Kept fair and friendly</span></div>
         <p class="hint" style="margin:0">Swear words and unkind words are not allowed. Checky rewrites them in a friendlier way before anything is sent.</p>
@@ -512,14 +513,14 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       </section>
     </div>
 
-    <div class="kids" role="group" aria-label="Child">
+    <div class="kids" role="group" aria-label="Child" data-page="s-cat">
       <button type="button" class="kid chrome" data-child="c1" aria-pressed="true"><span class="av" data-initial="c1">1</span><span data-name="c1">Child 1</span></button>
       <button type="button" class="kid chrome" id="kid2" data-child="c2" aria-pressed="false"><span class="av" data-initial="c2">2</span><span data-name="c2">Child 2</span> <span class="pill prem">Premium</span></button>
     </div>
 
     <div class="cats" role="tablist" aria-label="Categories" id="cats" hidden></div>
 
-    <div id="cat-body"></div>
+    <div id="cat-body" data-page="s-cat"></div>
   </main>
 </div>
 
@@ -865,7 +866,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   });
   $('#demo-btn').addEventListener('click',()=>{USER=null;loginMsg('');showApp();toast('Demo mode: nothing is saved online')});
   $('#signout').addEventListener('click',async()=>{
-    if($('#menu').open) $('#menu').close(); setView('personal'); setNav('p-today');
+    if($('#menu').open) $('#menu').close(); showPage('p-today');
     if(USER&&sb){try{await turnOffAlerts(true)}catch(e){} try{await sb.auth.signOut()}catch(e){} if(CHANNEL){sb.removeChannel(CHANNEL);CHANNEL=null}}
     USER=null; BILLS=store.get('checky.bills',null)||billSeed(); renderBills(); renderAlerts(); SCH=demoSchedule(); resetLists(); CHG=[]; renderPending(); renderPersonalComm(); renderHandoverStat(); $('#app').hidden=true;$('#login').hidden=false;document.body.classList.remove('inside');window.scrollTo(0,0);
   });
@@ -885,7 +886,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     if(v==='pets'&&typeof renderPets==='function'){renderPets(); setNav('p-pets')}
     if(v==='shared'&&typeof currentCat!=='undefined'&&currentCat) showCat(currentCat);
   }
-  $$('.seg button').forEach(b=>b.addEventListener('click',()=>{setView(b.dataset.view); if(b.dataset.view==='personal') setNav('p-today')}));
+  $$('.seg button').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.view==='personal'?'p-today':(CHG.some(c=>c.status==='pending'&&c.requested_by!==(USER&&USER.id))?'s-approvals':'s-today'))));
 
   // Greeting by time of day
   const h=new Date().getHours();
@@ -1100,12 +1101,12 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     toast((editing?'Saved. ':'Added. ')+(FAM.type==='two'?nm('other')+' can see it too.':'The family can see it too.'));
   });
   $('#add-act-home').addEventListener('click',()=>openAct(null));
-  $('#see-week').addEventListener('click',()=>{$('#seg-shared').click();showCat(cats.find(c=>c.id==='activities'))});
+  $('#see-week').addEventListener('click',()=>showPage('s-activities'));
   let currentCat=null; const refreshCat=()=>{if(currentCat&&!$('#shared').hidden) showCat(currentCat); if(typeof renderPersonalComm==='function') try{renderPersonalComm()}catch(e){} if(typeof renderPetsCard==='function') try{renderPetsCard(); if(!$('#pets').hidden) renderPets()}catch(e){console.error(e)}};
 
   // ---------- Bills (private to each person) ----------
   const fmtR=n=>{const [i,c]=(Math.round(Number(n||0)*100)/100).toFixed(2).split('.');return 'R '+i.replace(/\B(?=(\d{3})+(?!\d))/g,' ')+(c==='00'?'':','+c)};
-  const dmy=s=>{const d=new Date(s+'T12:00');return d.getDate()+' '+d.toLocaleDateString('en-ZA',{month:'short'}).replace('.','')};
+  const dmy=s=>{const d=new Date(s+'T12:00');return d.getDate()+' '+d.toLocaleDateString('en-ZA',{month:'short'}).replace('.','')+(d.getFullYear()!==new Date().getFullYear()?' '+d.getFullYear():'')};
   const addMonth=s=>{const d=new Date(s+'T12:00'),day=d.getDate();d.setDate(1);d.setMonth(d.getMonth()+1);d.setDate(Math.min(day,new Date(d.getFullYear(),d.getMonth()+1,0).getDate()));return iso(d)};
   const billSeed=()=>{const m=n=>iso(addDays(now,n));return [
     {id:'b1',name:'Electricity (prepaid)',amount:850,due_date:m(2),repeat:'monthly',last_paid:null,notes:''},
@@ -1862,41 +1863,51 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   }
 
   // Health
-  const HEALTH_KIND={doctor:'Doctor',medical_aid:'Medical aid',medication:'Medication (when sick)',operation:'Past operation'};
+  const HEALTH_KIND={doctor:'Doctor',medical_aid:'Medical aid',vaccine:'Vaccination',childhood_illness:'Childhood illness',medication:'Medication (when sick)',operation:'Past operation'};
+  const VACCINES=['BCG (TB)','Polio (OPV drops)','6-in-1 (Hexavalent)','Rotavirus','Pneumococcal (PCV)','Measles','MMR (measles, mumps, rubella)','Chickenpox (varicella)','Hepatitis A','Hepatitis B','Tetanus and diphtheria (Td) booster','HPV','Flu','COVID-19','Meningococcal','Typhoid','Other'];
+  const CHILD_ILL=['Chickenpox','Measles','Mumps','Rubella (German measles)','Whooping cough','Hand, foot and mouth disease','Scarlet fever','Slapped cheek (fifth disease)','Roseola','Croup','Tonsillitis','Ear infection','Bronchiolitis','Gastro (stomach bug)','Conjunctivitis (pink eye)','Impetigo','Head lice','Other'];
   const is=(...k)=>v=>k.includes(v.kind);
   defineList({key:'health',table:'health_records',noun:'health entry',plural:'health',perChild:true,
     fields:[
       {k:'kind',label:'Type',type:'select',options:Object.entries(HEALTH_KIND),def:'doctor'},
-      {k:'name',label:'Name',max:80,ph:'e.g. Dr Anna',showIf:is('doctor')},
+      {k:'name',label:'Name',max:80,ph:'e.g. Dr Anna, or the name if Other',showIf:v=>v.kind==='doctor'||(v.kind==='vaccine'&&v.vaccine==='Other')||(v.kind==='childhood_illness'&&v.condition==='Other')},
       {k:'surname',label:'Surname',max:80,ph:'e.g. Pillay',showIf:is('doctor')},
       {k:'aid_name',label:'Medical aid name',max:80,ph:'e.g. Discovery',showIf:is('medical_aid')},
       {k:'member_number',label:'Member number',max:40,showIf:is('medical_aid')},
       {k:'plan',label:'Plan or option',max:60,showIf:is('medical_aid')},
       {k:'kin_p1',label:()=>'Next of kin ('+nm('p1')+"'s side)",max:120,ph:'Name and number',showIf:is('medical_aid')},
       {k:'kin_p2',label:()=>'Next of kin ('+nm('p2')+"'s side)",max:120,ph:'Name and number',showIf:is('medical_aid')},
+      {k:'vaccine',label:'Vaccine',type:'select',options:()=>VACCINES.map(v=>[v,v]),def:VACCINES[0],showIf:is('vaccine')},
+      {k:'condition',label:'Illness',type:'select',options:()=>CHILD_ILL.map(v=>[v,v]),def:CHILD_ILL[0],showIf:is('childhood_illness')},
+      {k:'dose',label:'Dose',max:40,ph:'e.g. Dose 1, booster',showIf:is('vaccine')},
       {k:'illness',label:'Illness',max:120,ph:'e.g. Flu, ear infection',showIf:is('medication')},
       {k:'medicine',label:'What was used',max:200,ph:'e.g. Panado syrup 5 ml',showIf:is('medication')},
       {k:'operation',label:'Operation',max:120,ph:'e.g. Tonsils removed',showIf:is('operation')},
-      {k:'given_on',label:'Date',type:'date',showIf:is('medication','operation')},
+      {k:'given_on',label:'Date',type:'date',showIf:is('medication','operation','vaccine','childhood_illness')},
       {k:'at_time',label:'Time',type:'time',showIf:is('medication')},
-      {k:'to_date',label:'Until',type:'date',showIf:is('medication')},
-      {k:'place',label:'Location or hospital',max:120,showIf:is('doctor','operation')},
+      {k:'to_date',label:'Until',type:'date',showIf:is('medication','childhood_illness')},
+      {k:'place',label:'Location, clinic or hospital',max:120,showIf:is('doctor','operation','vaccine')},
       {k:'phone',label:'Phone number',type:'tel',max:30,showIf:is('doctor','medical_aid')},
-      {k:'follow_up',label:'Follow-up appointment',type:'date',showIf:is('operation')},
+      {k:'follow_up',label:'Follow-up or next dose due',type:'date',showIf:is('operation','vaccine')},
       {k:'notes',label:'Notes and updates',type:'longtext',max:1000}],
     validate:r=>r.kind==='doctor'&&!r.name&&!r.surname?"Type the doctor's name.":r.kind==='medical_aid'&&!r.aid_name?'Type the name of the medical aid.':
       r.kind==='medication'&&(!r.illness&&!r.medicine)?'Fill in the illness or what was used.':r.kind==='medication'&&!r.given_on?'Choose the date.':
-      r.kind==='operation'&&!r.operation?'Say what the operation was.':r.kind==='operation'&&!r.given_on?'Choose when it was.':null,
+      r.kind==='operation'&&!r.operation?'Say what the operation was.':r.kind==='operation'&&!r.given_on?'Choose when it was.':
+      (r.kind==='vaccine'||r.kind==='childhood_illness')&&!r.given_on?'Choose the date.':
+      ((r.kind==='vaccine'&&r.vaccine==='Other')||(r.kind==='childhood_illness'&&r.condition==='Other'))&&!r.name?'Type the name.':null,
     sort:(a,b)=>(b.given_on||'').localeCompare(a.given_on||'')||(a.name||a.aid_name||'').localeCompare(b.name||b.aid_name||''),
     item:r=>{const tel=r.phone?'<a href="tel:'+esc(r.phone.replace(/[^+\d]/g,''))+'">'+esc(r.phone)+'</a>':'';
       if(r.kind==='doctor') return {title:[r.name,r.surname].filter(Boolean).join(' '),meta:[r.place,r.notes],links:tel};
       if(r.kind==='medical_aid') return {title:r.aid_name+(r.plan?' · '+r.plan:''),meta:[r.member_number?'Member no. '+r.member_number:'',r.kin_p1?'Next of kin ('+nm('p1')+'): '+r.kin_p1:'',r.kin_p2?'Next of kin ('+nm('p2')+'): '+r.kin_p2:'',r.notes],links:tel};
+      if(r.kind==='vaccine') return {title:(r.vaccine==='Other'?r.name:r.vaccine)+(r.dose?' · '+r.dose:''),meta:['Given '+dmy(r.given_on),r.place,r.follow_up?'Next dose '+dmy(r.follow_up):'',r.notes],pill:r.follow_up&&daysTo(r.follow_up)>=0&&daysTo(r.follow_up)<=30?['due','Next dose soon']:r.follow_up&&daysTo(r.follow_up)<0?['late','Next dose overdue']:null};
+      if(r.kind==='childhood_illness') return {title:r.condition==='Other'?r.name:r.condition,meta:[r.to_date&&r.to_date!==r.given_on?rangeText(r.given_on,r.to_date):'Had it '+dmy(r.given_on),r.notes]};
       if(r.kind==='medication') return {title:r.illness||r.medicine,meta:[r.given_on?rangeText(r.given_on,r.to_date||r.given_on)+(r.at_time?' '+r.at_time.slice(0,5):''):'',r.illness&&r.medicine?'Used: '+r.medicine:'',r.notes]};
       return {title:r.operation,meta:[r.given_on?dmy(r.given_on):'',r.place,r.follow_up?'Follow-up '+dmy(r.follow_up):'',r.notes],pill:r.follow_up&&daysTo(r.follow_up)>=0&&daysTo(r.follow_up)<=14?['due','Follow-up soon']:null}}});
   function renderHealth(body){
     const wrap=document.createElement('div'); wrap.className='grid';
     const panel=(kind,id,title,empty)=>listPanel('health',{id,title,add:'Add',empty,filter:r=>r.kind===kind,preset:{kind}});
     wrap.append(panel('doctor','h-docs','Doctors','No doctors added yet.'),panel('medical_aid','h-aid','Medical aid','No medical aid details yet.'),
+      panel('vaccine','h-vacc','Vaccinations','No vaccinations recorded yet. Add the vaccine and the date it was given.'),panel('childhood_illness','h-cill','Childhood illnesses','None recorded yet, e.g. chickenpox or measles, with the dates.'),
       panel('medication','h-meds','Medication log','Nothing logged yet. Add each time the child is sick: what was used, when and why.'),panel('operation','h-ops','Past operations','No operations recorded.'));
     body.append(premiumNote(),wrap);
   }
@@ -2149,7 +2160,9 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   function updateBadge(){
     const me=USER&&USER.id, n=CHG.filter(c=>c.status==='pending'&&c.requested_by!==me).length+SCH.reqs.filter(r=>r.status==='pending'&&r.requested_by!==(me||'me')).length;
     const mb=$('#menu-badge'); if(mb){mb.hidden=!n; mb.textContent=n; $('#menu-btn').setAttribute('aria-label',n?'Open menu, '+n+(n===1?' change waits':' changes wait')+' for your approval':'Open menu')}
-    const ng=$('#nav-approve'); if(ng){ng.hidden=!n; ng.textContent=n+' to approve'}
+    const ng=$('#nav-approve'); if(ng){ng.hidden=!n; ng.textContent=n}
+    const ab=$('#approve-bar'); if(ab){ab.hidden=!n||NAVCUR==='s-approvals'||$('#app').hidden; $('#approve-bar-btn').innerHTML='<span>'+n+(n===1?' change waits':' changes wait')+' for your approval</span><span aria-hidden="true">Open ›</span>'}
+    if(typeof renderApprovalsExtra==='function') renderApprovalsExtra();
     const b=$('#seg-shared'); if(!b) return; let el=b.querySelector('.badge');
     if(!n){if(el) el.remove(); b.removeAttribute('aria-description'); return}
     if(!el){el=document.createElement('span');el.className='badge';b.appendChild(el)}
@@ -2217,6 +2230,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   }
   async function renderAlerts(){
     const box=$('#alerts-card'); if(!box) return;
+    const si=$('#alerts-signin'); if(si) si.hidden=!!USER;
     if(!USER){box.hidden=true;return}
     box.hidden=false; const body=box.querySelector('.alerts-body');
     let html, on=false;
@@ -2322,7 +2336,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     b.addEventListener('click',()=>showCat(c)); catBox.appendChild(b);
   });
   function showCat(c){
-    currentCat=c; if(typeof setNav==='function') setNav('s-'+c.id);
+    currentCat=c;
     $$('.cat').forEach(b=>b.setAttribute('aria-selected',b.dataset.cat===c.id));
     const body=$('#cat-body'); body.innerHTML='';
     if(c.id==='activities'){renderActivities(body);return}
@@ -2448,43 +2462,58 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     pets:'M12 13c-3 0-5 3-5 5s2 3 5 3 5-1 5-3-2-5-5-5zM4.5 10a1.5 2 0 1 0 3 0a1.5 2 0 1 0-3 0M16.5 10a1.5 2 0 1 0 3 0a1.5 2 0 1 0-3 0M8 6a1.5 2 0 1 0 3 0a1.5 2 0 1 0-3 0M13 6a1.5 2 0 1 0 3 0a1.5 2 0 1 0-3 0',
     call:'M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z',sun:'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M2 12h2M20 12h2',
     star:'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z',cal:'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',book:'M4 19V5a2 2 0 0 1 2-2h14v16H6a2 2 0 0 0-2 2zM4 19a2 2 0 0 0 2 2h14',
-    bag:'M5 8h14l-1 13H6zM9 8V6a3 3 0 0 1 6 0v2',money:'M3 6h18v12H3zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',heart:'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z',doc:'M6 3h8l4 4v14H6zM14 3v4h4'};
+    bag:'M5 8h14l-1 13H6zM9 8V6a3 3 0 0 1 6 0v2',money:'M3 6h18v12H3zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',heart:'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z',doc:'M6 3h8l4 4v14H6zM14 3v4h4',check2:'M9 12l2 2 4-4M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z',note:'M4 5h16v11H8l-4 4z'};
   const menuDlg=$('#menu'); var NAVCUR='p-today';
-  function goPersonal(sel){setView('personal'); setTimeout(()=>{if(sel){const el=$(sel); el&&el.scrollIntoView({behavior:'smooth',block:'start'})}else window.scrollTo({top:0,behavior:'smooth'})},30)}
-  function goShared(id){setView('shared'); showCat(cats.find(c=>c.id===id)); window.scrollTo(0,0)}
+  const isCat=id=>id.startsWith('s-')&&cats.some(c=>'s-'+c.id===id);
+  function showPage(id){
+    setView(id==='p-pets'?'pets':id.startsWith('p-')?'personal':'shared');
+    $$('#personal [data-page], #shared [data-page]').forEach(el=>{el.hidden=!(el.dataset.page===id||(el.dataset.page==='s-cat'&&isCat(id)))});
+    if(isCat(id)) showCat(cats.find(c=>'s-'+c.id===id));
+    if(id==='p-alerts'){const si=$('#alerts-signin'); if(si) si.hidden=!!USER}
+    setNav(id); updateBadge(); window.scrollTo(0,0);
+  }
+  function renderApprovalsExtra(){
+    const ex=$('#approvals-extra'); if(!ex) return;
+    const nC=CHG.filter(c=>c.status==='pending').length, nS=SCH.reqs.filter(r=>r.status==='pending').length;
+    let h='';
+    if(nS) h='<section class="panel chrome rim-yellow" style="margin-top:18px" aria-labelledby="h-appr-cal"><div class="panel-head"><h3 id="h-appr-cal">Calendar change requests</h3></div><p class="hint" style="margin:0">'+nS+(nS>1?' calendar changes are':' calendar change is')+' waiting. Approve or decline on the Schedule page.</p><div class="note-acts"><button class="btn small" type="button" id="go-sched">Open Schedule</button></div></section>';
+    if(!nC&&!nS) h='<p class="empty" style="margin-top:18px">Nothing is waiting for approval.</p>';
+    ex.innerHTML=h; const g=$('#go-sched'); if(g) g.addEventListener('click',()=>showPage('s-schedule'));
+  }
   function navItems(){
     const one=FAM.type==='one';
     return [
       {group:'Personal · only you',items:[
-        {id:'p-today',label:'Today',ic:'home',t:'b',go:()=>goPersonal()},
-        {id:'p-chores',label:'Chores',ic:'chores',t:'y',go:()=>goPersonal('#h-chores')},
-        {id:'p-shop',label:'Shopping',ic:'shop',t:'o',go:()=>goPersonal('#h-shop')},
-        {id:'p-bills',label:'Bills',ic:'bills',t:'p',go:()=>goPersonal('#h-bills')},
-        {id:'p-pets',label:'Pets',ic:'pets',t:'b',tag:'New',go:()=>{setView('pets');window.scrollTo(0,0)}},
-        ...(PREMIUM_PREVIEW?[{id:'p-comm',label:'Communication',ic:'call',t:'y',tag:'Premium',go:()=>goPersonal('#h-pcomm')}]:[])]},
-      {group:(one?'Family':'Shared · both parents'),approve:true,items:[
-        {id:'s-today',label:'Today',ic:'sun',t:'o',go:()=>goShared('today')},
-        {id:'s-activities',label:'Activities',ic:'star',t:'p',go:()=>goShared('activities')},
-        ...(one?[]:[{id:'s-schedule',label:'Schedule',ic:'cal',t:'b',go:()=>goShared('schedule')}]),
-        {id:'s-school',label:'School',ic:'book',t:'y',go:()=>goShared('school')},
-        {id:'s-holidays',label:'Holidays',ic:'sun',t:'o',go:()=>goShared('holidays')},
-        {id:'s-belongings',label:'Belongings',ic:'bag',t:'p',go:()=>goShared('belongings')}]},
+        {id:'p-today',label:'Today',ic:'home',t:'b'},
+        {id:'p-chores',label:'Chores',ic:'chores',t:'y'},
+        {id:'p-shop',label:'Shopping',ic:'shop',t:'o'},
+        {id:'p-bills',label:'Bills',ic:'bills',t:'p'},
+        {id:'p-pets',label:'Pets',ic:'pets',t:'b',tag:'New'},
+        ...(PREMIUM_PREVIEW?[{id:'p-comm',label:'Communication',ic:'call',t:'y',tag:'Premium'}]:[])]},
+      {group:(one?'Family':'Shared · both parents'),items:[
+        {id:'s-approvals',label:'Approvals',ic:'check2',t:'y',approve:true},
+        {id:'s-today',label:'Today',ic:'sun',t:'o'},
+        {id:'s-notes',label:one?'Note to the family':'Note to the other parent',ic:'note',t:'b'},
+        {id:'s-activities',label:'Activities',ic:'star',t:'p'},
+        ...(one?[]:[{id:'s-schedule',label:'Schedule',ic:'cal',t:'b'}]),
+        {id:'s-school',label:'School',ic:'book',t:'y'},
+        {id:'s-holidays',label:'Holidays',ic:'sun',t:'o'},
+        {id:'s-belongings',label:'Belongings',ic:'bag',t:'p'}]},
       {group:(one?'Family':'Shared')+' · Premium',items:[
-        {id:'s-money',label:'Money',ic:'money',t:'y',tag:'Premium',go:()=>goShared('money')},
-        {id:'s-health',label:'Health',ic:'heart',t:'p',tag:'Premium',go:()=>goShared('health')},
-        {id:'s-documents',label:'Documents',ic:'doc',t:'b',tag:'Premium',go:()=>goShared('documents')}]}];
+        {id:'s-money',label:'Money',ic:'money',t:'y',tag:'Premium'},
+        {id:'s-health',label:'Health',ic:'heart',t:'p',tag:'Premium'},
+        {id:'s-documents',label:'Documents',ic:'doc',t:'b',tag:'Premium'}]}];
   }
   function buildNav(){
     const nav=$('#nav'); if(!nav) return; nav.innerHTML='';
     navItems().forEach(g=>{
       const h=document.createElement('div'); h.className='nav-group'; h.textContent=g.group;
-      if(g.approve){const t=document.createElement('span'); t.className='nav-tag'; t.id='nav-approve'; t.hidden=true; h.appendChild(t)}
       nav.appendChild(h);
       g.items.forEach(it=>{
         const b=document.createElement('button'); b.type='button'; b.className='nav-row'; b.dataset.nav=it.id;
-        b.innerHTML='<span class="nav-tile '+it.t+'" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="'+NAVI[it.ic]+'"/></svg></span><span class="lbl"></span>'+(it.tag?'<span class="nav-tag'+(it.tag==='New'?' new':'')+'">'+it.tag+'</span>':'');
+        b.innerHTML='<span class="nav-tile '+it.t+'" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="'+NAVI[it.ic]+'"/></svg></span><span class="lbl"></span>'+(it.tag?'<span class="nav-tag'+(it.tag==='New'?' new':'')+'">'+it.tag+'</span>':'')+(it.approve?'<span class="nav-tag" id="nav-approve" hidden></span>':'');
         b.querySelector('.lbl').textContent=it.label;
-        b.addEventListener('click',()=>{menuDlg.close(); it.go(); setNav(it.id)});
+        b.addEventListener('click',()=>{menuDlg.close(); showPage(it.id)});
         nav.appendChild(b);
       });
     });
@@ -2494,15 +2523,14 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   }
   function setNav(id){
     NAVCUR=id; let label='';
-    $$('#nav .nav-row').forEach(b=>{const on=b.dataset.nav===id; if(on){b.setAttribute('aria-current','page'); label=b.querySelector('.lbl').textContent} else b.removeAttribute('aria-current')});
-    const t=$('#top-title'); if(t&&label) t.textContent=id.startsWith('s-')&&id!=='s-today'?label:id==='s-today'?(FAM.type==='one'?'Family':'Shared'):id==='p-today'?'Personal':label;
+    $$('#menu .nav-row[data-nav]').forEach(b=>{const on=b.dataset.nav===id; if(on){b.setAttribute('aria-current','page'); label=b.querySelector('.lbl').textContent} else b.removeAttribute('aria-current')});
+    const t=$('#top-title'); if(t&&label) t.textContent=id==='s-today'?(FAM.type==='one'?'Family today':'Shared today'):id==='p-today'?'Personal':label;
   }
-  $('#menu-btn').addEventListener('click',()=>{buildNav(); $('#nav-alerts').hidden=$('#alerts-card').hidden; menuDlg.showModal(); const cur=menuDlg.querySelector('[aria-current="page"]'); (cur||$('#menu-close')).focus()});
+  $('#menu-btn').addEventListener('click',()=>{buildNav(); menuDlg.showModal(); const cur=menuDlg.querySelector('[aria-current="page"]'); (cur||$('#menu-close')).focus()});
   $('#menu-close').addEventListener('click',()=>menuDlg.close());
   menuDlg.addEventListener('click',e=>{if(e.target===menuDlg) menuDlg.close()});
-  $('#nav-alerts').addEventListener('click',()=>{menuDlg.close(); goPersonal('#alerts-card'); setNav('p-today')});
-  $('#open-pets').addEventListener('click',()=>{setView('pets'); window.scrollTo(0,0)});
-  buildNav(); setNav('p-today');
+  $('#nav-alerts').addEventListener('click',()=>{menuDlg.close(); showPage('p-alerts')});
+  buildNav(); showPage('p-today');
 
   // ---------- Install on a phone ----------
   let installEvt=null;
