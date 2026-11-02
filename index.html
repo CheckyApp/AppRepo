@@ -487,7 +487,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     <section class="hero" aria-labelledby="h-shared" data-page="s-today">
       <div>
         <div class="eyebrow" id="shared-eyebrow">Shared with your co-parent</div>
-        <h2 id="h-shared">Everything about the children, in one place.</h2>
+        <h2 id="h-shared">Two addresses, one rhythm.</h2>
         <p id="shared-sub">When you add something here, the other parent gets notified.</p>
       </div>
     </section>
@@ -961,7 +961,8 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     const one=FAM.type==='one';
     $('#seg-shared').textContent=one?'Family':'Shared'; if(typeof updateBadge==='function') try{updateBadge()}catch(e){}
     $('#shared-eyebrow').textContent=one?'Shared with your family':'Shared with your co-parent';
-    $('#shared-sub').textContent=one?'When you add something here, everyone in the family gets notified.':'When you add something here, the other parent gets notified.';
+    $('#h-shared').textContent=one?'Your family, beautifully organised.':'Two addresses, one rhythm.';
+    $('#shared-sub').textContent=one?'Less “Who’s fetching?” More “We’ve got it.” Everyone in the family sees what you add here.':'Every handover, handled. When you add something here, the other parent gets notified.';
     $('#h-note').textContent=one?'Note to the family':'Note to the other parent';
     $('#stat-handover').hidden=one;
     $$('.cat[data-cat="schedule"]').forEach(b=>{b.hidden=one});
