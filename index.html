@@ -542,6 +542,9 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     <div class="invite" id="fam-invite" hidden>
       <span class="hint">Invite code for the other parent: they create an account, open Family setup and type this code.</span>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><b id="fam-code" class="code">------</b><button type="button" class="mini-btn" id="fam-copy">Copy code</button></div>
+      <div class="field" style="margin-top:6px"><label for="fam-inv-email">Or invite them by email</label><input id="fam-inv-email" type="email" autocomplete="off" placeholder="e.g. their@email.com"></div>
+      <button type="button" class="btn small" id="fam-inv-send" style="justify-self:start">Send invite</button>
+      <p class="hint" id="fam-inv-msg" role="status" style="margin:0" hidden></p>
     </div>
     <div class="invite" id="fam-join" hidden>
       <div class="field"><label for="fam-join-code">Already have an invite code?</label><input id="fam-join-code" maxlength="6" autocomplete="off" placeholder="e.g. 4F9K2B" style="text-transform:uppercase"></div>
@@ -830,6 +833,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   // Login (look only, no real accounts yet)
   // ---------- Accounts (Supabase) ----------
   const SB_URL='https://lcxxtysaimrthbdypuyu.supabase.co', SB_KEY='sb_publishable_IDslB8xRql_iJ__IvlLGUw_jyddMdp3';
+  const FROM_INVITE=/type=invite/.test(location.hash);
   let sb=null; try{ if(window.supabase) sb=window.supabase.createClient(SB_URL,SB_KEY) }catch(e){ sb=null }
   let USER=null, CHANNEL=null;
   const loginMsg=t=>{const m=$('#login-msg'); m.textContent=t||''; m.hidden=!t};
@@ -962,6 +966,20 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     const {data,error}=await sb.rpc('join_family',{p_code:code,p_role:$('#fam-me').value});
     if(error){m.textContent=/not found/i.test(error.message)?'That code wasn\'t found. Check it with the other parent.':error.message;m.hidden=false;return}
     famDlg.close(); await useFamily(data,$('#fam-me').value); toast('You joined the family');
+  });
+  $('#fam-inv-send').addEventListener('click',async()=>{
+    const m=$('#fam-inv-msg'), email=$('#fam-inv-email').value.trim(), btn=$('#fam-inv-send');
+    const say=(t,bad)=>{m.textContent=t;m.style.color=bad?'var(--p-pink-lt)':'var(--p-yellow)';m.hidden=false};
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return say("Type the other parent's email address.",true);
+    btn.disabled=true; say('Sending…');
+    try{
+      const {data,error}=await sb.functions.invoke('invite-parent',{body:{email}});
+      let d=data; if(error){ try{d=await error.context.json()}catch(e){d={error:error.message}} }
+      if(d&&d.sent){say('Invite sent to '+email+'. They tap the link in the email, choose a password and are joined to your family.'); $('#fam-inv-email').value=''}
+      else if(d&&d.already) say('That email already has a Checky account. Ask them to open Family setup and type the code '+d.code+'.');
+      else say((d&&d.error)||'The invite could not be sent.',true);
+    }catch(e){say('The invite could not be sent. Check your internet and try again.',true)}
+    btn.disabled=false;
   });
   $('#fam-cancel').addEventListener('click',()=>famDlg.close());
   $('#family-form').addEventListener('submit',async e=>{
@@ -2261,6 +2279,13 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     if(error){toast('Could not load your family. Has the database been set up? ('+error.message+')');return}
     await Promise.all([loadPersonal(),loadBills(),loadList('comm'),loadList('pets'),loadList('petrec')]); syncAlerts();
     if(location.hash==='#shared'){history.replaceState(null,'',location.pathname); $('#seg-shared').click()}
+    const meta=user.user_metadata||{};
+    if(!data.length&&meta.invite_code){
+      const {data:f,error:je}=await sb.rpc('join_family',{p_code:meta.invite_code,p_role:meta.invite_role||'p2'});
+      if(!je&&f){await useFamily(f,meta.invite_role||'p2'); toast('Welcome! You joined '+(meta.invited_by||'the other parent')+"'s family",5000);
+        if(FROM_INVITE){$('#pw-title').textContent='Welcome to Checky! Choose a password'; $('#pw-dialog').showModal()} return}
+    }
+    if(FROM_INVITE&&!$('#pw-dialog').open){$('#pw-title').textContent='Welcome to Checky! Choose a password'; $('#pw-dialog').showModal()}
     if(!data.length){delete FAM.id;delete FAM.code;openFamily(true);return}
     await useFamily(data[0].families,data[0].role);
   }
