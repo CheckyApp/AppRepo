@@ -293,7 +293,36 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
 .chip{display:inline-flex;gap:6px;align-items:center;border:0;cursor:pointer;padding:6px 10px;border-radius:14px;font-size:.82rem;font-weight:700;color:var(--ink-dark);text-align:left;max-width:100%}
 .chip span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
+/* Slide-out menu */
+.topbar .wrap{justify-content:flex-start}
+.menu-btn{position:relative;width:46px;height:46px;flex:none;border:0;border-radius:16px;cursor:pointer;display:grid;place-items:center;color:var(--ink);
+  background:linear-gradient(var(--deg),var(--row-hi) 0%,var(--row-mid) 50%,var(--row-lo) 100%);box-shadow:inset 0 0 0 1px var(--line),calc(var(--sx)*.4) calc(var(--sy)*.4) 12px var(--shadow)}
+.menu-btn .badge{position:absolute;top:-5px;right:-5px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;display:grid;place-items:center;background:var(--p-yellow);color:var(--ink-dark);font-size:.72rem;font-weight:800;box-shadow:0 0 0 2px var(--bg)}
+.top-title{margin-left:auto;font-family:var(--display);font-size:1.5rem;line-height:1;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:45vw}
+dialog.drawer{margin:0;inset:0 auto 0 0;height:100%;max-height:100%;width:min(310px,88vw);border-radius:0 30px 30px 0;
+  padding:calc(16px + env(safe-area-inset-top,0px)) 12px calc(16px + env(safe-area-inset-bottom,0px));box-shadow:20px 0 50px rgba(0,0,0,.6)}
+dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn .22s ease-out}
+@keyframes slideIn{from{transform:translateX(-100%)}to{transform:none}}
+.drawer-head{display:flex;align-items:center;gap:12px;padding:0 6px 8px}
+.drawer-head .who{flex:1;min-width:0;display:grid}
+.drawer-head .who b{font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.drawer-head .who span{font-size:.8rem;color:var(--ink-soft)}
+.drawer-av{width:42px;height:42px;border-radius:50%;flex:none;display:grid;place-items:center;font-weight:800;background:var(--p-pink);color:var(--mother-ink)}
+.nav-group{display:flex;align-items:center;gap:8px;font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);padding:12px 8px 4px}
+.nav-row{display:flex;align-items:center;gap:12px;width:100%;border:0;background:none;color:var(--ink);font-weight:700;font-size:.95rem;min-height:44px;padding:5px 8px;border-radius:14px;cursor:pointer;text-align:left}
+.nav-row:hover{background:#1C1922}
+.nav-row[aria-current="page"]{background:#262130;box-shadow:inset 0 0 0 1px var(--line)}
+.nav-row .lbl{flex:1;min-width:0}
+.nav-tile{width:32px;height:32px;flex:none;border-radius:10px;display:grid;place-items:center}
+.nav-tile.b{background:var(--p-blue);color:var(--father-ink)} .nav-tile.p{background:var(--p-pink);color:var(--mother-ink)}
+.nav-tile.y{background:var(--p-yellow);color:var(--ink-dark)} .nav-tile.o{background:var(--p-orange);color:var(--ink-dark)} .nav-tile.g{background:var(--row-hi);color:var(--ink)}
+.nav-tag{font-size:.68rem;font-weight:800;padding:3px 8px;border-radius:999px;background:var(--p-yellow);color:var(--ink-dark)}
+.nav-tag.new{background:var(--p-blue);color:var(--father-ink)}
+.nav-foot{margin-top:auto;padding-top:12px;border-top:1px solid var(--line);display:grid;gap:2px}
+.panel,.personal-head{scroll-margin-top:84px}
+
 @media (prefers-reduced-motion: reduce){
+  dialog.drawer[open]{animation:none}
   .crest .tile,.crest .rim{animation:none;stroke-dashoffset:0}
   .btn,.toast{transition:none}
 }
@@ -348,14 +377,30 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
 <div id="app" hidden>
   <header class="topbar">
     <div class="wrap">
+      <button type="button" class="menu-btn" id="menu-btn" aria-label="Open menu" aria-haspopup="dialog" aria-controls="menu"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span class="badge" id="menu-badge" hidden></span></button>
       <div class="mini-brand"><svg viewBox="0 0 120 140" aria-hidden="true"><g class="tiles" clip-path="url(#crest-clip)"></g><path d="M14 14 H106 V38 C78 48 42 30 14 44 Z" fill="url(#crest-gloss)" clip-path="url(#crest-clip)"/><path d="M14 14 H106 V64 C106 98 84 120 60 130 C36 120 14 98 14 64 Z" fill="none" stroke="url(#crest-rim)" stroke-width="11" stroke-linejoin="round"/></svg>Checky</div>
-      <div class="seg" role="group" aria-label="Space">
+      <span class="top-title" id="top-title" aria-live="polite">Personal</span>
+      <div class="seg" role="group" aria-label="Space" hidden>
         <button type="button" data-view="personal" aria-pressed="true">Personal</button>
         <button type="button" data-view="shared" aria-pressed="false" id="seg-shared">Shared</button>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small install-btn" type="button" hidden>Install app</button><button class="btn ghost small" type="button" id="family-btn">Family setup</button><button class="btn ghost small" type="button" id="signout">Sign out</button></div>
     </div>
   </header>
+
+  <dialog id="menu" class="drawer" aria-label="Menu">
+    <div class="drawer-head">
+      <span class="drawer-av" id="drawer-av" aria-hidden="true">?</span>
+      <div class="who"><b id="drawer-name">You</b><span id="drawer-fam">Your family</span></div>
+      <button type="button" class="menu-btn" id="menu-close" aria-label="Close menu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <nav id="nav" aria-label="Sections"></nav>
+    <div class="nav-foot">
+      <button type="button" class="nav-row" id="family-btn"><span class="nav-tile g" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9L7 7M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg></span><span class="lbl">Family setup</span></button>
+      <button type="button" class="nav-row" id="nav-alerts" hidden><span class="nav-tile g" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></svg></span><span class="lbl">Alerts on this phone</span></button>
+      <button type="button" class="nav-row install-btn" hidden><span class="nav-tile g" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg></span><span class="lbl">Install app</span></button>
+      <button type="button" class="nav-row" id="signout"><span class="nav-tile g" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></svg></span><span class="lbl">Sign out</span></button>
+    </div>
+  </dialog>
 
   <!-- -------- Personal -------- -->
   <main id="personal" class="wrap">
@@ -414,6 +459,11 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
         <ul class="list" id="bills"></ul>
         <div class="note-acts"><button class="btn small" type="button" id="add-bill">Add bill</button></div>
       </section>
+      <section class="panel chrome" aria-labelledby="h-pets-card" id="pets-card">
+        <div class="panel-head"><h3 id="h-pets-card">Pets</h3><span class="hint">Only you</span></div>
+        <ul class="list" id="pets-due"></ul>
+        <div class="note-acts"><button class="btn small" type="button" id="open-pets">Open pets</button></div>
+      </section>
     </div>
     <div id="personal-comm"></div>
     <section class="panel chrome rim-blue" id="alerts-card" aria-labelledby="h-alerts" hidden style="margin-top:28px">
@@ -421,6 +471,9 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
       <div class="alerts-body" style="display:grid;gap:10px"></div>
     </section>
   </main>
+
+  <!-- -------- Pets (personal, private) -------- -->
+  <main id="pets" class="wrap" hidden><div id="pets-body"></div></main>
 
   <!-- -------- Shared -------- -->
   <main id="shared" class="wrap" hidden>
@@ -464,7 +517,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
       <button type="button" class="kid chrome" id="kid2" data-child="c2" aria-pressed="false"><span class="av" data-initial="c2">2</span><span data-name="c2">Child 2</span> <span class="pill prem">Premium</span></button>
     </div>
 
-    <div class="cats" role="tablist" aria-label="Categories" id="cats"></div>
+    <div class="cats" role="tablist" aria-label="Categories" id="cats" hidden></div>
 
     <div id="cat-body"></div>
   </main>
@@ -812,6 +865,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   });
   $('#demo-btn').addEventListener('click',()=>{USER=null;loginMsg('');showApp();toast('Demo mode: nothing is saved online')});
   $('#signout').addEventListener('click',async()=>{
+    if($('#menu').open) $('#menu').close(); setView('personal'); setNav('p-today');
     if(USER&&sb){try{await turnOffAlerts(true)}catch(e){} try{await sb.auth.signOut()}catch(e){} if(CHANNEL){sb.removeChannel(CHANNEL);CHANNEL=null}}
     USER=null; BILLS=store.get('checky.bills',null)||billSeed(); renderBills(); renderAlerts(); SCH=demoSchedule(); resetLists(); CHG=[]; renderPending(); renderPersonalComm(); renderHandoverStat(); $('#app').hidden=true;$('#login').hidden=false;document.body.classList.remove('inside');window.scrollTo(0,0);
   });
@@ -824,11 +878,14 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   });
 
   // Personal / Shared switch
-  $$('.seg button').forEach(b=>b.addEventListener('click',()=>{
-    $$('.seg button').forEach(x=>x.setAttribute('aria-pressed',x===b));
-    $('#personal').hidden=b.dataset.view!=='personal';
-    $('#shared').hidden=b.dataset.view!=='shared';
-  }));
+  let VIEW='personal';
+  function setView(v){
+    VIEW=v; ['personal','shared','pets'].forEach(x=>{$('#'+x).hidden=x!==v});
+    $$('.seg button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.view===v));
+    if(v==='pets'&&typeof renderPets==='function'){renderPets(); setNav('p-pets')}
+    if(v==='shared'&&typeof currentCat!=='undefined'&&currentCat) showCat(currentCat);
+  }
+  $$('.seg button').forEach(b=>b.addEventListener('click',()=>{setView(b.dataset.view); if(b.dataset.view==='personal') setNav('p-today')}));
 
   // Greeting by time of day
   const h=new Date().getHours();
@@ -895,7 +952,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     $('#fam-join').hidden=!(USER&&!FAM.id);
     famDlg.showModal();
   }
-  $('#family-btn').addEventListener('click',()=>openFamily(false));
+  $('#family-btn').addEventListener('click',()=>{$('#menu').close(); openFamily(false)});
   $('#fam-copy').addEventListener('click',()=>{const c=FAM.code||'';
     navigator.clipboard.writeText(c).then(()=>toast('Code copied')).catch(()=>{const r=document.createRange();r.selectNodeContents($('#fam-code'));const sel=getSelection();sel.removeAllRanges();sel.addRange(r);toast('Code selected: copy it')})});
   $('#fam-join-btn').addEventListener('click',async()=>{
@@ -1044,7 +1101,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   });
   $('#add-act-home').addEventListener('click',()=>openAct(null));
   $('#see-week').addEventListener('click',()=>{$('#seg-shared').click();showCat(cats.find(c=>c.id==='activities'))});
-  let currentCat=null; const refreshCat=()=>{if(currentCat&&!$('#shared').hidden) showCat(currentCat); if(typeof renderPersonalComm==='function') try{renderPersonalComm()}catch(e){}};
+  let currentCat=null; const refreshCat=()=>{if(currentCat&&!$('#shared').hidden) showCat(currentCat); if(typeof renderPersonalComm==='function') try{renderPersonalComm()}catch(e){} if(typeof renderPetsCard==='function') try{renderPetsCard(); if(!$('#pets').hidden) renderPets()}catch(e){console.error(e)}};
 
   // ---------- Bills (private to each person) ----------
   const fmtR=n=>{const [i,c]=(Math.round(Number(n||0)*100)/100).toFixed(2).split('.');return 'R '+i.replace(/\B(?=(\d{3})+(?!\d))/g,' ')+(c==='00'?'':','+c)};
@@ -1418,6 +1475,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   function fieldHtml(f,val){
     const id='rf-'+f.k, v=val==null?'':String(val), ph=f.ph?' placeholder="'+esc(f.ph)+'"':'', mx=f.max?' maxlength="'+f.max+'"':'';
     let input;
+    if(f.type==='hidden') return '<input type="hidden" id="'+id+'" value="'+esc(v)+'" data-k="'+f.k+'">';
     if(f.type==='photo') return '<div class="field wide" data-k="'+f.k+'"><label for="'+id+'">'+esc(f.label)+'</label><div class="photo-pick">'+(recCtx&&recCtx.rec&&recCtx.rec._url&&!isPdfPath(recCtx.rec[f.k])?'<img src="'+esc(recCtx.rec._url)+'" alt="Current photo" class="photo-prev" id="'+id+'-prev">':'<img alt="" class="photo-prev" id="'+id+'-prev" hidden>')+'<input id="'+id+'" type="file" accept="'+(f.pdf?'image/*,application/pdf':'image/*')+'">'+(v?'<label class="opt"><input type="checkbox" id="'+id+'-remove"> Remove this '+(f.pdf?'file':'photo')+'</label>':'')+'</div></div>';
     if(f.type==='select') input='<select id="'+id+'">'+optList(f).map(([ov,ol])=>'<option value="'+esc(ov)+'"'+(String(ov)===v?' selected':'')+'>'+esc(ol)+'</option>').join('')+'</select>';
     else if(f.type==='longtext') input='<textarea id="'+id+'" rows="2"'+mx+ph+'>'+esc(v)+'</textarea>';
@@ -1428,10 +1486,10 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   function formValues(c){const o={};c.fields.forEach(f=>{const el=$('#rf-'+f.k); if(!el||f.type==='photo') return; let v=el.value.trim(); o[f.k]=v===''?null:f.type==='number'?+v:v});return o}
   function syncShow(c){const vals=formValues(c); c.fields.forEach(f=>{if(f.showIf){const w=recForm.querySelector('[data-k="'+f.k+'"]'); if(w) w.hidden=!f.showIf(vals)}})}
   function openRecord(k,rec,opts={}){
-    const c=LISTDEF[k]; recCtx={k,rec};
+    const c=LISTDEF[k]; recCtx={k,rec,preset:opts.preset||{}};
     const init=rec?{...rec}:Object.fromEntries(c.fields.map(f=>[f.k,typeof f.def==='function'?f.def():f.def]));
     Object.assign(init,opts.preset||{});
-    recForm.innerHTML='<h3 id="rec-title">'+esc((rec?'Edit ':'Add ')+c.noun)+'</h3><div class="two-col">'+c.fields.map(f=>fieldHtml(f,init[f.k])).join('')+'</div>'+
+    recForm.innerHTML='<h3 id="rec-title">'+esc((rec?'Edit ':'Add ')+(c.nounOf?c.nounOf(init):c.noun))+'</h3><div class="two-col">'+c.fields.map(f=>fieldHtml(f,init[f.k])).join('')+'</div>'+
       '<p class="hint" id="rec-error" role="alert" style="margin:0;color:var(--p-pink-lt)" hidden></p>'+
       '<div class="note-acts"><button class="btn" type="submit">Save</button><button class="btn ghost" type="button" id="rec-cancel">Cancel</button>'+(rec?'<button class="btn ghost" type="button" id="rec-delete">Remove</button>':'')+'</div>';
     recForm.querySelectorAll('select,input:not([type=file])').forEach(el=>el.addEventListener('change',()=>syncShow(c)));
@@ -1439,14 +1497,14 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     $('#rec-cancel').addEventListener('click',()=>recDlg.close());
     if(rec) $('#rec-delete').addEventListener('click',removeRecord);
     syncShow(c); recDlg.showModal();
-    const fe=$('#rf-'+(opts.focus||c.fields.find(f=>!f.showIf&&f.type!=='select'&&f.type!=='photo').k)); if(fe) fe.focus();
+    const ff=opts.focus||(c.fields.find(f=>!f.showIf&&!['select','photo','hidden'].includes(f.type))||c.fields.find(f=>f.showIf&&f.showIf(formValues(c))&&!['select','photo','hidden'].includes(f.type))||{}).k; const fe=ff&&$('#rf-'+ff); if(fe) fe.focus();
   }
   async function removeRecord(){
     const {k,rec}=recCtx, c=LISTDEF[k];
     if(c.strict&&!isMine(rec)){toast("You can't remove the other parent's entry. Use Disagree instead.",4000);return}
     if(needsApproval()&&GUARD[c.table]){recDlg.close(); const it=c.item(rec); await askChange(c.table,rec,'delete',null,c.noun.charAt(0).toUpperCase()+c.noun.slice(1)+' "'+it.title+'"'); return}
     if(USER&&(FAM.id||c.private)){const {error}=await sb.from(c.table).delete().eq('id',rec.id); if(error){toast('Could not remove: '+error.message);return} if(c.photo&&rec[c.photo]) sb.storage.from((c.bucket||'trip-photos')).remove([rec[c.photo]])}
-    RECS[k]=RECS[k].filter(x=>x!==rec); recDlg.close(); refreshCat(); toast('Removed');
+    RECS[k]=RECS[k].filter(x=>x!==rec); if(c.onRemoved) c.onRemoved(rec); recDlg.close(); refreshCat(); toast('Removed');
   }
   recForm.addEventListener('submit',async e=>{
     e.preventDefault(); const {k,rec}=recCtx, c=LISTDEF[k], err=$('#rec-error');
@@ -1465,8 +1523,8 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
         const isPdf=file.type==='application/pdf'||/\.pdf$/i.test(file.name);
         if(isPdf&&file.size>10*1024*1024) return fail('This PDF is bigger than 10 MB. Try a smaller file.');
         let blob; if(isPdf) blob=file; else {try{blob=await shrinkImage(file)}catch(x){return fail(x.message)}}
-        if(USER&&FAM.id){
-          const path=FAM.id+'/'+(crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random().toString(36).slice(2))+(isPdf?'.pdf':'.jpg');
+        if(USER&&(FAM.id||c.private)){
+          const path=(c.private?USER.id:FAM.id)+'/'+(crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random().toString(36).slice(2))+(isPdf?'.pdf':'.jpg');
           err.textContent='Uploading…'; err.hidden=false;
           const up=await sb.storage.from((c.bucket||'trip-photos')).upload(path,blob,{contentType:isPdf?'application/pdf':'image/jpeg'});
           if(up.error) return fail('Could not upload: '+up.error.message);
@@ -1486,12 +1544,13 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
       if(c.photo){ if(oldPhoto&&oldPhoto!==saved[c.photo]) sb.storage.from((c.bucket||'trip-photos')).remove([oldPhoto]); await signPhotos(k,[saved]) }
     }
     if(rec) RECS[k]=RECS[k].map(x=>x===rec?saved:x); else RECS[k].push(saved);
+    if(c.onSaved) c.onSaved(saved,rec);
     if(pendingDates){recDlg.close(); refreshCat(); await askChange(c.table,saved,'update',pendingDates,c.item(saved).title); return}
-    recDlg.close(); refreshCat(); toast((rec?'Saved. ':'Added. ')+(FAM.type==='two'?nm(otherOf(FAM.me))+' can see it too.':''));
+    recDlg.close(); refreshCat(); toast((rec?'Saved. ':'Added. ')+(c.private?'Only you can see this.':FAM.type==='two'?nm(otherOf(FAM.me))+' can see it too.':''));
   });
   async function patchRecord(k,rec,patch){
     const c=LISTDEF[k];
-    if(USER&&FAM.id){const {error}=await sb.from(c.table).update(patch).eq('id',rec.id); if(error){toast('Could not save: '+error.message);return false}}
+    if(USER&&(FAM.id||c.private)){const {error}=await sb.from(c.table).update(patch).eq('id',rec.id); if(error){toast('Could not save: '+error.message);return false}}
     Object.assign(rec,patch); refreshCat(); return true;
   }
   // A panel with a heading, an Add button and a list of records
@@ -1861,6 +1920,143 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     wrap.append(...Object.entries(DOC_KIND).map(([kind,title])=>listPanel('docs',{id:'h-doc-'+kind,title,add:'Add',empty:'No documents yet.',filter:r=>r.kind===kind,preset:{kind}})));
     body.append(premiumNote(),wrap);
   }
+  // ---------- Pets (Personal: only you can see them, never shared) ----------
+  let PET=null;
+  const petName=id=>(RECS.pets.find(p=>p.id===id)||{}).name||'Pet';
+  const fixPet=()=>{if(!RECS.pets.find(p=>p.id===PET)) PET=(RECS.pets[0]||{}).id||null};
+  const ageText=b=>{if(!b) return ''; const d=new Date(b+'T12:00'),n=new Date(); let m=(n.getFullYear()-d.getFullYear())*12+n.getMonth()-d.getMonth(); if(n.getDate()<d.getDate()) m--; if(m<0) return ''; return m<12?m+(m===1?' month':' months'):Math.floor(m/12)+(Math.floor(m/12)===1?' year':' years')};
+  defineList({key:'pets',table:'pets',noun:'pet',plural:'pets',private:true,photo:'photo_path',bucket:'pet-files',
+    fields:[
+      {k:'name',label:'Name',max:60,req:true,ph:'e.g. Rex',reqMsg:"Type your pet's name."},
+      {k:'species',label:'Animal',type:'select',options:[['Dog','Dog'],['Cat','Cat'],['Bird','Bird'],['Rabbit','Rabbit'],['Fish','Fish'],['Horse','Horse'],['Other','Other']],def:'Dog'},
+      {k:'breed',label:'Breed',max:60,ph:'e.g. Jack Russell'},
+      {k:'sex',label:'Sex',type:'select',options:[['','—'],['Male','Male'],['Female','Female'],['Male (neutered)','Male (neutered)'],['Female (spayed)','Female (spayed)']],def:''},
+      {k:'birthday',label:'Birthday',type:'date'},
+      {k:'colour',label:'Colour or markings',max:80,ph:'e.g. White with a brown patch'},
+      {k:'microchip',label:'Microchip number',max:40,ph:'e.g. 900123000456789'},
+      {k:'notes',label:'Notes',type:'longtext',max:1000,ph:'e.g. Scared of fireworks'},
+      {k:'photo_path',label:'Photo',type:'photo'}],
+    sort:(a,b)=>(a.name||'').localeCompare(b.name||''),
+    onSaved:(s,rec)=>{if(!rec) PET=s.id},
+    onRemoved:p=>{const gone=RECS.petrec.filter(r=>r.pet_id===p.id); RECS.petrec=RECS.petrec.filter(r=>r.pet_id!==p.id);
+      const files=gone.map(r=>r.file_path).filter(Boolean); if(USER&&files.length) sb.storage.from('pet-files').remove(files); if(PET===p.id) PET=null},
+    item:r=>({title:r.name,pill:r.id===PET?['ok','Showing']:null,buttons:r.id===PET?[]:[{label:'Show',fn:()=>{PET=r.id;refreshCat()}}],
+      meta:[[r.species,r.breed].filter(Boolean).join(', '),r.sex,r.birthday?dmy(r.birthday)+(ageText(r.birthday)?' ('+ageText(r.birthday)+')':''):'',r.colour,r.microchip?'Microchip '+r.microchip:'',r.notes]})});
+
+  // One list for everything else about a pet. Which boxes show depends on the type of entry.
+  const PETKIND={vet:'Vet',vaccine:'Vaccination',treatment:'Deworming, tick and flea, medication',food:'Food',weight:'Weight',grooming:'Grooming',insurance:'Insurance',cost:'Vet bill or cost',sitter:'Sitter or kennel',document:'Document'};
+  const PETNOUN={vet:'vet',vaccine:'vaccination',treatment:'treatment',food:'food',weight:'weight',grooming:'grooming appointment',insurance:'insurance',cost:'cost',sitter:'sitter or kennel',document:'document'};
+  const PETF={
+    vet:{title:'Vet or practice',phone:'Phone number',provider:'Address',notes:'Notes'},
+    vaccine:{title:'Vaccine',on_date:'Date given',next_due:'Next due',provider:'Given by (vet)',notes:'Notes'},
+    treatment:{subtype:'Type',title:'Product',dose:'Dose',on_date:'Last given',repeat_weeks:'Repeat every (weeks)',next_due:'Next due',notes:'Notes'},
+    food:{title:'Food (brand and type)',dose:'How much and how often',provider:'Where you buy it',amount:'Price (R)',notes:'Notes'},
+    weight:{on_date:'Date',weight_kg:'Weight (kg)',notes:'Notes'},
+    grooming:{on_date:'Date',next_due:'Next appointment',provider:'Groomer',phone:'Phone number',amount:'Cost (R)',notes:'Notes'},
+    insurance:{title:'Insurer',dose:'Policy number',amount:'Monthly premium (R)',phone:'Phone number',next_due:'Renewal date',notes:'Notes'},
+    cost:{title:'What for',on_date:'Date',amount:'Amount (R)',provider:'Paid to',notes:'Notes',file_path:'Invoice or slip (photo or PDF)'},
+    sitter:{subtype:'Type',title:'Name',phone:'Phone number',provider:'Address',amount:'Rate (R)',notes:'Notes for the sitter'},
+    document:{title:'Document',on_date:'Date',notes:'Notes',file_path:'Upload (photo or PDF)'}};
+  const PETREQ={vet:['title'],vaccine:['title','on_date'],treatment:['subtype'],food:['title'],weight:['on_date','weight_kg'],grooming:['on_date'],insurance:['title'],cost:['title','amount'],sitter:['title'],document:['title']};
+  const PETPH={vet:{title:'e.g. Paws Vet Clinic'},vaccine:{title:'e.g. Rabies, 5-in-1'},treatment:{title:'e.g. Bravecto',dose:'e.g. 1 tablet'},food:{title:'e.g. Royal Canin Adult 8 kg',dose:'e.g. 1 cup, twice a day'},
+    insurance:{title:'e.g. dotsure.co.za',dose:'e.g. 12345678'},cost:{title:'e.g. Vet visit, ear infection'},sitter:{title:'e.g. Thandi'},document:{title:'e.g. Vaccination card'}};
+  const SUBS={treatment:[['deworm','Deworming'],['tickflea','Tick and flea'],['medication','Medication']],sitter:[['sitter','Pet sitter'],['kennel','Kennel'],['walker','Dog walker']]};
+  const subName=r=>((SUBS[r.kind]||[]).find(x=>x[0]===r.subtype)||[])[1]||'';
+  const curKind=()=>recCtx&&((recCtx.rec&&recCtx.rec.kind)||(recCtx.preset&&recCtx.preset.kind))||'vet';
+  const pf=(k,type,extra)=>({k,type,label:()=>(PETF[curKind()]||{})[k]||k,showIf:v=>!!(PETF[v.kind]&&PETF[v.kind][k]),
+    get ph(){return ((PETPH[curKind()]||{})[k])||''},...extra});
+  const dueInfo=d=>{if(!d) return null; const n=daysTo(d); return n<0?['late','Overdue '+dmy(d)]:n===0?['due','Due today']:n===1?['due','Due tomorrow']:n<=14?['due','Due in '+n+' days']:['later','Next '+dmy(d)]};
+  defineList({key:'petrec',table:'pet_records',noun:'entry',plural:'pet records',private:true,photo:'file_path',bucket:'pet-files',
+    nounOf:v=>PETNOUN[v.kind]||'entry',
+    fields:[
+      {k:'kind',label:'Type',type:'hidden',def:'vet'},
+      {k:'pet_id',label:'Pet',type:'select',options:()=>RECS.pets.map(p=>[p.id,p.name]),def:()=>PET},
+      pf('subtype','select',{options:()=>SUBS[curKind()]||[['','—']],def:()=>(SUBS[curKind()]||[['']])[0][0]}),
+      pf('title','text',{max:120}),
+      pf('dose','text',{max:120}),
+      pf('provider','text',{max:160}),
+      pf('phone','tel',{max:30}),
+      pf('on_date','date'),
+      pf('repeat_weeks','number'),
+      pf('next_due','date'),
+      pf('weight_kg','number'),
+      pf('amount','number'),
+      pf('notes','longtext',{max:1000}),
+      pf('file_path','photo',{pdf:true})],
+    validate:r=>{
+      if(!r.pet_id) return 'Add a pet first.';
+      for(const k of PETREQ[r.kind]||[]) if(r[k]==null) return 'Fill in: '+PETF[r.kind][k];
+      if(r.repeat_weeks!=null&&(!Number.isInteger(r.repeat_weeks)||r.repeat_weeks<1||r.repeat_weeks>104)) return 'Repeat every: type whole weeks, from 1 to 104.';
+      if(r.amount!=null&&(isNaN(r.amount)||r.amount<0)) return 'Type the amount in rand, for example 450.';
+      if(r.weight_kg!=null&&(isNaN(r.weight_kg)||r.weight_kg<=0)) return 'Type the weight in kg, for example 8.5.';
+      if(r.kind==='treatment'&&r.repeat_weeks&&r.on_date&&!r.next_due) r.next_due=iso(addDays(new Date(r.on_date+'T12:00'),r.repeat_weeks*7));
+      return null},
+    sort:(a,b)=>((b.on_date||b.next_due||'')).localeCompare(a.on_date||a.next_due||'')||(a.title||'').localeCompare(b.title||''),
+    item:r=>{
+      const tel=r.phone?'<a href="tel:'+esc(r.phone.replace(/[^+\d]/g,''))+'">'+esc(r.phone)+'</a>':'';
+      const R=v=>v!=null?fmtR(v):'';
+      switch(r.kind){
+        case 'vet': return {title:r.title,meta:[r.provider,r.notes],links:tel};
+        case 'vaccine': return {title:r.title,pill:dueInfo(r.next_due),meta:['Given '+dmy(r.on_date),r.provider,r.notes]};
+        case 'treatment': return {title:subName(r)+(r.title?': '+r.title:''),pill:dueInfo(r.next_due),
+          meta:[r.dose,r.on_date?'Last given '+dmy(r.on_date):'',r.repeat_weeks?'Every '+r.repeat_weeks+(r.repeat_weeks===1?' week':' weeks'):'',r.notes],
+          buttons:[{label:'Given today',fn:()=>{const t=todayIso(); patchRecord('petrec',r,{on_date:t,next_due:r.repeat_weeks?iso(addDays(new Date(t+'T12:00'),r.repeat_weeks*7)):null}).then(ok=>ok&&toast(r.repeat_weeks?'Done. Next one is due '+dmy(r.next_due)+'.':'Marked as given today.'))}}]};
+        case 'food': return {title:r.title,meta:[r.dose,r.provider,R(r.amount),r.notes],
+          buttons:[{label:'Add to shopping list',fn:()=>{addItem('shopping',{value:r.title},$('#shop')); toast('Added to your shopping list')}}]};
+        case 'weight': {const prev=RECS.petrec.filter(x=>x.kind==='weight'&&x.pet_id===r.pet_id&&x.on_date<r.on_date).sort((a,b)=>b.on_date.localeCompare(a.on_date))[0];
+          const ch=prev?Math.round((r.weight_kg-prev.weight_kg)*100)/100:null;
+          return {title:Number(r.weight_kg)+' kg',meta:[dmy(r.on_date),ch==null?'':ch===0?'No change':(ch>0?'+':'')+ch+' kg since '+dmy(prev.on_date),r.notes]}}
+        case 'grooming': return {title:'Grooming '+dmy(r.on_date),pill:dueInfo(r.next_due),meta:[r.provider,R(r.amount),r.notes],links:tel};
+        case 'insurance': return {title:r.title,pill:dueInfo(r.next_due),meta:[r.dose?'Policy '+r.dose:'',r.amount!=null?R(r.amount)+' a month':'',r.notes],links:tel};
+        case 'cost': return {title:r.title,pill:['later',R(r.amount)],meta:[r.on_date?dmy(r.on_date):'',r.provider,r.notes]};
+        case 'sitter': return {title:r.title,meta:[subName(r),r.provider,r.amount!=null?'Rate '+R(r.amount):'',r.notes],links:tel};
+        default: return {title:r.title,meta:[r.on_date?dmy(r.on_date):'',r.notes]};
+      }}});
+  const petDue=days=>RECS.petrec.filter(r=>r.next_due&&daysTo(r.next_due)<=days).sort((a,b)=>a.next_due.localeCompare(b.next_due));
+  const dueLabel=r=>petName(r.pet_id)+': '+(r.kind==='treatment'?subName(r)+(r.title?' ('+r.title+')':''):r.kind==='grooming'?'Grooming':r.kind==='insurance'?'Insurance renewal':r.title||PETKIND[r.kind]);
+  function renderPets(){
+    const body=$('#pets-body'); if(!body) return; body.innerHTML=''; fixPet();
+    const head=document.createElement('div'); head.className='personal-head';
+    head.innerHTML='<h2 id="h-pets">Pets</h2><p class="hint">Only you can see this. It is never shared with the other parent.</p>';
+    body.appendChild(head);
+    if(RECS.pets.length>1){const g=document.createElement('div'); g.className='kids'; g.setAttribute('role','group'); g.setAttribute('aria-label','Pet');
+      RECS.pets.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(p=>{const b=document.createElement('button'); b.type='button'; b.className='kid chrome'; b.setAttribute('aria-pressed',p.id===PET);
+        b.innerHTML='<span class="av"></span><span></span>'; b.querySelector('.av').textContent=p.name.charAt(0).toUpperCase(); b.lastChild.textContent=p.name;
+        b.addEventListener('click',()=>{PET=p.id;renderPets()}); g.appendChild(b)}); body.appendChild(g)}
+    const wrap=document.createElement('div'); wrap.className='grid'; body.appendChild(wrap);
+    wrap.appendChild(listPanel('pets',{id:'h-pet-prof',title:'Pet profiles',add:'Add pet',empty:'No pets yet. Add your first pet with a photo, birthday and microchip number.'}));
+    if(!PET) return;
+    const due=petDue(30);
+    const up=document.createElement('section'); up.className='panel chrome'; up.setAttribute('aria-labelledby','h-pet-due');
+    up.innerHTML='<div class="panel-head"><h3 id="h-pet-due">Coming up</h3><span class="hint">Next 30 days, all pets</span></div><ul class="list"></ul><p class="hint" style="margin:0">With alerts on, this phone reminds you the day before and on the day.</p>';
+    const ul=up.querySelector('ul'); if(!due.length) ul.innerHTML='<li class="empty">Nothing due. Add a next due date to vaccinations, treatments, grooming or insurance.</li>';
+    due.forEach(r=>{const li=document.createElement('li'); const pi=dueInfo(r.next_due); li.innerHTML='<div class="grow"><span></span><div class="meta"></div></div><span class="pill '+pi[0]+'"></span>';
+      li.querySelector('span').textContent=dueLabel(r); li.querySelector('.meta').textContent=dmy(r.next_due); li.querySelector('.pill').textContent=pi[1]; ul.appendChild(li)});
+    wrap.appendChild(up);
+    const nm1=petName(PET), mine=r=>r.pet_id===PET;
+    const P=(kind,title,empty,hint)=>listPanel('petrec',{id:'h-pet-'+kind,title,add:'Add',empty,hint,filter:r=>mine(r)&&r.kind===kind,preset:{kind,pet_id:PET}});
+    const costs=RECS.petrec.filter(r=>mine(r)&&r.kind==='cost'&&(r.on_date||'').slice(0,4)===todayIso().slice(0,4)).reduce((s,r)=>s+Number(r.amount||0),0);
+    wrap.append(
+      P('vet','Vet','No vet added for '+nm1+' yet.'),
+      P('vaccine','Vaccinations','No vaccinations recorded. Add the date given and when the next one is due.'),
+      P('treatment','Deworming, tick and flea, medication','Nothing yet. Add the product, how often, and Checky works out the next date.'),
+      P('food','Food and feeding','No food added. Tap "Add to shopping list" when it runs low.'),
+      P('weight','Weight','No weights logged yet.'),
+      P('grooming','Grooming','No grooming appointments yet.'),
+      P('insurance','Insurance','No insurance added.'),
+      P('cost','Vet bills and costs','No costs yet.',costs?'This year: '+fmtR(costs):''),
+      P('sitter','Sitters and kennels','No sitters or kennels added.'));
+    if(PREMIUM_PREVIEW){const d=P('document','Documents','No documents yet, e.g. vaccination card or adoption papers.'); d.querySelector('h3').insertAdjacentHTML('beforeend',' <span class="pill prem">Premium</span>'); wrap.appendChild(d)}
+    applyNames();
+  }
+  function renderPetsCard(){
+    const ul=$('#pets-due'); if(!ul) return; ul.innerHTML='';
+    const due=petDue(14).slice(0,3);
+    if(!RECS.pets.length) ul.innerHTML='<li class="empty">No pets added yet.</li>';
+    else if(!due.length) ul.innerHTML='<li class="empty">Nothing due in the next 2 weeks.</li>';
+    due.forEach(r=>{const li=document.createElement('li'); const pi=dueInfo(r.next_due); li.innerHTML='<div class="grow"><span></span></div><span class="pill '+pi[0]+'"></span>';
+      li.querySelector('span').textContent=dueLabel(r); li.querySelector('.pill').textContent=pi[1]; ul.appendChild(li)});
+  }
   const PREMIUM_KEYS=['money','health','docs'];
   function renderPersonalComm(){const box=$('#personal-comm'); if(!box) return; box.innerHTML=''; if(PREMIUM_PREVIEW) renderComm(box)}
   const loadPremium=()=>Promise.all(PREMIUM_KEYS.map(loadList));
@@ -1868,7 +2064,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   // Choosing a child
   function setChild(c){
     if(c==='c2'&&!PREMIUM_PREVIEW){toast('A second child profile needs Premium');return}
-    CHILD=c; $$('.kid').forEach(b=>b.setAttribute('aria-pressed',b.dataset.child===c)); refreshCat();
+    CHILD=c; $$('.kid[data-child]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.child===c)); refreshCat();
   }
 
   // ---------- Money: disagree and proof of payment ----------
@@ -1952,6 +2148,8 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
   }
   function updateBadge(){
     const me=USER&&USER.id, n=CHG.filter(c=>c.status==='pending'&&c.requested_by!==me).length+SCH.reqs.filter(r=>r.status==='pending'&&r.requested_by!==(me||'me')).length;
+    const mb=$('#menu-badge'); if(mb){mb.hidden=!n; mb.textContent=n; $('#menu-btn').setAttribute('aria-label',n?'Open menu, '+n+(n===1?' change waits':' changes wait')+' for your approval':'Open menu')}
+    const ng=$('#nav-approve'); if(ng){ng.hidden=!n; ng.textContent=n+' to approve'}
     const b=$('#seg-shared'); if(!b) return; let el=b.querySelector('.badge');
     if(!n){if(el) el.remove(); b.removeAttribute('aria-description'); return}
     if(!el){el=document.createElement('span');el.className='badge';b.appendChild(el)}
@@ -2047,7 +2245,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     ['#chores','#shop','#today-acts'].forEach(s=>{$(s).innerHTML=''}); $('#note-sent').innerHTML=''; ACTS=[]; BILLS=[]; SCH={plan:null,days:{},reqs:[],hand:[],members:1}; PAINT=null; resetLists(); CHG=[]; renderPending(); updateCounts(); renderToday(); renderBills(); renderHandoverStat();
     const {data,error}=await sb.from('family_members').select('role, families(*)').eq('user_id',user.id).limit(1);
     if(error){toast('Could not load your family. Has the database been set up? ('+error.message+')');return}
-    await Promise.all([loadPersonal(),loadBills(),loadList('comm')]); syncAlerts();
+    await Promise.all([loadPersonal(),loadBills(),loadList('comm'),loadList('pets'),loadList('petrec')]); syncAlerts();
     if(location.hash==='#shared'){history.replaceState(null,'',location.pathname); $('#seg-shared').click()}
     if(!data.length){delete FAM.id;delete FAM.code;openFamily(true);return}
     await useFamily(data[0].families,data[0].role);
@@ -2124,7 +2322,7 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
     b.addEventListener('click',()=>showCat(c)); catBox.appendChild(b);
   });
   function showCat(c){
-    currentCat=c;
+    currentCat=c; if(typeof setNav==='function') setNav('s-'+c.id);
     $$('.cat').forEach(b=>b.setAttribute('aria-selected',b.dataset.cat===c.id));
     const body=$('#cat-body'); body.innerHTML='';
     if(c.id==='activities'){renderActivities(body);return}
@@ -2243,7 +2441,68 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
 
   $('#today-label').textContent=now.toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   applyNames(); renderToday(); renderBills(); renderHandoverStat();
-  showCat(cats[0]); renderPersonalComm();
+  showCat(cats[0]); renderPersonalComm(); renderPetsCard();
+
+  // ---------- Slide-out menu ----------
+  const NAVI={home:'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',chores:'M4 12l5 5L20 6',shop:'M3 4h2l2.5 11h11L21 7H6.5M9 20h.01M18 20h.01',bills:'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6',
+    pets:'M12 13c-3 0-5 3-5 5s2 3 5 3 5-1 5-3-2-5-5-5zM4.5 10a1.5 2 0 1 0 3 0a1.5 2 0 1 0-3 0M16.5 10a1.5 2 0 1 0 3 0a1.5 2 0 1 0-3 0M8 6a1.5 2 0 1 0 3 0a1.5 2 0 1 0-3 0M13 6a1.5 2 0 1 0 3 0a1.5 2 0 1 0-3 0',
+    call:'M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z',sun:'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M2 12h2M20 12h2',
+    star:'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z',cal:'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',book:'M4 19V5a2 2 0 0 1 2-2h14v16H6a2 2 0 0 0-2 2zM4 19a2 2 0 0 0 2 2h14',
+    bag:'M5 8h14l-1 13H6zM9 8V6a3 3 0 0 1 6 0v2',money:'M3 6h18v12H3zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',heart:'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z',doc:'M6 3h8l4 4v14H6zM14 3v4h4'};
+  const menuDlg=$('#menu'); var NAVCUR='p-today';
+  function goPersonal(sel){setView('personal'); setTimeout(()=>{if(sel){const el=$(sel); el&&el.scrollIntoView({behavior:'smooth',block:'start'})}else window.scrollTo({top:0,behavior:'smooth'})},30)}
+  function goShared(id){setView('shared'); showCat(cats.find(c=>c.id===id)); window.scrollTo(0,0)}
+  function navItems(){
+    const one=FAM.type==='one';
+    return [
+      {group:'Personal · only you',items:[
+        {id:'p-today',label:'Today',ic:'home',t:'b',go:()=>goPersonal()},
+        {id:'p-chores',label:'Chores',ic:'chores',t:'y',go:()=>goPersonal('#h-chores')},
+        {id:'p-shop',label:'Shopping',ic:'shop',t:'o',go:()=>goPersonal('#h-shop')},
+        {id:'p-bills',label:'Bills',ic:'bills',t:'p',go:()=>goPersonal('#h-bills')},
+        {id:'p-pets',label:'Pets',ic:'pets',t:'b',tag:'New',go:()=>{setView('pets');window.scrollTo(0,0)}},
+        ...(PREMIUM_PREVIEW?[{id:'p-comm',label:'Communication',ic:'call',t:'y',tag:'Premium',go:()=>goPersonal('#h-pcomm')}]:[])]},
+      {group:(one?'Family':'Shared · both parents'),approve:true,items:[
+        {id:'s-today',label:'Today',ic:'sun',t:'o',go:()=>goShared('today')},
+        {id:'s-activities',label:'Activities',ic:'star',t:'p',go:()=>goShared('activities')},
+        ...(one?[]:[{id:'s-schedule',label:'Schedule',ic:'cal',t:'b',go:()=>goShared('schedule')}]),
+        {id:'s-school',label:'School',ic:'book',t:'y',go:()=>goShared('school')},
+        {id:'s-holidays',label:'Holidays',ic:'sun',t:'o',go:()=>goShared('holidays')},
+        {id:'s-belongings',label:'Belongings',ic:'bag',t:'p',go:()=>goShared('belongings')}]},
+      {group:(one?'Family':'Shared')+' · Premium',items:[
+        {id:'s-money',label:'Money',ic:'money',t:'y',tag:'Premium',go:()=>goShared('money')},
+        {id:'s-health',label:'Health',ic:'heart',t:'p',tag:'Premium',go:()=>goShared('health')},
+        {id:'s-documents',label:'Documents',ic:'doc',t:'b',tag:'Premium',go:()=>goShared('documents')}]}];
+  }
+  function buildNav(){
+    const nav=$('#nav'); if(!nav) return; nav.innerHTML='';
+    navItems().forEach(g=>{
+      const h=document.createElement('div'); h.className='nav-group'; h.textContent=g.group;
+      if(g.approve){const t=document.createElement('span'); t.className='nav-tag'; t.id='nav-approve'; t.hidden=true; h.appendChild(t)}
+      nav.appendChild(h);
+      g.items.forEach(it=>{
+        const b=document.createElement('button'); b.type='button'; b.className='nav-row'; b.dataset.nav=it.id;
+        b.innerHTML='<span class="nav-tile '+it.t+'" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="'+NAVI[it.ic]+'"/></svg></span><span class="lbl"></span>'+(it.tag?'<span class="nav-tag'+(it.tag==='New'?' new':'')+'">'+it.tag+'</span>':'');
+        b.querySelector('.lbl').textContent=it.label;
+        b.addEventListener('click',()=>{menuDlg.close(); it.go(); setNav(it.id)});
+        nav.appendChild(b);
+      });
+    });
+    setNav(NAVCUR); if(typeof updateBadge==='function') updateBadge();
+    const me=nm(FAM.me)||'You'; $('#drawer-name').textContent=USER&&USER.email?me:me+' (preview)'; $('#drawer-av').textContent=me.charAt(0).toUpperCase();
+    $('#drawer-fam').textContent=FAM.type==='one'?'One home':[FAM.c1,FAM.c2].filter(Boolean).join(' & ')||'Your family';
+  }
+  function setNav(id){
+    NAVCUR=id; let label='';
+    $$('#nav .nav-row').forEach(b=>{const on=b.dataset.nav===id; if(on){b.setAttribute('aria-current','page'); label=b.querySelector('.lbl').textContent} else b.removeAttribute('aria-current')});
+    const t=$('#top-title'); if(t&&label) t.textContent=id.startsWith('s-')&&id!=='s-today'?label:id==='s-today'?(FAM.type==='one'?'Family':'Shared'):id==='p-today'?'Personal':label;
+  }
+  $('#menu-btn').addEventListener('click',()=>{buildNav(); $('#nav-alerts').hidden=$('#alerts-card').hidden; menuDlg.showModal(); const cur=menuDlg.querySelector('[aria-current="page"]'); (cur||$('#menu-close')).focus()});
+  $('#menu-close').addEventListener('click',()=>menuDlg.close());
+  menuDlg.addEventListener('click',e=>{if(e.target===menuDlg) menuDlg.close()});
+  $('#nav-alerts').addEventListener('click',()=>{menuDlg.close(); goPersonal('#alerts-card'); setNav('p-today')});
+  $('#open-pets').addEventListener('click',()=>{setView('pets'); window.scrollTo(0,0)});
+  buildNav(); setNav('p-today');
 
   // ---------- Install on a phone ----------
   let installEvt=null;
