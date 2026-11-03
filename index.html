@@ -552,6 +552,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       <button type="button" class="btn small" id="fam-inv-send" style="justify-self:start">Send invite</button>
       <p class="hint" id="fam-inv-msg" role="status" style="margin:0" hidden></p>
     </div>
+    <div class="invite" id="fam-mine" hidden style="box-shadow:inset 0 0 0 2px var(--p-yellow)"></div>
     <div class="invite" id="fam-join" hidden>
       <div class="field"><label for="fam-join-code">Already have an invite code?</label><input id="fam-join-code" maxlength="6" autocomplete="off" placeholder="e.g. 4F9K2B" style="text-transform:uppercase"></div>
       <button type="button" class="btn ghost" id="fam-join-btn">Join that household</button>
@@ -894,6 +895,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   $('#demo-btn').addEventListener('click',()=>{USER=null;loginMsg('');showApp();toast('Demo mode: nothing is saved online')});
   $('#signout').addEventListener('click',async()=>{
     if($('#menu').open) $('#menu').close(); showPage('p-today');
+    if(JOINCH){sb.removeChannel(JOINCH); JOINCH=null} JOINREQ=[];
     if(USER&&sb){try{await turnOffAlerts(true)}catch(e){} try{await sb.auth.signOut()}catch(e){} if(CHANNEL){sb.removeChannel(CHANNEL);CHANNEL=null}}
     USER=null; BILLS=store.get('checky.bills',null)||billSeed(); renderBills(); renderAlerts(); SCH=demoSchedule(); resetLists(); CHG=[]; renderPending(); renderPersonalComm(); renderHandoverStat(); $('#app').hidden=true;$('#login').hidden=false;document.body.classList.remove('inside');window.scrollTo(0,0);
   });
@@ -996,6 +998,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     $('#fam-intro').textContent=FAMMODE==='new'?'A household is completely separate and private. Use it, for example, for a child with a new partner. Only the people in this household can see it.':'Change the names to suit your family. Checky works for two homes (co-parenting) and for one home.';
     $('#fam-invite').hidden=!(USER&&FAM.id&&FAMMODE==='edit'); $('#fam-code').textContent=FAM.code||'------';
     $('#fam-join').hidden=!(USER&&(!FAM.id||FAMMODE==='new'));
+    if(typeof renderMyJoins==='function') renderMyJoins();
     $('#fam-delete').hidden=!(USER&&FAMMODE!=='new'); $('#fam-download').hidden=!(USER&&FAMMODE!=='new'); $('#dl-msg').hidden=true; $('#del-confirm').value=''; $('#del-msg').hidden=true;
     famDlg.showModal();
   }
@@ -1008,7 +1011,8 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     if(code.length<6){m.textContent='The code has 6 letters and numbers.';m.hidden=false;return}
     const {data,error}=await sb.rpc('join_family',{p_code:code,p_role:$('#fam-me').value});
     if(error){m.textContent=/not found/i.test(error.message)?'That code wasn\'t found. Check it with the other parent.':error.message;m.hidden=false;return}
-    famDlg.close(); await loadHouseholds(); await switchHousehold(data.id); toast('You joined the household');
+    if(data.status==='pending'){await loadJoinRequests(); $('#fam-join-code').value=''; renderMyJoins(); m.textContent='Request sent. Everyone in '+data.household+' must approve it first. You\'ll get an alert when they do.'; m.style.color='var(--p-yellow)'; m.hidden=false; return}
+    famDlg.close(); await loadHouseholds(); await switchHousehold(data.family_id); toast('You joined the household');
   });
   $('#fam-inv-send').addEventListener('click',async()=>{
     const m=$('#fam-inv-msg'), email=$('#fam-inv-email').value.trim(), btn=$('#fam-inv-send');
@@ -2265,7 +2269,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     if(error) return; CHG=data; renderPending(); refreshCat();
   }
   function updateBadge(){
-    const me=USER&&USER.id, n=CHG.filter(c=>c.status==='pending'&&c.requested_by!==me).length+SCH.reqs.filter(r=>r.status==='pending'&&r.requested_by!==(me||'me')).length;
+    const me=USER&&USER.id, n=CHG.filter(c=>c.status==='pending'&&c.requested_by!==me).length+SCH.reqs.filter(r=>r.status==='pending'&&r.requested_by!==(me||'me')).length+(typeof JOINREQ!=='undefined'?JOINREQ.filter(r=>r.status==='pending'&&r.user_id!==me).length:0);
     const mb=$('#menu-badge'); if(mb){mb.hidden=!n; mb.textContent=n; $('#menu-btn').setAttribute('aria-label',n?'Open menu, '+n+(n===1?' change waits':' changes wait')+' for your approval':'Open menu')}
     const ng=$('#nav-approve'); if(ng){ng.hidden=!n; ng.textContent=n}
     const ab=$('#approve-bar'); if(ab){ab.hidden=!n||NAVCUR==='s-approvals'||$('#app').hidden; $('#approve-bar-btn').innerHTML='<span>'+n+(n===1?' change waits':' changes wait')+' for your approval</span><span aria-hidden="true">Open ›</span>'}
@@ -2368,9 +2372,11 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     await Promise.all([loadPersonal(),loadBills(),loadList('comm'),loadList('pets'),loadList('petrec')]); syncAlerts();
     if(location.hash==='#shared'){history.replaceState(null,'',location.pathname); $('#seg-shared').click()}
     const meta=user.user_metadata||{};
-    if(meta.invite_code&&!HH.some(h=>h.f.invite_code===meta.invite_code)){
+    await loadJoinRequests(); subscribeJoins();
+    if(FROM_INVITE&&meta.invite_code&&!HH.some(h=>h.f.invite_code===meta.invite_code)){
       const {data:f,error:je}=await sb.rpc('join_family',{p_code:meta.invite_code,p_role:meta.invite_role||'p2'});
-      if(!je&&f){await loadHouseholds(); await switchHousehold(f.id); toast('Welcome! You joined '+(meta.invited_by||'the other parent')+"'s family",5000);
+      if(!je&&f&&f.status==='pending'){await loadJoinRequests(); toast('Your request to join was sent. You\'ll get an alert once it is approved.',5000)}
+      if(!je&&f&&f.status==='joined'){await loadHouseholds(); await switchHousehold(f.family_id); toast('Welcome! You joined '+(meta.invited_by||'the other parent')+"'s family",5000);
         if(FROM_INVITE){$('#pw-title').textContent='Welcome to Checky! Choose a password'; $('#pw-dialog').showModal()} return}
     }
     if(FROM_INVITE&&!$('#pw-dialog').open){$('#pw-title').textContent='Welcome to Checky! Choose a password'; $('#pw-dialog').showModal()}
@@ -2603,13 +2609,49 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     if(id==='s-emergency') renderEmergency();
     setNav(id); updateBadge(); window.scrollTo(0,0);
   }
+  var JOINREQ=[]; let JOINCH=null;
+  async function loadJoinRequests(){
+    if(!USER||!sb) return; const {data,error}=await sb.from('family_join_requests').select('*').eq('status','pending').order('created_at',{ascending:false}).limit(50);
+    if(!error){JOINREQ=data; updateBadge(); if(NAVCUR==='s-approvals') renderApprovalsExtra(); renderMyJoins()}
+  }
+  function subscribeJoins(){
+    if(JOINCH||!USER) return;
+    JOINCH=sb.channel('joins-'+USER.id).on('postgres_changes',{event:'*',schema:'public',table:'family_join_requests'},async p=>{
+      const n=p.new||{}; await loadJoinRequests();
+      if(n.user_id===USER.id&&n.status==='approved'){await loadHouseholds(); toast('You were approved! You can now open '+(n.household_label||'the household')+'.',5000); if(!FAM.id) switchHousehold(n.family_id); else buildNav()}
+      if(n.user_id===USER.id&&n.status==='declined') toast('Your request to join '+(n.household_label||'the household')+' was declined.',5000);
+    }).subscribe();
+  }
+  function renderMyJoins(){
+    const box=$('#fam-mine'); if(!box) return; const me=USER&&USER.id, mine=JOINREQ.filter(r=>r.status==='pending'&&r.user_id===me);
+    box.hidden=!mine.length; box.innerHTML='';
+    mine.forEach(r=>{const d=document.createElement('div'); d.style.display='grid'; d.style.gap='6px';
+      d.innerHTML='<strong>Waiting for approval</strong><span class="hint"></span><button type="button" class="mini-btn" style="justify-self:start">Withdraw request</button>';
+      d.querySelector('.hint').textContent='You asked to join '+(r.household_label||'a household')+'. Everyone in that household must approve before you can open it.';
+      d.querySelector('button').addEventListener('click',async()=>{await sb.rpc('withdraw_join',{p_id:r.id}); await loadJoinRequests(); toast('Request withdrawn.')});
+      box.appendChild(d)});
+  }
   function renderApprovalsExtra(){
     const ex=$('#approvals-extra'); if(!ex) return;
     const nC=CHG.filter(c=>c.status==='pending').length, nS=SCH.reqs.filter(r=>r.status==='pending').length;
     let h='';
     if(nS) h='<section class="panel chrome rim-yellow" style="margin-top:18px" aria-labelledby="h-appr-cal"><div class="panel-head"><h3 id="h-appr-cal">Calendar change requests</h3></div><p class="hint" style="margin:0">'+nS+(nS>1?' calendar changes are':' calendar change is')+' waiting. Approve or decline on the Schedule page.</p><div class="note-acts"><button class="btn small" type="button" id="go-sched">Open Schedule</button></div></section>';
-    if(!nC&&!nS) h='<p class="empty" style="margin-top:18px">Nothing is waiting for approval.</p>';
+    const me=USER&&USER.id, nJ=JOINREQ.filter(r=>r.status==='pending'&&r.user_id!==me);
+    if(nJ.length) h='<section class="panel chrome rim-yellow" style="margin-top:18px" aria-labelledby="h-appr-join"><div class="panel-head"><h3 id="h-appr-join">Join requests</h3><span class="hint">Nobody joins until everyone in the household approves</span></div><div class="join-list" style="display:grid;gap:10px"></div></section>'+h;
+    if(!nC&&!nS&&!nJ.length) h='<p class="empty" style="margin-top:18px">Nothing is waiting for approval.</p>';
     ex.innerHTML=h; const g=$('#go-sched'); if(g) g.addEventListener('click',()=>showPage('s-schedule'));
+    const jl=ex.querySelector('.join-list');
+    nJ.forEach(r=>{const hh=HH.find(x=>x.f.id===r.family_id), d=document.createElement('div'); d.className='req-item';
+      const mine=(r.approvals||[]).includes(me);
+      d.innerHTML='<strong></strong><span class="hint"></span><div class="acts"></div>';
+      d.querySelector('strong').textContent=(r.email||'Someone')+' wants to join '+(hh?hhName(hh.f):(r.household_label||'your household'));
+      d.querySelector('.hint').textContent='As '+(hh?(r.role==='p1'?hh.f.p1:hh.f.p2):'parent')+' · asked '+new Date(r.created_at).toLocaleString('en-ZA',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+(mine?' · You approved. Waiting for the others.':'');
+      const acts=d.querySelector('.acts');
+      if(!mine){[['Approve',true],['Decline',false]].forEach(([l,v])=>{const b=document.createElement('button'); b.type='button'; b.className='btn small'+(v?'':' ghost'); b.textContent=l;
+        b.addEventListener('click',async()=>{b.disabled=true; const {data,error}=await sb.rpc('decide_join',{p_id:r.id,p_approve:v}); if(error){toast(error.message,4000);b.disabled=false;return}
+          await loadJoinRequests(); if(data==='approved'){toast((r.email||'They')+' approved and joined the household.',4000); await loadHouseholds(); const h2=HH.find(x=>x.f.id===FAM.id); if(h2) loadSchedule()} else toast(data==='declined'?'Request declined.':'Approved. Waiting for the others in the household.',4000);
+          renderApprovalsExtra(); updateBadge()}); acts.appendChild(b)})}
+      jl.appendChild(d)});
   }
   function navItems(){
     const one=FAM.type==='one';
