@@ -523,6 +523,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     <div class="cats" role="tablist" aria-label="Categories" id="cats" hidden></div>
 
     <div id="cat-body" data-page="s-cat"></div>
+    <div id="emergency-body" data-page="s-emergency"></div>
   </main>
 </div>
 
@@ -557,6 +558,12 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     </div>
     <p class="hint" id="fam-msg" role="status" style="margin:0;color:var(--p-pink-lt)" hidden></p>
     <div class="note-acts"><button class="btn" type="submit" value="save">Save</button><button class="btn ghost" type="button" id="fam-cancel">Cancel</button></div>
+    <div class="invite" id="fam-download" hidden style="margin-top:10px">
+      <strong>Download my information</strong>
+      <span class="hint">A copy of everything your account can see in Checky, as one file.</span>
+      <button type="button" class="btn ghost small" id="dl-btn" style="justify-self:start">Download my information</button>
+      <p class="hint" id="dl-msg" role="status" style="margin:0" hidden></p>
+    </div>
     <div class="invite" id="fam-delete" hidden style="margin-top:10px">
       <strong>Delete my account</strong>
       <span class="hint">Deletes your account and Personal space for good. Households you share with another parent stay for them. <a href="/delete-account" target="_blank" rel="noopener" style="color:var(--p-blue-lt)">What is deleted?</a></span>
@@ -989,7 +996,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     $('#fam-intro').textContent=FAMMODE==='new'?'A household is completely separate and private. Use it, for example, for a child with a new partner. Only the people in this household can see it.':'Change the names to suit your family. Checky works for two homes (co-parenting) and for one home.';
     $('#fam-invite').hidden=!(USER&&FAM.id&&FAMMODE==='edit'); $('#fam-code').textContent=FAM.code||'------';
     $('#fam-join').hidden=!(USER&&(!FAM.id||FAMMODE==='new'));
-    $('#fam-delete').hidden=!(USER&&FAMMODE!=='new'); $('#del-confirm').value=''; $('#del-msg').hidden=true;
+    $('#fam-delete').hidden=!(USER&&FAMMODE!=='new'); $('#fam-download').hidden=!(USER&&FAMMODE!=='new'); $('#dl-msg').hidden=true; $('#del-confirm').value=''; $('#del-msg').hidden=true;
     famDlg.showModal();
   }
   $('#fam-add-kid').addEventListener('click',()=>{const box=$('#fam-kids'), n=box.children.length; if(n>=9) return; box.appendChild(kidInput(n+1,'')); $('#fam-k'+(n+1)).focus(); $('#fam-add-kid').hidden=n+1>=9});
@@ -1018,6 +1025,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     btn.disabled=false;
   });
   $('#fam-cancel').addEventListener('click',()=>famDlg.close());
+  $('#dl-btn').addEventListener('click',()=>downloadMyInfo().catch(()=>{$('#dl-msg').textContent='Could not download. Check your internet and try again.'}));
   $('#del-btn').addEventListener('click',async()=>{
     const m=$('#del-msg'), v=$('#del-confirm').value.trim().toUpperCase(), btn=$('#del-btn');
     if(v!=='DELETE'){m.textContent='Type DELETE in the box to confirm.';m.hidden=false;$('#del-confirm').focus();return}
@@ -1171,7 +1179,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   });
   $('#add-act-home').addEventListener('click',()=>openAct(null));
   $('#see-week').addEventListener('click',()=>showPage('s-activities'));
-  let currentCat=null; const refreshCat=()=>{if(currentCat&&!$('#shared').hidden) showCat(currentCat); if(typeof renderPersonalComm==='function') try{renderPersonalComm()}catch(e){} if(typeof renderPetsCard==='function') try{renderPetsCard(); if(!$('#pets').hidden) renderPets()}catch(e){console.error(e)}};
+  let currentCat=null; const refreshCat=()=>{if(currentCat&&!$('#shared').hidden) showCat(currentCat); if(typeof renderPersonalComm==='function') try{renderPersonalComm()}catch(e){} if(typeof renderPetsCard==='function') try{renderPetsCard(); if(!$('#pets').hidden) renderPets()}catch(e){console.error(e)} if(typeof renderEmergency==='function'&&typeof NAVCUR!=='undefined'&&NAVCUR==='s-emergency') try{renderEmergency()}catch(e){}};
 
   // ---------- Bills (private to each person) ----------
   const fmtR=n=>{const [i,c]=(Math.round(Number(n||0)*100)/100).toFixed(2).split('.');return 'R '+i.replace(/\B(?=(\d{3})+(?!\d))/g,' ')+(c==='00'?'':','+c)};
@@ -1932,7 +1940,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   }
 
   // Health
-  const HEALTH_KIND={doctor:'Doctor',medical_aid:'Medical aid',vaccine:'Vaccination',childhood_illness:'Childhood illness',medication:'Medication (when sick)',operation:'Past operation'};
+  const HEALTH_KIND={doctor:'Doctor',medical_aid:'Medical aid',allergy:'Allergy or condition',vaccine:'Vaccination',childhood_illness:'Childhood illness',medication:'Medication (when sick)',operation:'Past operation'};
   const VACCINES=['BCG (TB)','Polio (OPV drops)','6-in-1 (Hexavalent)','Rotavirus','Pneumococcal (PCV)','Measles','MMR (measles, mumps, rubella)','Chickenpox (varicella)','Hepatitis A','Hepatitis B','Tetanus and diphtheria (Td) booster','HPV','Flu','COVID-19','Meningococcal','Typhoid','Other'];
   const CHILD_ILL=['Chickenpox','Measles','Mumps','Rubella (German measles)','Whooping cough','Hand, foot and mouth disease','Scarlet fever','Slapped cheek (fifth disease)','Roseola','Croup','Tonsillitis','Ear infection','Bronchiolitis','Gastro (stomach bug)','Conjunctivitis (pink eye)','Impetigo','Head lice','Other'];
   const is=(...k)=>v=>k.includes(v.kind);
@@ -1949,8 +1957,8 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       {k:'vaccine',label:'Vaccine',type:'select',options:()=>VACCINES.map(v=>[v,v]),def:VACCINES[0],showIf:is('vaccine')},
       {k:'condition',label:'Illness',type:'select',options:()=>CHILD_ILL.map(v=>[v,v]),def:CHILD_ILL[0],showIf:is('childhood_illness')},
       {k:'dose',label:'Dose',max:40,ph:'e.g. Dose 1, booster',showIf:is('vaccine')},
-      {k:'illness',label:'Illness',max:120,ph:'e.g. Flu, ear infection',showIf:is('medication')},
-      {k:'medicine',label:'What was used',max:200,ph:'e.g. Panado syrup 5 ml',showIf:is('medication')},
+      {k:'illness',label:()=>(recCtx&&((recCtx.rec&&recCtx.rec.kind)||(recCtx.preset&&recCtx.preset.kind)))==='allergy'?'Allergy or condition':'Illness',max:120,ph:'e.g. Peanuts, asthma, or flu',showIf:is('medication','allergy')},
+      {k:'medicine',label:()=>(recCtx&&((recCtx.rec&&recCtx.rec.kind)||(recCtx.preset&&recCtx.preset.kind)))==='allergy'?'What to do (e.g. EpiPen, inhaler)':'What was used',max:200,ph:'e.g. Panado syrup 5 ml, or EpiPen in school bag',showIf:is('medication','allergy')},
       {k:'operation',label:'Operation',max:120,ph:'e.g. Tonsils removed',showIf:is('operation')},
       {k:'given_on',label:'Date',type:'date',showIf:is('medication','operation','vaccine','childhood_illness')},
       {k:'at_time',label:'Time',type:'time',showIf:is('medication')},
@@ -1960,7 +1968,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       {k:'follow_up',label:'Follow-up or next dose due',type:'date',showIf:is('operation','vaccine')},
       {k:'notes',label:'Notes and updates',type:'longtext',max:1000}],
     validate:r=>r.kind==='doctor'&&!r.name&&!r.surname?"Type the doctor's name.":r.kind==='medical_aid'&&!r.aid_name?'Type the name of the medical aid.':
-      r.kind==='medication'&&(!r.illness&&!r.medicine)?'Fill in the illness or what was used.':r.kind==='medication'&&!r.given_on?'Choose the date.':
+      r.kind==='allergy'&&!r.illness?'Type the allergy or condition.':r.kind==='medication'&&(!r.illness&&!r.medicine)?'Fill in the illness or what was used.':r.kind==='medication'&&!r.given_on?'Choose the date.':
       r.kind==='operation'&&!r.operation?'Say what the operation was.':r.kind==='operation'&&!r.given_on?'Choose when it was.':
       (r.kind==='vaccine'||r.kind==='childhood_illness')&&!r.given_on?'Choose the date.':
       ((r.kind==='vaccine'&&r.vaccine==='Other')||(r.kind==='childhood_illness'&&r.condition==='Other'))&&!r.name?'Type the name.':null,
@@ -1969,6 +1977,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       if(r.kind==='doctor') return {title:[r.name,r.surname].filter(Boolean).join(' '),meta:[r.place,r.notes],links:tel};
       if(r.kind==='medical_aid') return {title:r.aid_name+(r.plan?' · '+r.plan:''),meta:[r.member_number?'Member no. '+r.member_number:'',r.kin_p1?'Next of kin ('+nm('p1')+'): '+r.kin_p1:'',r.kin_p2?'Next of kin ('+nm('p2')+'): '+r.kin_p2:'',r.notes],links:tel};
       if(r.kind==='vaccine') return {title:(r.vaccine==='Other'?r.name:r.vaccine)+(r.dose?' · '+r.dose:''),meta:['Given '+dmy(r.given_on),r.place,r.follow_up?'Next dose '+dmy(r.follow_up):'',r.notes],pill:r.follow_up&&daysTo(r.follow_up)>=0&&daysTo(r.follow_up)<=30?['due','Next dose soon']:r.follow_up&&daysTo(r.follow_up)<0?['late','Next dose overdue']:null};
+      if(r.kind==='allergy') return {title:r.illness,pill:['late','Important'],meta:[r.medicine?'What to do: '+r.medicine:'',r.notes]};
       if(r.kind==='childhood_illness') return {title:r.condition==='Other'?r.name:r.condition,meta:[r.to_date&&r.to_date!==r.given_on?rangeText(r.given_on,r.to_date):'Had it '+dmy(r.given_on),r.notes]};
       if(r.kind==='medication') return {title:r.illness||r.medicine,meta:[r.given_on?rangeText(r.given_on,r.to_date||r.given_on)+(r.at_time?' '+r.at_time.slice(0,5):''):'',r.illness&&r.medicine?'Used: '+r.medicine:'',r.notes]};
       return {title:r.operation,meta:[r.given_on?dmy(r.given_on):'',r.place,r.follow_up?'Follow-up '+dmy(r.follow_up):'',r.notes],pill:r.follow_up&&daysTo(r.follow_up)>=0&&daysTo(r.follow_up)<=14?['due','Follow-up soon']:null}}});
@@ -1976,6 +1985,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     const wrap=document.createElement('div'); wrap.className='grid';
     const panel=(kind,id,title,empty)=>listPanel('health',{id,title,add:'Add',empty,filter:r=>r.kind===kind,preset:{kind}});
     wrap.append(panel('doctor','h-docs','Doctors','No doctors added yet.'),panel('medical_aid','h-aid','Medical aid','No medical aid details yet.'),
+      panel('allergy','h-allergy','Allergies and conditions','None recorded. Add allergies and conditions like asthma, so they show on the emergency card.'),
       panel('vaccine','h-vacc','Vaccinations','No vaccinations recorded yet. Add the vaccine and the date it was given.'),panel('childhood_illness','h-cill','Childhood illnesses','None recorded yet, e.g. chickenpox or measles, with the dates.'),
       panel('medication','h-meds','Medication log','Nothing logged yet. Add each time the child is sick: what was used, when and why.'),panel('operation','h-ops','Past operations','No operations recorded.'));
     body.append(premiumNote(),wrap);
@@ -2136,6 +2146,35 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     else if(!due.length) ul.innerHTML='<li class="empty">Nothing due in the next 2 weeks.</li>';
     due.forEach(r=>{const li=document.createElement('li'); const pi=dueInfo(r.next_due); li.innerHTML='<div class="grow"><span></span></div><span class="pill '+pi[0]+'"></span>';
       li.querySelector('span').textContent=dueLabel(r); li.querySelector('.pill').textContent=pi[1]; ul.appendChild(li)});
+  }
+  // Emergency card: the essentials for every child on one read-only page (stays open even if an account is locked)
+  function renderEmergency(){
+    const box=$('#emergency-body'); if(!box) return; box.innerHTML='';
+    const head=document.createElement('div'); head.className='personal-head';
+    head.innerHTML='<h2 id="h-emerg">Emergency card</h2><p class="hint">Allergies, doctors and medical aid for every child, in one place. Add or change these under Health.</p>';
+    box.appendChild(head);
+    const grid=document.createElement('div'); grid.className='grid'; box.appendChild(grid);
+    const tel=p=>p?'<a href="tel:'+esc(p.replace(/[^+\d]/g,''))+'" style="color:var(--p-blue-lt);font-weight:800">'+esc(p)+'</a>':'';
+    KIDS().forEach(k=>{
+      const rs=RECS.health.filter(r=>(r.child||'c1')===k);
+      const al=rs.filter(r=>r.kind==='allergy'), docs=rs.filter(r=>r.kind==='doctor'), aid=rs.filter(r=>r.kind==='medical_aid');
+      const sec=document.createElement('section'); sec.className='panel chrome rim-pink'; sec.setAttribute('aria-labelledby','h-em-'+k);
+      let h='<div class="panel-head"><h3 id="h-em-'+k+'">'+esc(nm(k))+'</h3><span class="pill late">Emergency</span></div>';
+      h+='<div><div class="eyebrow">Allergies and conditions</div>'+(al.length?al.map(r=>'<p style="margin:4px 0"><strong style="color:var(--p-pink-lt)">'+esc(r.illness||'')+'</strong>'+(r.medicine?' · '+esc(r.medicine):'')+'</p>').join(''):'<p class="hint" style="margin:4px 0">None recorded</p>')+'</div>';
+      h+='<div><div class="eyebrow">Doctor</div>'+(docs.length?docs.map(r=>'<p style="margin:4px 0"><strong>'+esc([r.name,r.surname].filter(Boolean).join(' '))+'</strong>'+(r.phone?' · '+tel(r.phone):'')+(r.place?'<br><span class="hint">'+esc(r.place)+'</span>':'')+'</p>').join(''):'<p class="hint" style="margin:4px 0">None recorded</p>')+'</div>';
+      h+='<div><div class="eyebrow">Medical aid</div>'+(aid.length?aid.map(r=>'<p style="margin:4px 0"><strong>'+esc(r.aid_name||'')+'</strong>'+(r.plan?' · '+esc(r.plan):'')+(r.member_number?'<br>Member no. <strong>'+esc(r.member_number)+'</strong>':'')+(r.phone?'<br>'+tel(r.phone):'')+(r.kin_p1?'<br><span class="hint">Next of kin ('+esc(nm('p1'))+'): '+esc(r.kin_p1)+'</span>':'')+(r.kin_p2?'<br><span class="hint">Next of kin ('+esc(nm('p2'))+'): '+esc(r.kin_p2)+'</span>':'')+'</p>').join(''):'<p class="hint" style="margin:4px 0">None recorded</p>')+'</div>';
+      sec.innerHTML=h; grid.appendChild(sec);
+    });
+  }
+  // Download my information (POPIA): everything this account can see, as one file
+  async function downloadMyInfo(){
+    const m=$('#dl-msg'); m.hidden=false; m.textContent='Collecting your information…';
+    const tables=['families','family_members','activities','notes','custody_plans','custody_days','schedule_requests','handovers','school_work','reading_log','teachers','teacher_contacts','school_events','holiday_records','trips','belongings','who_has','money_entries','health_records','documents','record_changes','communications','personal_items','bills','pets','pet_records'];
+    const out={exported_at:new Date().toISOString(),account:{email:USER.email,id:USER.id},note:'Photos and documents are listed by file name; open them in Checky to download them.'};
+    for(const t of tables){const {data,error}=await sb.from(t).select('*').limit(5000); out[t]=error?('Could not read: '+error.message):data}
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(out,null,2)],{type:'application/json'}));
+    a.download='checky-my-information-'+todayIso()+'.json'; document.body.appendChild(a); a.click(); a.remove();
+    m.textContent='Downloaded. The file is in your Downloads folder.';
   }
   const PREMIUM_KEYS=['money','health','docs'];
   function renderPersonalComm(){const box=$('#personal-comm'); if(!box) return; box.innerHTML=''; if(PREMIUM_PREVIEW) renderComm(box)}
@@ -2553,7 +2592,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     pets:'M12 13c-3 0-5 3-5 5s2 3 5 3 5-1 5-3-2-5-5-5zM4.5 10a1.5 2 0 1 0 3 0a1.5 2 0 1 0-3 0M16.5 10a1.5 2 0 1 0 3 0a1.5 2 0 1 0-3 0M8 6a1.5 2 0 1 0 3 0a1.5 2 0 1 0-3 0M13 6a1.5 2 0 1 0 3 0a1.5 2 0 1 0-3 0',
     call:'M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z',sun:'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M2 12h2M20 12h2',
     star:'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z',cal:'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',book:'M4 19V5a2 2 0 0 1 2-2h14v16H6a2 2 0 0 0-2 2zM4 19a2 2 0 0 0 2 2h14',
-    bag:'M5 8h14l-1 13H6zM9 8V6a3 3 0 0 1 6 0v2',money:'M3 6h18v12H3zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',heart:'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z',doc:'M6 3h8l4 4v14H6zM14 3v4h4',check2:'M9 12l2 2 4-4M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z',note:'M4 5h16v11H8l-4 4z'};
+    bag:'M5 8h14l-1 13H6zM9 8V6a3 3 0 0 1 6 0v2',money:'M3 6h18v12H3zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',heart:'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z',doc:'M6 3h8l4 4v14H6zM14 3v4h4',check2:'M9 12l2 2 4-4M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z',note:'M4 5h16v11H8l-4 4z',plus:'M12 5v14M5 12h14'};
   const menuDlg=$('#menu'); var NAVCUR='p-today';
   const isCat=id=>id.startsWith('s-')&&cats.some(c=>'s-'+c.id===id);
   function showPage(id){
@@ -2561,6 +2600,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     $$('#personal [data-page], #shared [data-page]').forEach(el=>{el.hidden=!(el.dataset.page===id||(el.dataset.page==='s-cat'&&isCat(id)))});
     if(isCat(id)) showCat(cats.find(c=>'s-'+c.id===id));
     if(id==='p-alerts'){const si=$('#alerts-signin'); if(si) si.hidden=!!USER}
+    if(id==='s-emergency') renderEmergency();
     setNav(id); updateBadge(); window.scrollTo(0,0);
   }
   function renderApprovalsExtra(){
@@ -2593,6 +2633,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       {group:(one?'Family':'Shared')+' · Premium',items:[
         {id:'s-money',label:'Money',ic:'money',t:'y',tag:'Premium'},
         {id:'s-health',label:'Health',ic:'heart',t:'p',tag:'Premium'},
+        {id:'s-emergency',label:'Emergency card',ic:'plus',t:'p'},
         {id:'s-documents',label:'Documents',ic:'doc',t:'b',tag:'Premium'}]}];
   }
   function buildNav(){
