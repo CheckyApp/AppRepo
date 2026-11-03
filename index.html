@@ -2478,7 +2478,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     const tpl=document.getElementById('tpl-'+c.id);
     if(PREMIUM_PREVIEW){const R={money:renderMoney,health:renderHealth,documents:renderDocs}[c.id]; if(R){R(body);applyNames();return}}
     if(c.prem||!tpl){
-      body.innerHTML='<section class="panel chrome locked-panel" style="margin-top:16px"><span class="pill prem">Premium</span><h3>'+c.name+' is part of Premium</h3><p>Try every Premium section free for 30 days. After that it is a small monthly subscription, and you can cancel any time.</p><button class="btn" type="button" id="start-trial">Start 30-day free trial</button></section>';
+      body.innerHTML='<section class="panel chrome locked-panel" style="margin-top:16px"><span class="pill prem">Premium</span><h3>'+c.name+' is part of Premium</h3><p>Try Checky free for 14 days. After that it is R80 a month or R800 a year, and you can cancel any time.</p><button class="btn" type="button" id="start-trial">Start 14-day free trial</button></section>';
       $('#start-trial').addEventListener('click',()=>toast('Payments are not set up yet'));
       return;
     }
