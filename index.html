@@ -403,6 +403,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     <nav id="nav" aria-label="Sections"></nav>
     <div class="nav-foot">
       <button type="button" class="nav-row" id="family-btn"><span class="nav-tile g" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9L7 7M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg></span><span class="lbl">Household setup</span></button>
+      <button type="button" class="nav-row" id="nav-owner" data-nav="p-owner" hidden><span class="nav-tile p" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span><span class="lbl">Owner dashboard</span></button>
       <button type="button" class="nav-row" id="nav-sub" data-nav="p-sub"><span class="nav-tile y" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18v12H3zM3 10h18M7 15h4"/></svg></span><span class="lbl">Subscription</span><span class="nav-tag" id="nav-sub-tag" hidden></span></button>
       <button type="button" class="nav-row" id="nav-alerts" data-nav="p-alerts"><span class="nav-tile g" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></svg></span><span class="lbl">Alerts on this phone</span></button>
       <button type="button" class="nav-row install-btn" hidden><span class="nav-tile g" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg></span><span class="lbl">Install app</span></button>
@@ -474,6 +475,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     </div>
     <div id="personal-comm" data-page="p-comm"></div>
     <div data-page="p-sub" id="sub-body"></div>
+    <div data-page="p-owner" id="owner-body"></div>
     <div data-page="p-locked" id="locked-body"></div>
     <div data-page="p-alerts"><p class="empty" id="alerts-signin" style="margin-top:18px">Sign in to turn on alerts for this phone.</p>
     <section class="panel chrome rim-blue" id="alerts-card" aria-labelledby="h-alerts" hidden style="margin-top:18px">
@@ -859,6 +861,8 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   const SB_URL='https://lcxxtysaimrthbdypuyu.supabase.co', SB_KEY='sb_publishable_IDslB8xRql_iJ__IvlLGUw_jyddMdp3';
   const FROM_INVITE=/type=invite/.test(location.hash);
   let sb=null; try{ if(window.supabase) sb=window.supabase.createClient(SB_URL,SB_KEY) }catch(e){ sb=null }
+  // Anonymous visit count (a number per day, nothing about the person)
+  try{ if(sb){ const k='checky.visitday', d=new Date().toISOString().slice(0,10); let first=true; try{first=localStorage.getItem(k)!==d; localStorage.setItem(k,d)}catch(e){} sb.rpc('count_visit',{p_new_today:first}).then(()=>{},()=>{}) } }catch(e){}
   let USER=null, CHANNEL=null;
   const loginMsg=t=>{const m=$('#login-msg'); m.textContent=t||''; m.hidden=!t};
   // An email link that was already used or replaced by a newer one comes back with an error in the address
@@ -900,7 +904,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   $('#signout').addEventListener('click',async()=>{
     if($('#menu').open) $('#menu').close(); showPage('p-today');
     if(JOINCH){sb.removeChannel(JOINCH); JOINCH=null} JOINREQ=[];
-    ACCESS=null; if(typeof updatePayBar==='function') updatePayBar();
+    ACCESS=null; if(typeof updatePayBar==='function') updatePayBar(); if($('#nav-owner')) $('#nav-owner').hidden=true;
     if(USER&&sb){try{await turnOffAlerts(true)}catch(e){} try{await sb.auth.signOut()}catch(e){} if(CHANNEL){sb.removeChannel(CHANNEL);CHANNEL=null}}
     USER=null; BILLS=store.get('checky.bills',null)||billSeed(); renderBills(); renderAlerts(); SCH=demoSchedule(); resetLists(); CHG=[]; renderPending(); renderPersonalComm(); renderHandoverStat(); $('#app').hidden=true;$('#login').hidden=false;document.body.classList.remove('inside');window.scrollTo(0,0);
   });
@@ -2615,7 +2619,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   const daysUntil=d=>d?Math.ceil((new Date(d)-Date.now())/864e5):null;
   async function loadAccess(){
     if(!USER||!sb) return; const {data,error}=await sb.rpc('my_access',{}); if(error) return;
-    const was=ACCESS&&ACCESS.locked; ACCESS=data; updatePayBar();
+    const was=ACCESS&&ACCESS.locked; ACCESS=data; updatePayBar(); const no=$('#nav-owner'); if(no) no.hidden=!ACCESS.owner;
     if(ACCESS.locked&&NAVCUR&&!OPEN_WHEN_LOCKED.has(NAVCUR)) showPage(NAVCUR);
     if(was&&!ACCESS.locked){toast('Thank you! Everything is unlocked again.',4000); showPage(LOCKED_WANTED||'p-today')}
     if(NAVCUR==='p-sub') renderSub();
@@ -2679,6 +2683,33 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   }
   $('#pay-bar-btn').addEventListener('click',()=>showPage('p-sub'));
   $('#nav-sub').addEventListener('click',()=>{menuDlg.close(); showPage('p-sub')});
+  $('#nav-owner').addEventListener('click',()=>{menuDlg.close(); showPage('p-owner')});
+  // ---------- Owner dashboard (only the owner's account) ----------
+  async function renderOwner(){
+    const box=$('#owner-body'); if(!box) return;
+    box.innerHTML='<div class="personal-head"><h2 id="h-owner">Owner dashboard</h2><p class="hint">Only you can see this.</p></div><p class="empty">Loading\u2026</p>';
+    const {data:d,error}=await sb.rpc('owner_stats',{});
+    if(error){box.querySelector('.empty').textContent='Could not load: '+error.message;return}
+    const T=d.totals, dt=x=>x?new Date(x).toLocaleDateString('en-ZA',{day:'numeric',month:'short'}):'\u2013', dtt=x=>x?new Date(x).toLocaleString('en-ZA',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'\u2013';
+    const stat=(v,l)=>'<div class="stat"><b class="num">'+esc(String(v))+'</b><span>'+esc(l)+'</span></div>';
+    let h='<div class="personal-head"><h2 id="h-owner">Owner dashboard</h2><p class="hint">Only you can see this. Updated '+dtt(new Date())+'.</p></div>';
+    h+='<section class="hero" style="margin-top:14px" aria-label="Totals"><div class="hero-stats">'+stat(T.visits_today||0,'visits today')+stat(T.visitors_30,'visitors, last 30 days')+stat(T.accounts,'accounts')+stat(T.active_7,'signed in this week')+stat(T.households+' ('+T.households_2+')','households (with 2 parents)')+stat(T.in_trial,'in free time')+stat(T.paying,'paying')+stat(fmtR(T.income_month),'income this month')+'</div></section>';
+    // 30-day chart: visitors (bars) and sign-ups (yellow dots)
+    const days=d.days, W=360, H=150, n=days.length, bw=W/n, mx=Math.max(1,...days.map(x=>Math.max(x.visitors,x.signups)));
+    let svg='<svg viewBox="0 0 '+W+' '+(H+24)+'" width="100%" role="img" aria-label="Visitors and sign-ups per day for the last 30 days">';
+    days.forEach((x,i)=>{const bh=x.visitors/mx*H; svg+='<rect x="'+(i*bw+1)+'" y="'+(H-bh)+'" width="'+(bw-2)+'" height="'+bh+'" rx="3" fill="#2EC4EE"><title>'+dt(x.day)+': '+x.visitors+' visitors, '+x.visits+' visits, '+x.signups+' sign-ups</title></rect>';
+      if(x.signups) svg+='<circle cx="'+(i*bw+bw/2)+'" cy="'+(H-x.signups/mx*H)+'" r="5" fill="#FFD21F" stroke="#08070A" stroke-width="2"><title>'+x.signups+' sign-ups</title></circle>';
+      if(i%7===2||i===n-1) svg+='<text x="'+Math.min(W-16,Math.max(16,i*bw+bw/2))+'" y="'+(H+18)+'" fill="#B9B0A6" font-size="11" text-anchor="middle">'+dt(x.day)+'</text>'});
+    svg+='</svg>';
+    h+='<div class="grid"><section class="panel chrome" aria-labelledby="h-own-chart" style="grid-column:1/-1"><div class="panel-head"><h3 id="h-own-chart">Last 30 days</h3><span class="legend"><span><i style="background:#2EC4EE"></i>Visitors</span><span><i style="background:#FFD21F"></i>Sign-ups</span></span></div>'+svg+'<p class="hint" style="margin:0">Visits are counted anonymously (just a number per day, no names). Counting started on 3 Nov 2026.</p></section>';
+    h+='<section class="panel chrome" aria-labelledby="h-own-test" style="grid-column:1/-1"><div class="panel-head"><h3 id="h-own-test">Testers</h3><span class="hint">'+d.testers.filter(t=>t.signed_up).length+' of '+d.testers.length+' signed up</span></div><div class="table-scroll"><table class="log"><thead><tr><th>Email</th><th>Signed up</th><th>Last sign-in</th><th>Days left</th><th>Household</th></tr></thead><tbody>'+
+      d.testers.map(t=>{const left=t.free_until?Math.max(0,Math.ceil((new Date(t.free_until)-Date.now())/864e5)):null;
+        return '<tr><td>'+esc(t.email)+'</td><td>'+(t.signed_up?dt(t.signed_up)+(t.confirmed?'':' (not confirmed)'):'<span class="pill later">Not yet</span>')+'</td><td>'+dtt(t.last_sign_in)+'</td><td>'+(left==null?(t.signed_up?'starts on first open':'\u2013'):left)+'</td><td>'+(t.households?'Yes':'\u2013')+'</td></tr>'}).join('')+'</tbody></table></div></section>';
+    h+='<section class="panel chrome" aria-labelledby="h-own-recent" style="grid-column:1/-1"><div class="panel-head"><h3 id="h-own-recent">Newest accounts</h3><span class="hint">'+T.confirmed+' of '+T.accounts+' confirmed</span></div><div class="table-scroll"><table class="log"><thead><tr><th>Email</th><th>Signed up</th><th>Last sign-in</th><th></th></tr></thead><tbody>'+
+      d.recent.map(r=>'<tr><td>'+esc(r.email||'')+'</td><td>'+dt(r.signed_up)+'</td><td>'+dtt(r.last_sign_in)+'</td><td>'+(r.tester?'<span class="pill ok">Tester</span>':'')+(r.confirmed?'':' <span class="pill later">Not confirmed</span>')+'</td></tr>').join('')+'</tbody></table></div></section>';
+    h+='<section class="panel chrome" aria-labelledby="h-own-pay"><div class="panel-head"><h3 id="h-own-pay">Payments</h3><span class="pill '+(T.payments_open?'ok':'later')+'">'+(T.payments_open?'Open':'Early access')+'</span></div><p style="margin:0">Paying now: <strong>'+T.paying+'</strong> ('+T.paying_auto+' renew automatically)<br>Income this month: <strong>'+fmtR(T.income_month)+'</strong><br>Income since launch: <strong>'+fmtR(T.income_total)+'</strong></p><p class="hint" style="margin:0">Amounts before PayFast fees. PayFast pays out to your bank account.</p></section></div>';
+    box.innerHTML=h;
+  }
   const OPEN_WHEN_LOCKED=new Set(['s-approvals','s-emergency','p-sub','p-alerts','p-locked']);
   function showPage(id){
     if(ACCESS&&ACCESS.locked&&!OPEN_WHEN_LOCKED.has(id)){LOCKED_WANTED=id; id='p-locked'}
@@ -2688,6 +2719,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     if(id==='p-alerts'){const si=$('#alerts-signin'); if(si) si.hidden=!!USER}
     if(id==='s-emergency') renderEmergency();
     if(id==='p-sub') renderSub();
+    if(id==='p-owner') renderOwner();
     if(id==='p-locked') renderLocked();
     setNav(id); updateBadge(); window.scrollTo(0,0);
   }
