@@ -869,6 +869,13 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   {const h=new URLSearchParams(location.hash.slice(1)); if(h.get('error')||h.get('error_code')){
     loginMsg(/expired|invalid/i.test(h.get('error_description')||h.get('error_code')||'')?'That email link has expired or was already used. Each new email replaces the one before, so always open the newest email, or tap Forgot password? again.':'That email link did not work: '+(h.get('error_description')||'').replace(/\+/g,' '));
     history.replaceState(null,'',location.pathname)}}
+  function offerResend(email,text){
+    const m=$('#login-msg'); m.hidden=false; m.textContent=text+' ';
+    const b=document.createElement('button'); b.type='button'; b.className='linkish'; b.textContent='Send the email again';
+    b.addEventListener('click',async()=>{b.disabled=true; const {error}=await sb.auth.resend({type:'signup',email,options:{emailRedirectTo:location.origin}});
+      b.remove(); m.append(error?(/security purposes|rate/i.test(error.message)?' Please wait a minute, then try again.':' Could not send: '+error.message):' Sent again. Check your inbox and Spam.')});
+    m.appendChild(b);
+  }
   const netMsg=err=>/fetch|network|load failed/i.test(String(err&&err.message||err))
     ?'Checky can\'t reach its server from here. It works once the app is online at checkyapp.co.za. Tap "Look around first" to explore.'
     :String(err&&err.message||err);
@@ -880,17 +887,20 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     e.preventDefault(); const c=creds(); if(!c) return;
     loginMsg('Signing in…');
     try{ const {data,error}=await sb.auth.signInWithPassword(c);
-      if(error){loginMsg(/invalid login/i.test(error.message)?'That email and password don\'t match. Try again, or create an account.':/confirm/i.test(error.message)?'Please open the confirmation link in your email first, then sign in.':error.message);return}
+      if(error){ if(/confirm/i.test(error.message)){offerResend(c.email,'Your email isn\u2019t confirmed yet. Look for the email from Checky (also in Spam or Promotions) and tap the link, then sign in.');return}
+        loginMsg(/invalid login/i.test(error.message)?'That email and password don\'t match. Try again, or create an account.':/security purposes|rate/i.test(error.message)?'Please wait a minute and try again.':error.message);return}
       loginMsg(''); await startCloud(data.user);
     }catch(err){loginMsg(netMsg(err))}
   });
+  let SIGNING=false;
   $('#trial-btn').addEventListener('click',async()=>{
     const c=creds(); if(!c) return; if(c.password.length<6){loginMsg('Choose a password of at least 6 characters.');return}
+    if(SIGNING) return; SIGNING=true; setTimeout(()=>{SIGNING=false},4000);
     loginMsg('Creating your account…');
     try{ const {data,error}=await sb.auth.signUp({...c,options:{emailRedirectTo:location.origin}});
-      if(error){loginMsg(error.message);return}
+      if(error){loginMsg(/security purposes|rate/i.test(error.message)?'We just sent you an email. Please wait a minute before trying again.':/already registered/i.test(error.message)?'This email already has an account. Sign in instead, or tap Forgot password?':error.message);return}
       if(data.session){loginMsg('');await startCloud(data.user)}
-      else loginMsg('Almost done: we sent a confirmation link to '+c.email+'. Open it, then come back and sign in.');
+      else offerResend(c.email,'Almost done! We sent a confirmation link to '+c.email+'. Open it (check Spam or Promotions too), then come back and sign in.');
     }catch(err){loginMsg(netMsg(err))}
   });
   $('#forgot').addEventListener('click',async()=>{
@@ -2706,9 +2716,12 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       d.testers.map(t=>{const left=t.free_until?Math.max(0,Math.ceil((new Date(t.free_until)-Date.now())/864e5)):null;
         return '<tr><td>'+esc(t.email)+'</td><td>'+(t.signed_up?dt(t.signed_up)+(t.confirmed?'':' (not confirmed)'):'<span class="pill later">Not yet</span>')+'</td><td>'+dtt(t.last_sign_in)+'</td><td>'+(left==null?(t.signed_up?'starts on first open':'\u2013'):left)+'</td><td>'+(t.households?'Yes':'\u2013')+'</td></tr>'}).join('')+'</tbody></table></div></section>';
     h+='<section class="panel chrome" aria-labelledby="h-own-recent" style="grid-column:1/-1"><div class="panel-head"><h3 id="h-own-recent">Newest accounts</h3><span class="hint">'+T.confirmed+' of '+T.accounts+' confirmed</span></div><div class="table-scroll"><table class="log"><thead><tr><th>Email</th><th>Signed up</th><th>Last sign-in</th><th></th></tr></thead><tbody>'+
-      d.recent.map(r=>'<tr><td>'+esc(r.email||'')+'</td><td>'+dt(r.signed_up)+'</td><td>'+dtt(r.last_sign_in)+'</td><td>'+(r.tester?'<span class="pill ok">Tester</span>':'')+(r.confirmed?'':' <span class="pill later">Not confirmed</span>')+'</td></tr>').join('')+'</tbody></table></div></section>';
+      d.recent.map(r=>'<tr><td>'+esc(r.email||'')+'</td><td>'+dt(r.signed_up)+'</td><td>'+dtt(r.last_sign_in)+'</td><td>'+(r.tester?'<span class="pill ok">Tester</span>':'')+(r.confirmed?'':' <span class="pill later">Not confirmed</span> <button type="button" class="mini-btn" data-resend="'+esc(r.email||'')+'">Send email again</button>')+'</td></tr>').join('')+'</tbody></table></div></section>';
     h+='<section class="panel chrome" aria-labelledby="h-own-pay"><div class="panel-head"><h3 id="h-own-pay">Payments</h3><span class="pill '+(T.payments_open?'ok':'later')+'">'+(T.payments_open?'Open':'Early access')+'</span></div><p style="margin:0">Paying now: <strong>'+T.paying+'</strong> ('+T.paying_auto+' renew automatically)<br>Income this month: <strong>'+fmtR(T.income_month)+'</strong><br>Income since launch: <strong>'+fmtR(T.income_total)+'</strong></p><p class="hint" style="margin:0">Amounts before PayFast fees. PayFast pays out to your bank account.</p></section></div>';
     box.innerHTML=h;
+    box.querySelectorAll('[data-resend]').forEach(b=>b.addEventListener('click',async()=>{b.disabled=true;
+      const {error}=await sb.auth.resend({type:'signup',email:b.dataset.resend,options:{emailRedirectTo:location.origin}});
+      b.textContent=error?(/security purposes|rate/i.test(error.message)?'Wait a minute':'Could not send'):'Sent \u2713'}));
   }
   const OPEN_WHEN_LOCKED=new Set(['s-approvals','s-emergency','p-sub','p-alerts','p-locked']);
   function showPage(id){
