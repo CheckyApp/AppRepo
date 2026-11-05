@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Get Checky on your phone</title>
+<meta name="description" content="How to create your Checky account and add Checky to your home screen on iPhone and Android.">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Nunito:wght@400;700;800&display=swap">
+<link rel="stylesheet" href="/legal.css">
+<style>
+.tabs{display:flex;gap:8px;margin:18px 0 6px;flex-wrap:wrap}
+.tabs button{border:0;cursor:pointer;padding:10px 18px;border-radius:999px;font:800 15px Nunito,sans-serif;color:var(--ink);background:#1E1A24;box-shadow:inset 0 0 0 1px var(--line)}
+.tabs button[aria-selected="true"]{background:var(--paint);color:#120E14;box-shadow:none}
+.steps{list-style:none;padding:0;margin:16px 0;display:grid;gap:18px;counter-reset:s}
+.step{display:grid;grid-template-columns:minmax(0,1fr) 190px;gap:18px;align-items:center;background:var(--surface);border-radius:24px 24px 24px 10px;padding:18px;box-shadow:inset 0 0 0 1px var(--line)}
+.step .num{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font:400 26px "Patrick Hand",cursive;color:#120E14;margin-bottom:8px}
+.step h3{margin:0 0 4px;font-size:1.1rem;color:var(--ink)}
+.step p{margin:0;color:#E4D9CC;font-size:.97rem}
+.b{background:#2EC4EE}.p{background:#F2479B}.y{background:#FFD21F}.o{background:#FF9A3C}
+@media(max-width:560px){.step{grid-template-columns:1fr}.phone{margin:0 auto}}
+/* Phone drawings */
+.phone{width:180px;height:330px;border-radius:30px;background:#000;padding:8px;box-shadow:0 0 0 2px #3A3442,0 16px 30px rgba(0,0,0,.6);position:relative}
+.scr{width:100%;height:100%;border-radius:23px;overflow:hidden;background:#F4F1EC;position:relative;font:11px/1.3 Nunito,Arial,sans-serif;color:#222}
+.notch{position:absolute;top:6px;left:50%;transform:translateX(-50%);width:54px;height:14px;border-radius:9px;background:#000;z-index:3}
+.urlbar{position:absolute;left:8px;right:8px;height:24px;border-radius:9px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);display:flex;align-items:center;justify-content:center;font-size:10px;color:#333;gap:4px}
+.page{position:absolute;inset:0;background:#08070A;color:#FFF6EA;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.page b{font:400 22px "Patrick Hand",cursive}
+.page small{font-size:9px;color:#B9B0A6}
+.crest{width:34px;height:34px;border-radius:9px;background:conic-gradient(#F2479B 0 25%,#2EC4EE 0 50%,#FFD21F 0 75%,#FF9A3C 0)}
+.safari-bar{position:absolute;left:0;right:0;bottom:0;height:46px;background:#F7F6F3;border-top:1px solid #ddd;display:flex;justify-content:space-around;align-items:center;color:#2E7BF6;font-size:15px}
+.hl{position:relative}
+.hl::after{content:"";position:absolute;inset:-7px;border-radius:50%;border:3px solid #F2479B;box-shadow:0 0 0 3px rgba(242,71,155,.3)}
+.hlrow{outline:3px solid #F2479B;outline-offset:-2px;border-radius:8px;background:#FFE3F0!important;font-weight:800}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#F2F2F7;border-radius:14px 14px 0 0;padding:10px 8px;box-shadow:0 -4px 14px rgba(0,0,0,.25);display:grid;gap:5px}
+.sheet .row{background:#fff;border-radius:8px;padding:7px 9px;display:flex;justify-content:space-between;align-items:center}
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.35)}
+.dialog{position:absolute;left:10px;right:10px;top:70px;background:#fff;border-radius:14px;padding:10px;box-shadow:0 6px 18px rgba(0,0,0,.35);display:grid;gap:8px}
+.dialog .top{display:flex;justify-content:space-between;align-items:center;gap:4px;font-weight:800;font-size:8.5px;white-space:nowrap}
+.dialog .blue{color:#2E7BF6}
+.home{position:absolute;inset:0;background:linear-gradient(160deg,#5B6DCD,#C66FA8 60%,#F2A365);padding:40px 12px 0;display:grid;grid-template-columns:repeat(4,1fr);gap:12px 8px;align-content:start}
+.app{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:8.5px;color:#fff}
+.app i{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.35);display:block}
+.app.checky i{background:url(/icons/apple-touch-icon.png) center/cover,conic-gradient(#F2479B 0 25%,#2EC4EE 0 50%,#FFD21F 0 75%,#FF9A3C 0);box-shadow:0 0 0 3px #fff,0 0 0 6px #F2479B}
+.chrome-top{position:absolute;top:24px;left:6px;right:6px;display:flex;align-items:center;gap:6px}
+.chrome-top .urlbar{position:static;flex:1;height:24px}
+.dots{font-size:16px;font-weight:900;color:#333;width:18px;text-align:center}
+.menu{position:absolute;top:24px;right:6px;width:120px;background:#fff;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.3);padding:4px 0;display:grid}
+.menu div{padding:6px 9px;font-size:10px}
+.lbl{position:absolute;font:800 9px Nunito,sans-serif;background:#F2479B;color:#fff;border-radius:6px;padding:2px 5px}
+.note{margin-top:8px}
+</style>
+</head>
+<body><div class="wrap">
+<header><a class="brand" href="/">Checky</a><nav><a href="/install" aria-current="page">Install</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav></header>
+<main>
+<h1>Get Checky on your phone</h1>
+<p class="meta">Two homes, one plan. Takes about 3 minutes.</p>
+
+<h2>Part 1 · Create your account</h2>
+<ol class="steps">
+<li class="step"><div><div class="num b">1</div><h3>Open www.checkyapp.co.za</h3><p>On <strong>iPhone use Safari</strong>, on <strong>Android use Chrome</strong>. Type the address at the top and open it.</p></div>
+  <div class="phone" aria-hidden="true"><div class="scr"><div class="notch"></div><div class="page"><div class="crest"></div><b>Checky</b><small>Two homes, one plan.</small></div><div class="urlbar" style="top:26px">🔒 checkyapp.co.za</div></div></div></li>
+<li class="step"><div><div class="num p">2</div><h3>Type your email and a password</h3><p>Use the <strong>same email address you gave Rozanne</strong> if you're a tester, so your free days are ready. The password needs at least 6 characters. Then tap <strong>Create an account</strong>.</p></div>
+  <div class="phone" aria-hidden="true"><div class="scr"><div class="notch"></div><div class="page" style="justify-content:flex-start;padding-top:46px;gap:7px">
+    <b style="font-size:18px">Checky</b>
+    <div style="width:130px;background:#0F0D12;border:1px solid #2E2A34;border-radius:9px;padding:6px;font-size:9px;color:#B9B0A6">you@email.com</div>
+    <div style="width:130px;background:#0F0D12;border:1px solid #2E2A34;border-radius:9px;padding:6px;font-size:9px;color:#B9B0A6">••••••••</div>
+    <div style="width:130px;border-radius:99px;padding:6px;text-align:center;font-weight:800;font-size:9px;background:linear-gradient(90deg,#2EC4EE,#F2479B,#FFD21F,#FF9A3C);color:#120E14">Sign in</div>
+    <div class="hlrow" style="width:130px;border-radius:99px;padding:6px;text-align:center;font-size:9px;background:#1E1A24;color:#120E14">Create an account</div>
+  </div></div></div></li>
+<li class="step"><div><div class="num y">3</div><h3>Confirm your email</h3><p>Open the email from <strong>Checky</strong> and tap <strong>Confirm my email</strong>. Can't find it? Look in <strong>Spam</strong> or <strong>Promotions</strong>. On the sign-in screen you can also tap <strong>Send the email again</strong>.</p></div>
+  <div class="phone" aria-hidden="true"><div class="scr"><div class="notch"></div><div style="position:absolute;inset:0;background:#fff;padding:34px 10px 0">
+    <div style="font-weight:800;font-size:10px;margin-bottom:6px">Inbox</div>
+    <div class="hlrow" style="padding:7px;border-radius:8px;margin-bottom:5px"><b>Checky</b><br><span style="font-size:9px">Confirm your Checky account</span></div>
+    <div style="padding:7px;border-bottom:1px solid #eee;font-size:9px;color:#888">Other email…</div>
+    <div style="margin:12px auto 0;width:120px;border-radius:99px;padding:7px;text-align:center;font-weight:800;font-size:9px;background:#2EC4EE;color:#120E14">Confirm my email</div>
+  </div></div></div></li>
+<li class="step"><div><div class="num o">4</div><h3>Sign in and set up your household</h3><p>Back in Checky, <strong>sign in</strong>. Then open the menu <strong>☰</strong> → <strong>Household setup</strong>: add the children's names and invite the other parent by email.</p></div>
+  <div class="phone" aria-hidden="true"><div class="scr"><div class="notch"></div><div class="page" style="justify-content:flex-start;align-items:stretch;padding:36px 10px 0;gap:6px">
+    <div style="display:flex;align-items:center;gap:6px"><span class="hl" style="width:22px;height:22px;border-radius:7px;background:#1E1A24;display:grid;place-items:center;font-size:12px">☰</span><b style="font-size:16px">Checky</b></div>
+    <div style="background:#141218;border-radius:10px;padding:8px;font-size:9px"><b style="font:800 10px Nunito">Household setup</b><br>Child 1: Mia<br>Child 2: Ben<br><span style="color:#B9B0A6">Invite by email…</span></div>
+  </div></div></div></li>
+</ol>
+
+<h2>Part 2 · Add Checky to your home screen</h2>
+<p>Then Checky opens like a normal app, full screen, with its own icon.</p>
+<div class="tabs" role="tablist" aria-label="Phone type">
+  <button type="button" role="tab" id="t-ios" aria-selected="true" aria-controls="p-ios">iPhone</button>
+  <button type="button" role="tab" id="t-and" aria-selected="false" aria-controls="p-and">Android</button>
+</div>
+
+<section id="p-ios" role="tabpanel" aria-labelledby="t-ios">
+<ol class="steps">
+<li class="step"><div><div class="num b">1</div><h3>Open Checky in Safari</h3><p>It must be <strong>Safari</strong> (the blue compass), not Chrome or the Facebook/WhatsApp browser. Go to <strong>www.checkyapp.co.za</strong>.</p></div>
+  <div class="phone" aria-hidden="true"><div class="scr"><div class="notch"></div><div class="page"><div class="crest"></div><b>Checky</b></div><div class="safari-bar"><span>‹</span><span>›</span><span>⇪</span><span>📖</span><span>⧉</span></div><div class="urlbar" style="bottom:52px">checkyapp.co.za</div></div></div></li>
+<li class="step"><div><div class="num p">2</div><h3>Tap the Share button</h3><p>The <strong>square with an arrow pointing up</strong> at the bottom of the screen (on iPad: at the top right).</p></div>
+  <div class="phone" aria-hidden="true"><div class="scr"><div class="notch"></div><div class="page"><div class="crest"></div><b>Checky</b></div><div class="safari-bar"><span>‹</span><span>›</span><span class="hl">⇪</span><span>📖</span><span>⧉</span></div><div class="urlbar" style="bottom:52px">checkyapp.co.za</div></div></div></li>
+<li class="step"><div><div class="num y">3</div><h3>Tap "Add to Home Screen"</h3><p>Scroll down the list a little if you don't see it straight away.</p></div>
+  <div class="phone" aria-hidden="true"><div class="scr"><div class="notch"></div><div class="page"><div class="crest"></div><b>Checky</b></div><div class="dim"></div><div class="sheet"><div class="row">Copy <span>⧉</span></div><div class="row">Add to Reading List <span>👓</span></div><div class="row">Add Bookmark <span>📖</span></div><div class="row hlrow">Add to Home Screen <span>⊞</span></div><div class="row">Find on Page <span>🔍</span></div></div></div></div></li>
+<li class="step"><div><div class="num o">4</div><h3>Tap "Add"</h3><p>At the top right. Checky's colourful icon now appears on your home screen. Always open Checky from that icon.</p></div>
+  <div class="phone" aria-hidden="true"><div class="scr"><div class="notch"></div><div class="page"><div class="crest"></div></div><div class="dim"></div><div class="dialog"><div class="top"><span class="blue">Cancel</span><span>Add to Home Screen</span><span class="blue hl" style="padding:0 2px">Add</span></div><div style="display:flex;gap:8px;align-items:center"><span class="crest" style="width:30px;height:30px"></span><span>Checky<br><small style="color:#888">checkyapp.co.za</small></span></div></div></div></div></li>
+<li class="step"><div><div class="num b">5</div><h3>Open Checky from the icon</h3><p>Turn on alerts too: menu <strong>☰</strong> → <strong>Alerts on this phone</strong>. On iPhone, alerts only work when Checky is opened from the icon.</p></div>
+  <div class="phone" aria-hidden="true"><div class="scr"><div class="notch"></div><div class="home"><span class="app"><i></i>Photos</span><span class="app"><i></i>Mail</span><span class="app"><i></i>Clock</span><span class="app checky"><i></i>Checky</span><span class="app"><i></i>Maps</span><span class="app"><i></i>Notes</span><span class="app"><i></i>Music</span><span class="app"><i></i>Settings</span></div></div></div></li>
+</ol>
+</section>
+
+<section id="p-and" role="tabpanel" aria-labelledby="t-and" hidden>
+<ol class="steps">
+<li class="step"><div><div class="num b">1</div><h3>Open Checky in Chrome</h3><p>Go to <strong>www.checkyapp.co.za</strong> in <strong>Chrome</strong>. Sometimes a button <strong>Install app</strong> already appears on Checky's sign-in screen. Then just tap it and skip to step 4.</p></div>
+  <div class="phone" aria-hidden="true"><div class="scr"><div class="notch"></div><div class="page"><div class="crest"></div><b>Checky</b></div><div class="chrome-top"><div class="urlbar">checkyapp.co.za</div><span class="dots">⋮</span></div></div></div></li>
+<li class="step"><div><div class="num p">2</div><h3>Tap the three dots ⋮</h3><p>At the <strong>top right</strong> of Chrome.</p></div>
+  <div class="phone" aria-hidden="true"><div class="scr"><div class="notch"></div><div class="page"><div class="crest"></div><b>Checky</b></div><div class="chrome-top"><div class="urlbar">checkyapp.co.za</div><span class="dots hl">⋮</span></div></div></div></li>
+<li class="step"><div><div class="num y">3</div><h3>Tap "Install app" or "Add to Home screen"</h3><p>The name differs a little per phone. Both work.</p></div>
+  <div class="phone" aria-hidden="true"><div class="scr"><div class="notch"></div><div class="page"><div class="crest"></div><b>Checky</b></div><div class="menu"><div>New tab</div><div>History</div><div>Downloads</div><div class="hlrow">Install app</div><div>Share…</div><div>Settings</div></div></div></div></li>
+<li class="step"><div><div class="num o">4</div><h3>Tap "Install"</h3><p>Checky's icon appears on your home screen (sometimes also in your app list).</p></div>
+  <div class="phone" aria-hidden="true"><div class="scr"><div class="notch"></div><div class="page"><div class="crest"></div></div><div class="dim"></div><div class="dialog" style="top:110px"><div style="display:flex;gap:8px;align-items:center"><span class="crest" style="width:30px;height:30px"></span><b style="font:800 11px Nunito">Install app?</b></div><span style="font-size:9px;color:#555">Checky · checkyapp.co.za</span><div style="display:flex;justify-content:flex-end;gap:14px;font-weight:800;color:#1A73E8"><span>Cancel</span><span class="hl" style="padding:0 3px">Install</span></div></div></div></div></li>
+<li class="step"><div><div class="num b">5</div><h3>Open Checky from the icon</h3><p>Turn on alerts too: menu <strong>☰</strong> → <strong>Alerts on this phone</strong> → <strong>Turn on</strong>, and tap <strong>Allow</strong>.</p></div>
+  <div class="phone" aria-hidden="true"><div class="scr"><div class="notch"></div><div class="home" style="background:linear-gradient(160deg,#1E3C72,#2A5298 50%,#4CA1AF)"><span class="app"><i></i>Phone</span><span class="app"><i></i>Messages</span><span class="app"><i></i>Chrome</span><span class="app checky"><i></i>Checky</span><span class="app"><i></i>Camera</span><span class="app"><i></i>Gallery</span><span class="app"><i></i>Maps</span><span class="app"><i></i>Settings</span></div></div></div></li>
+</ol>
+</section>
+
+<div class="box yellow note"><strong>Stuck?</strong> Make sure you confirmed your email (step 3), then sign in again. Still not working? Send a WhatsApp or email to <a href="mailto:checkdieapp@gmail.com">checkdieapp@gmail.com</a>.</div>
+</main>
+<footer>© 2026 Checky · <a href="/">Open Checky</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer>
+</div>
+<script>
+const tabs=[...document.querySelectorAll('[role=tab]')];
+function pick(t){tabs.forEach(x=>{const on=x===t;x.setAttribute('aria-selected',on);document.getElementById(x.getAttribute('aria-controls')).hidden=!on})}
+tabs.forEach(t=>t.addEventListener('click',()=>pick(t)));
+if(/android/i.test(navigator.userAgent)) pick(document.getElementById('t-and'));
+</script>
+</body></html>
