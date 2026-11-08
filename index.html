@@ -1603,7 +1603,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   function fieldHtml(f,val){
     const id='rf-'+f.k, v=val==null?'':String(val), ph=f.ph?' placeholder="'+esc(f.ph)+'"':'', mx=f.max?' maxlength="'+f.max+'"':'';
     let input;
-    if(f.type==='checks'){const sel=Array.isArray(val)?val.map(String):[]; return '<fieldset class="field wide day-checks" data-k="'+f.k+'" id="'+id+'"><legend>'+esc(f.label)+'</legend><div class="chk-row">'+optList(f).map(([ov,ol])=>'<label class="opt chk"><input type="checkbox" value="'+esc(ov)+'"'+(sel.includes(String(ov))?' checked':'')+'> '+esc(ol)+'</label>').join('')+'</div></fieldset>'}
+    if(f.type==='checks'){const sel=Array.isArray(val)?val.map(String):String(val||'').split(',').filter(Boolean); return '<fieldset class="field wide day-checks" data-k="'+f.k+'" id="'+id+'"><legend>'+esc(f.label)+'</legend><div class="chk-row">'+optList(f).map(([ov,ol])=>'<label class="opt chk"><input type="checkbox" value="'+esc(ov)+'"'+(sel.includes(String(ov))?' checked':'')+'> '+esc(ol)+'</label>').join('')+'</div></fieldset>'}
     if(f.type==='hidden') return '<input type="hidden" id="'+id+'" value="'+esc(v)+'" data-k="'+f.k+'">';
     if(f.type==='photo') return '<div class="field wide" data-k="'+f.k+'"><label for="'+id+'">'+esc(f.label)+'</label><div class="photo-pick">'+(recCtx&&recCtx.rec&&recCtx.rec._url&&!isPdfPath(recCtx.rec[f.k])?'<img src="'+esc(recCtx.rec._url)+'" alt="Current photo" class="photo-prev" id="'+id+'-prev">':'<img alt="" class="photo-prev" id="'+id+'-prev" hidden>')+'<input id="'+id+'" type="file" accept="'+(f.pdf?'image/*,application/pdf':'image/*')+'">'+(v?'<label class="opt"><input type="checkbox" id="'+id+'-remove"> Remove this '+(f.pdf?'file':'photo')+'</label>':'')+'</div></div>';
     if(f.type==='select') input='<select id="'+id+'">'+optList(f).map(([ov,ol])=>'<option value="'+esc(ov)+'"'+(String(ov)===v?' selected':'')+'>'+esc(ol)+'</option>').join('')+'</select>';
@@ -1612,7 +1612,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       input='<input id="'+id+'" type="'+t+'"'+(t==='number'?' inputmode="decimal" step="any" min="0"':'')+' value="'+esc(t==='time'?v.slice(0,5):v)+'"'+mx+ph+'>'}
     return '<div class="field'+(f.wide||f.type==='longtext'?' wide':'')+'" data-k="'+f.k+'"><label for="'+id+'">'+esc(typeof f.label==='function'?f.label():f.label)+'</label>'+input+'</div>';
   }
-  function formValues(c){const o={};c.fields.forEach(f=>{const el=$('#rf-'+f.k); if(!el||f.type==='photo') return; if(f.type==='checks'){o[f.k]=[...el.querySelectorAll('input:checked')].map(i=>i.value);return} let v=el.value.trim(); o[f.k]=v===''?null:f.type==='number'?+v:v});return o}
+  function formValues(c){const o={};c.fields.forEach(f=>{const el=$('#rf-'+f.k); if(!el||f.type==='photo') return; if(f.type==='checks'){const a=[...el.querySelectorAll('input:checked')].map(i=>i.value); o[f.k]=f.join?(a.join(',')||null):a; return} let v=el.value.trim(); o[f.k]=v===''?null:f.type==='number'?+v:v});return o}
   function syncShow(c){const vals=formValues(c); c.fields.forEach(f=>{if(f.showIf){const w=recForm.querySelector('[data-k="'+f.k+'"]'); if(w) w.hidden=!f.showIf(vals)}})}
   function openRecord(k,rec,opts={}){
     const c=LISTDEF[k]; recCtx={k,rec,preset:opts.preset||{}};
@@ -1969,16 +1969,17 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       {k:'on_date',label:'Date',type:'date',req:true,reqMsg:'Choose the date.',def:()=>FCAL_DAY||todayIso()},
       {k:'end_date',label:'Until (optional)',type:'date'},
       {k:'at_time',label:'Time (optional)',type:'time'},
-      {k:'who',label:'For',type:'select',options:()=>[['family','Whole family'],...KIDS().map(k=>[k,nm(k)]),['p1',nm('p1')],...(FAM.p2?[['p2',nm('p2')]]:[])],def:'family'},
+      {k:'who',label:'For (tick everyone it is for)',type:'checks',join:true,options:()=>[['family','Whole family'],...KIDS().map(k=>[k,nm(k)]),['p1',nm('p1')],...(FAM.p2?[['p2',nm('p2')]]:[])],def:()=>['family']},
       {k:'notes',label:'Notes',type:'longtext',max:300}],
-    validate:r=>r.end_date&&r.end_date<r.on_date?'The end date is before the start date.':null,
+    validate:r=>{if(r.who&&r.who.split(',').includes('family')) r.who='family'; return r.end_date&&r.end_date<r.on_date?'The end date is before the start date.':null},
     sort:(a,b)=>(a.on_date+(a.at_time||'')).localeCompare(b.on_date+(b.at_time||'')),
-    item:r=>({title:r.title,meta:[FEV_KIND[r.kind],rangeText(r.on_date,r.end_date||r.on_date)+(r.at_time?' '+t5(r.at_time):''),r.who?nm(r.who):'',r.notes]})});
+    item:r=>({title:r.title,meta:[FEV_KIND[r.kind],rangeText(r.on_date,r.end_date||r.on_date)+(r.at_time?' '+t5(r.at_time):''),whoList(r.who),r.notes]})});
+  const whoList=w=>!w||w==='family'?'Whole family':String(w).split(',').map(nm).join(' & ');
   let FCAL_DAY=null, fcalMonth=new Date(now.getFullYear(),now.getMonth(),1);
   const inRange=(d,a,b)=>a&&d>=a&&d<=(b||a);
   function calItems(d){
     const out=[], dt=new Date(d+'T12:00');
-    RECS.fevents.forEach(r=>{if(inRange(d,r.on_date,r.end_date)) out.push({c:'b',time:t5(r.at_time),title:r.title,sub:FEV_KIND[r.kind]+(r.who&&r.who!=='family'?' · '+nm(r.who):''),rec:r})});
+    RECS.fevents.forEach(r=>{if(inRange(d,r.on_date,r.end_date)) out.push({c:'b',time:t5(r.at_time),title:r.title,sub:FEV_KIND[r.kind]+' · '+whoList(r.who),rec:r})});
     ACTS.filter(a=>onDate(a,dt)).forEach(a=>out.push({c:'p',time:a.start||'',title:a.name,sub:'Activity · '+nm(a.who)}));
     RECS.events.forEach(r=>{if(r.on_date===d) out.push({c:'y',time:t5(r.at_time),title:r.title,sub:'School · '+nm(r.child||'c1')})});
     RECS.exams.forEach(r=>{if(r.on_date===d) out.push({c:'o',time:t5(r.starts),title:'Exam: '+r.subject,sub:nm(r.child||'c1')})});
