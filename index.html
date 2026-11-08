@@ -1349,7 +1349,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       (PAINT?'<div class="paint-bar" role="group" aria-label="Colour days for"><span class="hint">Colour days for:</span><button type="button" class="brush" data-b="p1" aria-pressed="'+(PAINT.brush==='p1')+'"><i style="background:var(--mother)"></i>'+esc(nm('p1'))+'</button><button type="button" class="brush" data-b="p2" aria-pressed="'+(PAINT.brush==='p2')+'"><i style="background:var(--father)"></i>'+esc(nm('p2'))+'</button><button type="button" class="brush" data-b="" aria-pressed="'+(PAINT.brush==='')+'">Clear</button></div>':'')+'<div class="table-scroll"><table class="cal" id="cal"></table></div><div id="cal-foot" style="display:grid;gap:10px"></div>';
     const pendingDays=new Set(); SCH.reqs.filter(r=>r.status==='pending').forEach(r=>{for(let d=r.from_date;d<=r.to_date;d=iso(addDays(new Date(d+'T12:00'),1))) pendingDays.add(d)});
     const first=new Date(calMonth), gridStart=addDays(first,-((first.getDay()+6)%7));
-    let html='<caption class="hint" style="text-align:left;padding-bottom:4px">'+(PAINT?'Tap days to colour them':hasDays?'Tap a day to ask for a change':'Tap a day to start filling in')+'</caption><thead><tr>'+['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>'<th scope="col">'+d+'</th>').join('')+'</tr></thead><tbody>';
+    let html='<caption class="hint" style="text-align:left;padding-bottom:4px">'+(PAINT?((SCH.members||1)>1&&hasDays?'Tap empty days to colour them':'Tap days to colour them'):hasDays?((SCH.members||1)>1?'Tap an empty day to fill it in. Tap a filled day to ask for a change.':'Tap an empty day to fill it in, or a filled day to change it'):'Tap a day to start filling in')+'</caption><thead><tr>'+['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>'<th scope="col">'+d+'</th>').join('')+'</tr></thead><tbody>';
     for(let w=0;w<6;w++){
       const rowStart=addDays(gridStart,w*7); if(w>3&&rowStart.getMonth()!==calMonth.getMonth()) break;
       html+='<tr>';
@@ -1364,13 +1364,13 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     const foot=calSec.querySelector('#cal-foot');
     if(PAINT){
       const n=Object.keys(PAINT.changes).length, lock=(SCH.members||1)>1;
-      foot.innerHTML='<p class="hint" style="margin:0">'+(n?n+(n===1?' day changed.':' days changed.'):'Choose a colour above, then tap the days. Use the arrows to go to other months.')+(lock?' After you save, any change needs '+esc(nm(otherOf(FAM.me)))+"'s approval.":'')+'</p><div class="note-acts"><button type="button" class="btn small" id="paint-save"'+(n?'':' disabled')+'>Save calendar</button><button type="button" class="btn ghost small" id="paint-cancel">Cancel</button></div>';
+      foot.innerHTML='<p class="hint" style="margin:0">'+(n?n+(n===1?' day changed.':' days changed.'):'Choose a colour above, then tap the days. Use the arrows to go to other months.')+(lock?(hasDays?' Empty days save straight away. Days already filled in can only change with '+esc(nm(otherOf(FAM.me)))+"'s approval.":' After you save, any change needs '+esc(nm(otherOf(FAM.me)))+"'s approval."):'')+'</p><div class="note-acts"><button type="button" class="btn small" id="paint-save"'+(n?'':' disabled')+'>Save calendar</button><button type="button" class="btn ghost small" id="paint-cancel">Cancel</button></div>';
     }else if(!hasDays){
       foot.innerHTML='<p class="hint" style="margin:0">The calendar is empty. Fill it in by hand, or use a repeating pattern you agreed on.</p><div class="note-acts"><button type="button" class="btn small" id="paint-start">Fill in by hand</button><button type="button" class="btn ghost small" id="cust-open">Use a repeating pattern</button></div>';
     }else{
       const soon=last<iso(addDays(now,30)), pat=SCH.plan&&SCH.plan.pattern;
       foot.innerHTML='<p class="hint" style="margin:0'+(soon?';color:var(--p-yellow)':'')+'">'+(pat?esc(PATTERN_TEXT[pat]||'')+'. ':'')+'Planned until '+esc(new Date(last+'T12:00').toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'}))+'.'+(soon?' Time to plan the next months.':'')+'</p>'+
-        '<div class="note-acts"><button type="button" class="btn small" id="req-open">Ask to change days</button>'+(pat&&pat!=='manual'?'<button type="button" class="btn ghost small" id="cust-extend">Plan 3 more months</button>':'')+(canHandEdit()?'<button type="button" class="btn ghost small" id="paint-start">Edit by hand</button><button type="button" class="btn ghost small" id="cust-open">Use a pattern</button>':'')+'</div>';
+        '<div class="note-acts"><button type="button" class="btn small" id="req-open">Ask to change days</button>'+(pat&&pat!=='manual'?'<button type="button" class="btn ghost small" id="cust-extend">Plan 3 more months</button>':'')+(canHandEdit()?'<button type="button" class="btn ghost small" id="paint-start">Edit by hand</button><button type="button" class="btn ghost small" id="cust-open">Use a pattern</button>':'<button type="button" class="btn ghost small" id="paint-start">Fill in empty days</button>')+'</div>';
     }
     // Waiting for approval
     const reqSec=document.createElement('section'); reqSec.className='panel chrome'+(SCH.reqs.some(r=>r.status==='pending')?' rim-yellow':''); reqSec.setAttribute('aria-labelledby','h-req');
@@ -1416,9 +1416,11 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     calSec.querySelector('#cal-prev').addEventListener('click',()=>{calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()-1,1);refreshCat()});
     calSec.querySelector('#cal-next').addEventListener('click',()=>{calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()+1,1);refreshCat()});
     calSec.querySelectorAll('.day').forEach(b=>b.addEventListener('click',()=>{
-      const d=b.dataset.d;
-      if(!PAINT&&!hasDays&&canHandEdit()) PAINT={brush:FAM.me||'p1',changes:{}};
-      if(PAINT){ if((SCH.days[d]||'')===PAINT.brush) delete PAINT.changes[d]; else PAINT.changes[d]=PAINT.brush; refreshCat(); return }
+      const d=b.dataset.d, filled=!!SCH.days[d], locked=(SCH.members||1)>1&&hasDays;
+      if(PAINT){
+        if(locked&&filled){toast('This day is already filled in. To change it, tap Cancel, then tap the day to ask '+nm(otherOf(FAM.me))+' for approval.',4500); return}
+        if((SCH.days[d]||'')===PAINT.brush) delete PAINT.changes[d]; else PAINT.changes[d]=PAINT.brush; refreshCat(); return }
+      if(!filled){const br=FAM.me||'p1'; PAINT={brush:br,changes:{[d]:br}}; refreshCat(); return}
       openRequest(d,d,otherOf(SCH.days[d]||FAM.me));
     }));
     calSec.querySelectorAll('.brush').forEach(b=>b.addEventListener('click',()=>{PAINT.brush=b.dataset.b;refreshCat()}));

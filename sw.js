@@ -1,6 +1,6 @@
 // Checky service worker: lets the app open quickly and show its screens without a connection.
 // Accounts and family data (Supabase) are never cached here; they always come live from the server.
-const CACHE = 'checky-v40';
+const CACHE = 'checky-v41';
 const SHELL = ['/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png',
   '/icons/apple-touch-icon.png', '/icons/favicon-32.png'];
 const STATIC_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com', 'cdn.jsdelivr.net'];
