@@ -237,6 +237,14 @@ table.log td{padding:10px 8px;border-bottom:1px solid var(--line);font-variant-n
 .locked-panel{text-align:center;padding:34px 22px;display:grid;gap:12px;justify-items:center;margin-top:18px}
 .locked-panel h3{font-size:1.8rem}
 .locked-panel p{max-width:46ch;margin:0;color:var(--ink-soft)}
+#notes-bar{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+#notes-bar[hidden]{display:none}
+.app-note{position:relative;padding:16px 18px 16px 20px;border-radius:22px 22px 22px 8px;background:#141218;box-shadow:inset 0 0 0 1px #2E2A34,0 12px 26px rgba(0,0,0,.45);overflow:hidden}
+.app-note::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:linear-gradient(180deg,#2EC4EE,#F2479B 40%,#FFD21F 72%,#FF9A3C)}
+.app-note .eyebrow{display:block;margin-bottom:2px}
+.app-note h3{margin:0 0 4px;font-family:var(--display);font-size:1.45rem;font-weight:400;line-height:1.1;color:var(--ink)}
+.app-note p{margin:0 0 12px;color:var(--ink-soft)}
+.app-note .btn{padding:8px 18px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;
   padding:12px 20px;border-radius:999px;background:var(--paint);color:var(--ink-dark);font-weight:700;font-size:.9rem;transition:.25s;pointer-events:none;max-width:calc(100% - 32px)}
 .toast.show{opacity:1;transform:translate(-50%,0)}
@@ -416,6 +424,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
 
   <div class="wrap" id="pay-bar" hidden><button type="button" class="approve-bar" id="pay-bar-btn" style="background:linear-gradient(100deg,#B8EEFC,#2EC4EE)"></button></div>
   <div class="wrap" id="approve-bar" hidden><button type="button" class="approve-bar" id="approve-bar-btn"></button></div>
+  <div class="wrap" id="notes-bar" hidden aria-live="polite"></div>
 
   <!-- -------- Personal -------- -->
   <main id="personal" class="wrap">
@@ -2395,7 +2404,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     await Promise.all([loadPersonal(),loadBills(),loadList('comm'),loadList('pets'),loadList('petrec')]); syncAlerts();
     if(location.hash==='#shared'){history.replaceState(null,'',location.pathname); $('#seg-shared').click()}
     const meta=user.user_metadata||{};
-    await loadJoinRequests(); subscribeJoins(); loadAccess();
+    await loadJoinRequests(); subscribeJoins(); loadAccess(); loadAppNotes();
     if(FROM_INVITE&&meta.invite_code&&!HH.some(h=>h.f.invite_code===meta.invite_code)){
       const {data:f,error:je}=await sb.rpc('join_family',{p_code:meta.invite_code,p_role:meta.invite_role||'p2'});
       if(!je&&f&&f.status==='pending'){await loadJoinRequests(); toast('Your request to join was sent. You\'ll get an alert once it is approved.',5000)}
@@ -2629,6 +2638,22 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   const PAYTEST=/[?&]paytest=1/.test(location.search);
   const fmtD=d=>d?new Date(d).toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'}):'';
   const daysUntil=d=>d?Math.ceil((new Date(d)-Date.now())/864e5):null;
+  // ---------- Notes from Rozanne (tester thank-yous and "What's new") ----------
+  async function loadAppNotes(){
+    const bar=$('#notes-bar'); if(!bar) return;
+    const {data,error}=await sb.rpc('my_notes',{}); if(error||!data){bar.hidden=true;return}
+    bar.innerHTML='';
+    data.forEach(n=>{
+      const c=document.createElement('section'); c.className='app-note'; c.setAttribute('aria-label',n.title);
+      const e=document.createElement('span'); e.className='eyebrow'; e.textContent=n.kind==='tester'?'A note from Rozanne':'New in Checky';
+      const h=document.createElement('h3'); h.textContent=n.title;
+      const p=document.createElement('p'); p.textContent=n.body;
+      const b=document.createElement('button'); b.type='button'; b.className='btn'; b.textContent=n.button||'Got it!';
+      b.addEventListener('click',async()=>{b.disabled=true; await sb.rpc('dismiss_note',{p_note:n.id}); c.remove(); if(!bar.children.length) bar.hidden=true});
+      c.append(e,h,p,b); bar.appendChild(c);
+    });
+    bar.hidden=!data.length;
+  }
   async function loadAccess(){
     if(!USER||!sb) return; const {data,error}=await sb.rpc('my_access',{}); if(error) return;
     const was=ACCESS&&ACCESS.locked; ACCESS=data; updatePayBar(); const no=$('#nav-owner'); if(no) no.hidden=!ACCESS.owner;
