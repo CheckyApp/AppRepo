@@ -250,6 +250,12 @@ table.log td{padding:10px 8px;border-bottom:1px solid var(--line);font-variant-n
 .chk-row{display:flex;flex-wrap:wrap;gap:8px}
 .opt.chk{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px #3A3442;cursor:pointer}
 .opt.chk:has(input:checked){background:rgba(255,210,31,.16);box-shadow:inset 0 0 0 1.5px var(--p-yellow)}
+.fcal .day{position:relative}
+.fcal td.sel .day{box-shadow:inset 0 0 0 2px var(--p-pink)}
+.fcal .dots{position:absolute;left:0;right:0;bottom:3px;display:flex;justify-content:center;gap:2px}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%}
+.d-b{background:#2EC4EE}.d-p{background:#F2479B}.d-y{background:#FFD21F}.d-o{background:#FF9A3C}
+.cal-rename{margin-left:6px;font-family:var(--body);font-size:.75rem;vertical-align:middle}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;
   padding:12px 20px;border-radius:999px;background:var(--paint);color:var(--ink-dark);font-weight:700;font-size:.9rem;transition:.25s;pointer-events:none;max-width:calc(100% - 32px)}
 .toast.show{opacity:1;transform:translate(-50%,0)}
@@ -444,7 +450,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
         <div class="stat"><b class="num" id="shop-count">5</b><span>items on the shopping list</span></div>
         <div class="stat"><b class="num" id="bills-week">R 0</b><span>bills due this week</span></div>
         <div class="stat"><b class="num" id="acts-today-count">0</b><span>activities today</span></div>
-        <div class="stat" id="stat-handover"><b id="ho-next-day">–</b><span id="ho-next-text">custody calendar not set up</span></div>
+        <div class="stat" id="stat-handover"><b id="ho-next-day">–</b><span id="ho-next-text">custody Calendar not set up</span></div>
       </div>
     </section>
 
@@ -689,8 +695,8 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
 
 <dialog id="cust-dialog" aria-labelledby="cust-title">
   <form id="cust-form" class="dlg" method="dialog" novalidate>
-    <h3 id="cust-title">Set up the custody calendar</h3>
-    <p class="hint" style="margin:0">Choose the pattern you agreed on. Checky fills in the calendar for the next months. After this, any change needs the other parent's approval.</p>
+    <h3 id="cust-title">Set up the custody Calendar</h3>
+    <p class="hint" style="margin:0">Choose the pattern you agreed on. Checky fills in the Calendar for the next months. After this, any change needs the other parent's approval.</p>
     <div class="field"><label for="cust-pattern">Pattern</label><select id="cust-pattern">
       <option value="week">Week on, week off</option>
       <option value="2255">2-2-5-5 (2 days, 2 days, 5 days, 5 days)</option>
@@ -702,7 +708,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       <div class="field"><label for="cust-months">Plan ahead for</label><select id="cust-months"><option value="3">3 months</option><option value="6">6 months</option><option value="12">12 months</option></select></div>
     </div>
     <p class="hint" id="cust-error" role="alert" style="margin:0;color:var(--p-pink-lt)" hidden></p>
-    <div class="note-acts"><button class="btn" type="submit">Fill in the calendar</button><button class="btn ghost" type="button" id="cust-cancel">Cancel</button></div>
+    <div class="note-acts"><button class="btn" type="submit">Fill in the Calendar</button><button class="btn ghost" type="button" id="cust-cancel">Cancel</button></div>
   </form>
 </dialog>
 
@@ -1331,7 +1337,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   function renderHandoverStat(){
     const dayEl=$('#ho-next-day'), txt=$('#ho-next-text'); if(!dayEl) return;
     const t=iso(now), cur=SCH.days[t];
-    if(!cur){dayEl.textContent='–';txt.textContent=Object.keys(SCH.days).length?'no custody planned for today':'custody calendar not set up';return}
+    if(!cur){dayEl.textContent='–';txt.textContent=Object.keys(SCH.days).length?'no custody planned for today':'custody Calendar not set up';return}
     for(let k=1;k<=60;k++){const d=iso(addDays(now,k)),p=SCH.days[d]; if(p&&p!==cur){
       dayEl.textContent=k===1?'Tomorrow':new Date(d+'T12:00').toLocaleDateString('en-ZA',{weekday:'short'}).replace('.','');
       txt.innerHTML=(k>6?esc(dmy(d))+': ':'')+'children go to <span data-name="'+p+'">'+esc(nm(p))+'</span>';return}}
@@ -1344,7 +1350,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     // Calendar
     const calSec=document.createElement('section'); calSec.className='panel chrome'; calSec.setAttribute('aria-labelledby','h-cal');
     const mLabel=calMonth.toLocaleDateString('en-ZA',{month:'long',year:'numeric'});
-    calSec.innerHTML='<div class="panel-head"><h3 id="h-cal">50/50 calendar</h3><div class="cal-nav"><button type="button" class="mini-btn" id="cal-prev" aria-label="Previous month">‹</button><b>'+esc(mLabel)+'</b><button type="button" class="mini-btn" id="cal-next" aria-label="Next month">›</button></div></div>'+
+    calSec.innerHTML='<div class="panel-head"><h3 id="h-cal">'+esc(calName())+' <button type="button" class="mini-btn cal-rename" aria-label="Rename this Calendar">Rename</button></h3><div class="cal-nav"><button type="button" class="mini-btn" id="cal-prev" aria-label="Previous month">‹</button><b>'+esc(mLabel)+'</b><button type="button" class="mini-btn" id="cal-next" aria-label="Next month">›</button></div></div>'+
       '<div class="legend"><span><i style="background:var(--mother)"></i>'+esc(nm('p1'))+'</span><span><i style="background:var(--father)"></i>'+esc(nm('p2'))+'</span><span><i style="box-shadow:inset 0 0 0 2px var(--p-yellow)"></i>Today</span><span><i style="outline:2px dashed var(--p-yellow);outline-offset:-2px"></i>Waiting for approval</span></div>'+
       (PAINT?'<div class="paint-bar" role="group" aria-label="Colour days for"><span class="hint">Colour days for:</span><button type="button" class="brush" data-b="p1" aria-pressed="'+(PAINT.brush==='p1')+'"><i style="background:var(--mother)"></i>'+esc(nm('p1'))+'</button><button type="button" class="brush" data-b="p2" aria-pressed="'+(PAINT.brush==='p2')+'"><i style="background:var(--father)"></i>'+esc(nm('p2'))+'</button><button type="button" class="brush" data-b="" aria-pressed="'+(PAINT.brush==='')+'">Clear</button></div>':'')+'<div class="table-scroll"><table class="cal" id="cal"></table></div><div id="cal-foot" style="display:grid;gap:10px"></div>';
     const pendingDays=new Set(); SCH.reqs.filter(r=>r.status==='pending').forEach(r=>{for(let d=r.from_date;d<=r.to_date;d=iso(addDays(new Date(d+'T12:00'),1))) pendingDays.add(d)});
@@ -1364,9 +1370,9 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     const foot=calSec.querySelector('#cal-foot');
     if(PAINT){
       const n=Object.keys(PAINT.changes).length, lock=(SCH.members||1)>1;
-      foot.innerHTML='<p class="hint" style="margin:0">'+(n?n+(n===1?' day changed.':' days changed.'):'Choose a colour above, then tap the days. Use the arrows to go to other months.')+(lock?(hasDays?' Empty days save straight away. Days already filled in can only change with '+esc(nm(otherOf(FAM.me)))+"'s approval.":' After you save, any change needs '+esc(nm(otherOf(FAM.me)))+"'s approval."):'')+'</p><div class="note-acts"><button type="button" class="btn small" id="paint-save"'+(n?'':' disabled')+'>Save calendar</button><button type="button" class="btn ghost small" id="paint-cancel">Cancel</button></div>';
+      foot.innerHTML='<p class="hint" style="margin:0">'+(n?n+(n===1?' day changed.':' days changed.'):'Choose a colour above, then tap the days. Use the arrows to go to other months.')+(lock?(hasDays?' Empty days save straight away. Days already filled in can only change with '+esc(nm(otherOf(FAM.me)))+"'s approval.":' After you save, any change needs '+esc(nm(otherOf(FAM.me)))+"'s approval."):'')+'</p><div class="note-acts"><button type="button" class="btn small" id="paint-save"'+(n?'':' disabled')+'>Save Calendar</button><button type="button" class="btn ghost small" id="paint-cancel">Cancel</button></div>';
     }else if(!hasDays){
-      foot.innerHTML='<p class="hint" style="margin:0">The calendar is empty. Fill it in by hand, or use a repeating pattern you agreed on.</p><div class="note-acts"><button type="button" class="btn small" id="paint-start">Fill in by hand</button><button type="button" class="btn ghost small" id="cust-open">Use a repeating pattern</button></div>';
+      foot.innerHTML='<p class="hint" style="margin:0">The Calendar is empty. Fill it in by hand, or use a repeating pattern you agreed on.</p><div class="note-acts"><button type="button" class="btn small" id="paint-start">Fill in by hand</button><button type="button" class="btn ghost small" id="cust-open">Use a repeating pattern</button></div>';
     }else{
       const soon=last<iso(addDays(now,30)), pat=SCH.plan&&SCH.plan.pattern;
       foot.innerHTML='<p class="hint" style="margin:0'+(soon?';color:var(--p-yellow)':'')+'">'+(pat?esc(PATTERN_TEXT[pat]||'')+'. ':'')+'Planned until '+esc(new Date(last+'T12:00').toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'}))+'.'+(soon?' Time to plan the next months.':'')+'</p>'+
@@ -1413,7 +1419,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       cl.appendChild(li);
     });
     wrap.append(calSec,reqSec,hoSec,chSec); body.appendChild(wrap);
-    calSec.querySelector('#cal-prev').addEventListener('click',()=>{calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()-1,1);refreshCat()});
+    calSec.querySelector('.cal-rename').addEventListener('click',()=>openRecord('calname',null)); calSec.querySelector('#cal-prev').addEventListener('click',()=>{calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()-1,1);refreshCat()});
     calSec.querySelector('#cal-next').addEventListener('click',()=>{calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()+1,1);refreshCat()});
     calSec.querySelectorAll('.day').forEach(b=>b.addEventListener('click',()=>{
       const d=b.dataset.d, filled=!!SCH.days[d], locked=(SCH.members||1)>1&&hasDays;
@@ -1461,7 +1467,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       SCH.plan={pattern:pat,start_date:start,first_parent:first}; custDlg.close(); renderHandoverStat(); refreshCat();
     }
     calMonth=new Date(start.slice(0,4),+start.slice(5,7)-1,1); refreshCat();
-    toast('Custody calendar filled in for '+months+' months');
+    toast('Custody Calendar filled in for '+months+' months');
   });
   async function savePaint(){
     const changes=Object.entries(PAINT.changes).map(([day,parent])=>({day,parent}));
@@ -1495,7 +1501,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     $('#req-from').value=from; $('#req-to').value=to; $('#req-parent').value=parent||otherOf(FAM.me); $('#req-reason').value='';
     const alone=(SCH.members||1)<2;
     $('#req-who').textContent=alone?'You are the only parent in this family for now, so the change is made straight away.':nm(otherOf(FAM.me))+' will be asked to approve this. Nothing changes until they do.';
-    $('#req-send').textContent=alone?'Change the calendar':'Send request';
+    $('#req-send').textContent=alone?'Change the Calendar':'Send request';
     reqDlg.showModal();
   }
   $('#req-cancel').addEventListener('click',()=>reqDlg.close());
@@ -1527,7 +1533,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       Object.assign(r,{status:act==='approve'?'approved':act==='decline'?'declined':'withdrawn',decided_role:FAM.me,decided_at:new Date().toISOString()});
       renderHandoverStat(); refreshCat();
     }
-    toast(act==='withdraw'?'Request withdrawn.':(act==='approve'?'Change approved. The calendar is updated. ':'Change declined. ')+(act==='withdraw'?'':nm(r.requested_role)+' can see your answer.'));
+    toast(act==='withdraw'?'Request withdrawn.':(act==='approve'?'Change approved. The Calendar is updated. ':'Change declined. ')+(act==='withdraw'?'':nm(r.requested_role)+' can see your answer.'));
   }
 
   // Drop-offs and pickups
@@ -1917,7 +1923,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   function pickupPanel(){
     const sec=document.createElement('section'); sec.className='panel chrome'+(PLANS.some(p=>p.status!=='approved'&&p.requested_by!==(USER&&USER.id))?' rim-yellow':''); sec.style.gridColumn='1/-1'; sec.setAttribute('aria-labelledby','h-pick');
     sec.innerHTML='<div class="panel-head"><h3 id="h-pick">🚗 Pickup timetable</h3><button type="button" class="btn small" id="pick-change">Change who fetches</button></div>'+
-      '<p class="hint" style="margin:0">Who fetches follows the custody calendar, unless you set it here. Exams, half days, holidays and activities after school are worked in automatically.</p>'+
+      '<p class="hint" style="margin:0">Who fetches follows the custody Calendar, unless you set it here. Exams, half days, holidays and activities after school are worked in automatically.</p>'+
       '<div class="field" style="max-width:280px"><label for="pick-lead">Remind me before pickup</label><select id="pick-lead">'+[[15,'15 minutes before'],[30,'30 minutes before'],[45,'45 minutes before'],[60,'1 hour before'],[0,'No pickup reminders']].map(([v,l])=>'<option value="'+v+'"'+(v===PICKLEAD?' selected':'')+'>'+l+'</option>').join('')+'</select></div>'+
       '<div class="pick-pend" style="display:grid;gap:10px"></div><ul class="list pick-days"></ul><div class="pick-regular" style="display:grid;gap:10px"></div>';
     sec.querySelector('#pick-change').addEventListener('click',()=>openRecord('pplan',null));
@@ -1936,6 +1942,90 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     const reg=PLANS.filter(p=>p.status==='approved'&&(!p.on_date||p.on_date>=todayIso())), rb=sec.querySelector('.pick-regular');
     if(reg.length){const h=document.createElement('h4'); h.textContent='Arrangements'; h.style.margin='6px 0 0'; rb.appendChild(h); reg.forEach(p=>rb.appendChild(planItem(p)))}
     return sec;
+  }
+  // ---------- Calendar name (each household can name its own Calendar) ----------
+  const CAL_PRESETS=['50/50 Calendar','Custody Calendar','Parenting Plan Calendar','Co-parenting Calendar','Week on, Week off Calendar','Every Second Weekend Calendar','Family Calendar','Calendar'];
+  function calName(){return FAM.cal_name||(FAM.type==='one'?'Calendar':'50/50 Calendar')}
+  defineList({key:'calname',table:'families',noun:'Calendar name',plural:'Calendar names',
+    fields:[
+      {k:'preset',label:'Choose a name',type:'select',local:true,options:()=>[...(FAM.type==='one'?['Calendar','Family Calendar']:CAL_PRESETS).map(x=>[x,x]),['custom','My own name…']],def:()=>{const n=calName(); return (FAM.type==='one'?['Calendar','Family Calendar']:CAL_PRESETS).includes(n)?n:'custom'}},
+      {k:'custom',label:'Your own name',max:40,local:true,ph:'e.g. Mia & Ben’s Calendar',def:()=>calName(),showIf:v=>v.preset==='custom'}],
+    validate:()=>null,
+    save:async(row,rec,extra)=>{
+      let n=extra.preset==='custom'?(extra.custom||'').trim():extra.preset; if(!n) return 'Type a name.';
+      if(!/calendar/i.test(n)) n=n+' Calendar';
+      n=n.replace(/calendar/gi,'Calendar').slice(0,40);
+      if(USER&&FAM.id){const {error}=await sb.from('families').update({cal_name:n}).eq('id',FAM.id); if(error) return 'Could not save: '+error.message}
+      FAM.cal_name=n; const h=HH.find(x=>x.f.id===FAM.id); if(h) h.f.cal_name=n;
+      buildNav(); setNav(NAVCUR); refreshCat(); toast('Renamed to '+n+'.'); return true;
+    },item:()=>({title:''})});
+
+  // ---------- Family Calendar (one home): everything in one month view, plus your own dates ----------
+  const FEV_KIND={family:'Family',birthday:'Birthday',appointment:'Appointment',outing:'Outing',visit:'Visit',reminder:'Reminder',other:'Other'};
+  defineList({key:'fevents',table:'family_events',noun:'Calendar item',plural:'Calendar items',
+    fields:[
+      {k:'kind',label:'Type',type:'select',options:Object.entries(FEV_KIND),def:'family'},
+      {k:'title',label:'What',max:100,req:true,ph:'e.g. Gran’s birthday, Dentist, Picnic',reqMsg:'Say what it is.'},
+      {k:'on_date',label:'Date',type:'date',req:true,reqMsg:'Choose the date.',def:()=>FCAL_DAY||todayIso()},
+      {k:'end_date',label:'Until (optional)',type:'date'},
+      {k:'at_time',label:'Time (optional)',type:'time'},
+      {k:'who',label:'For',type:'select',options:()=>[['family','Whole family'],...KIDS().map(k=>[k,nm(k)]),['p1',nm('p1')],...(FAM.p2?[['p2',nm('p2')]]:[])],def:'family'},
+      {k:'notes',label:'Notes',type:'longtext',max:300}],
+    validate:r=>r.end_date&&r.end_date<r.on_date?'The end date is before the start date.':null,
+    sort:(a,b)=>(a.on_date+(a.at_time||'')).localeCompare(b.on_date+(b.at_time||'')),
+    item:r=>({title:r.title,meta:[FEV_KIND[r.kind],rangeText(r.on_date,r.end_date||r.on_date)+(r.at_time?' '+t5(r.at_time):''),r.who?nm(r.who):'',r.notes]})});
+  let FCAL_DAY=null, fcalMonth=new Date(now.getFullYear(),now.getMonth(),1);
+  const inRange=(d,a,b)=>a&&d>=a&&d<=(b||a);
+  function calItems(d){
+    const out=[], dt=new Date(d+'T12:00');
+    RECS.fevents.forEach(r=>{if(inRange(d,r.on_date,r.end_date)) out.push({c:'b',time:t5(r.at_time),title:r.title,sub:FEV_KIND[r.kind]+(r.who&&r.who!=='family'?' · '+nm(r.who):''),rec:r})});
+    ACTS.filter(a=>onDate(a,dt)).forEach(a=>out.push({c:'p',time:a.start||'',title:a.name,sub:'Activity · '+nm(a.who)}));
+    RECS.events.forEach(r=>{if(r.on_date===d) out.push({c:'y',time:t5(r.at_time),title:r.title,sub:'School · '+nm(r.child||'c1')})});
+    RECS.exams.forEach(r=>{if(r.on_date===d) out.push({c:'o',time:t5(r.starts),title:'Exam: '+r.subject,sub:nm(r.child||'c1')})});
+    RECS.terms.forEach(r=>{if(r.kind!=='term'&&inRange(d,r.from_date,r.to_date)) out.push({c:'y',time:r.out_at?t5(r.out_at):'',title:r.title,sub:TERM_KIND[r.kind]})});
+    RECS.trips.forEach(r=>{if(inRange(d,r.trip_date,r.end_date)) out.push({c:'b',time:'',title:'Trip: '+r.place,sub:'Holiday'})});
+    return out.sort((x,y)=>(x.time||'99').localeCompare(y.time||'99'));
+  }
+  function renderFamilyCalendar(body){
+    const wrap=document.createElement('div'), t=todayIso(); wrap.className='grid';
+    if(!FCAL_DAY) FCAL_DAY=t;
+    const sec=document.createElement('section'); sec.className='panel chrome'; sec.style.gridColumn='1/-1'; sec.setAttribute('aria-labelledby','h-fcal');
+    const mLabel=fcalMonth.toLocaleDateString('en-ZA',{month:'long',year:'numeric'});
+    sec.innerHTML='<div class="panel-head"><h3 id="h-fcal">'+esc(calName())+' <button type="button" class="mini-btn cal-rename" aria-label="Rename this Calendar">Rename</button></h3><div class="cal-nav"><button type="button" class="mini-btn" id="fcal-prev" aria-label="Previous month">‹</button><b>'+esc(mLabel)+'</b><button type="button" class="mini-btn" id="fcal-next" aria-label="Next month">›</button></div></div>'+
+      '<p class="hint" style="margin:0">Your own dates, activities, school dates, exams and holidays, all in one place. Tap a day to see it or add something.</p><div class="table-scroll"><table class="cal fcal" id="fcal"></table></div>';
+    const first=new Date(fcalMonth), gridStart=addDays(first,-((first.getDay()+6)%7));
+    let html='<thead><tr>'+['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>'<th scope="col">'+d+'</th>').join('')+'</tr></thead><tbody>';
+    for(let w=0;w<6;w++){
+      const rowStart=addDays(gridStart,w*7); if(w>3&&rowStart.getMonth()!==fcalMonth.getMonth()) break;
+      html+='<tr>';
+      for(let k=0;k<7;k++){const dt=addDays(gridStart,w*7+k), d=iso(dt), its=calItems(d), cls=['none']; if(dt.getMonth()!==fcalMonth.getMonth()) cls.push('out'); if(d===t) cls.push('today'); if(d===FCAL_DAY) cls.push('sel');
+        const dots=[...new Set(its.map(i=>i.c))].slice(0,4).map(c=>'<i class="dot d-'+c+'"></i>').join('');
+        html+='<td class="'+cls.join(' ')+'"><button type="button" class="day" data-d="'+d+'" aria-label="'+esc(dt.toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long'}))+(its.length?', '+its.length+(its.length===1?' item':' items'):'')+'">'+dt.getDate()+(dots?'<span class="dots">'+dots+'</span>':'')+'</button></td>'}
+      html+='</tr>';
+    }
+    sec.querySelector('#fcal').innerHTML=html+'</tbody>';
+    // the chosen day
+    const daySec=document.createElement('section'); daySec.className='panel chrome'; daySec.setAttribute('aria-labelledby','h-fday');
+    const its=calItems(FCAL_DAY);
+    daySec.innerHTML='<div class="panel-head"><h3 id="h-fday">'+esc(FCAL_DAY===t?'Today':new Date(FCAL_DAY+'T12:00').toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long'}))+'</h3><button type="button" class="btn small" id="fcal-add">Add to Calendar</button></div><ul class="list"></ul>';
+    const ul=daySec.querySelector('ul');
+    if(!its.length) ul.innerHTML='<li class="empty">Nothing on this day yet.</li>';
+    its.forEach(i=>{const li=document.createElement('li'); li.className='bill-li'; li.innerHTML='<i class="dot d-'+i.c+'" style="flex:none"></i><div class="grow"><span></span><div class="meta"></div></div><div class="bill-side"></div>';
+      li.querySelector('.grow span').textContent=(i.time?i.time+' · ':'')+i.title; li.querySelector('.meta').textContent=i.sub;
+      if(i.rec){const b=document.createElement('button'); b.type='button'; b.className='mini-btn'; b.textContent='Edit'; b.addEventListener('click',()=>openRecord('fevents',i.rec)); li.querySelector('.bill-side').appendChild(b)}
+      ul.appendChild(li)});
+    // coming up
+    const up=document.createElement('section'); up.className='panel chrome'; up.setAttribute('aria-labelledby','h-fup');
+    up.innerHTML='<div class="panel-head"><h3 id="h-fup">Coming up</h3><span class="hint">Next 30 days</span></div><ul class="list"></ul>';
+    const ul2=up.querySelector('ul'); let any=0;
+    for(let k=0;k<30&&any<15;k++){const d=iso(addDays(now,k)), xs=calItems(d); xs.forEach(i=>{if(any>=15) return; any++; const li=document.createElement('li'); li.innerHTML='<i class="dot d-'+i.c+'" style="flex:none"></i><div class="grow"><span></span><div class="meta"></div></div>'; li.querySelector('span').textContent=i.title; li.querySelector('.meta').textContent=[k===0?'Today':k===1?'Tomorrow':dmy(d),i.time,i.sub].filter(Boolean).join(' · '); ul2.appendChild(li)})}
+    if(!any) ul2.innerHTML='<li class="empty">Nothing coming up. Tap a day and choose Add to Calendar.</li>';
+    wrap.append(sec,daySec,up); body.appendChild(wrap);
+    sec.querySelector('.cal-rename').addEventListener('click',()=>openRecord('calname',null));
+    sec.querySelector('#fcal-prev').addEventListener('click',()=>{fcalMonth=new Date(fcalMonth.getFullYear(),fcalMonth.getMonth()-1,1);refreshCat()});
+    sec.querySelector('#fcal-next').addEventListener('click',()=>{fcalMonth=new Date(fcalMonth.getFullYear(),fcalMonth.getMonth()+1,1);refreshCat()});
+    sec.querySelectorAll('.day').forEach(b=>b.addEventListener('click',()=>{FCAL_DAY=b.dataset.d; refreshCat()}));
+    daySec.querySelector('#fcal-add').addEventListener('click',()=>openRecord('fevents',null,{preset:{on_date:FCAL_DAY}}));
   }
   // School times panel with "Copy to <other child>" for brothers and sisters in the same school
   function stimesPanel(){
@@ -1962,7 +2052,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     toast('Copied '+rows.length+(rows.length===1?' day':' days')+' to '+names+'.'+(skipped?' Days they already had were kept.':''),4500); loadPickups();
   }
   async function loadPickupLead(){ if(!USER) return; const {data}=await sb.from('pickup_settings').select('*').eq('user_id',USER.id).maybeSingle(); PICKLEAD=data?(data.enabled?data.lead_min:0):30 }
-  const SCHOOL_KEYS=['work','reading','teachers','contacts','events','stimes','exams','terms'];
+  const SCHOOL_KEYS=['work','reading','teachers','contacts','events','stimes','exams','terms','fevents'];
   const loadSchool=()=>Promise.all([...SCHOOL_KEYS.map(loadList),loadPickupLead()]).then(loadPickups);
 
   function renderSchool(body){
@@ -1974,7 +2064,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       listPanel('exams',{id:'h-exams',title:'Exams · '+nm(CHILD),add:'Add',empty:'No exams yet. Add the exam timetable, with the pickup time if they come out early.'}),
       listPanel('terms',{id:'h-terms',title:'Terms & holidays',add:'Add',empty:'No term dates yet. Add them once and pickup reminders stop during holidays.'}),
       listPanel('work',{id:'h-work',title:'Assignments & tests',add:'Add',empty:'No assignments or tests yet. Add one with its due date; add the mark when it comes back.',wide:true,hint:avg!=null?'Average of '+marked.length+' marked: '+avg+'%':''}),
-      listPanel('events',{id:'h-sevents',title:'School calendar',add:'Add',empty:'No school dates yet. Add parent evenings, sports days and school closures.'}),
+      listPanel('events',{id:'h-sevents',title:'School Calendar',add:'Add',empty:'No school dates yet. Add parent evenings, sports days and school closures.'}),
       listPanel('reading',{id:'h-read',title:'Reading',add:'Add',empty:'No reading recorded yet.'}),
       listPanel('teachers',{id:'h-teach',title:'Teachers',add:'Add',empty:'No teachers added yet.'}),
       listPanel('contacts',{id:'h-contacts',title:'Contact with teachers',add:'Add',empty:'No contact with teachers logged yet.'}));
@@ -2634,14 +2724,14 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   }
   async function useFamily(f,role){
     const kc={}; KIDCOLS.forEach(k=>{kc[k]=f[k]||null});
-    Object.assign(FAM,{id:f.id,type:f.family_type,p1:f.p1,p2:f.p2,...kc,kids:f.kids||2,label:f.label||null,me:role||FAM.me,code:f.invite_code});
+    Object.assign(FAM,{id:f.id,type:f.family_type,p1:f.p1,p2:f.p2,...kc,kids:f.kids||2,label:f.label||null,cal_name:f.cal_name||null,me:role||FAM.me,code:f.invite_code});
     store.set('checky.household',f.id);
     applyNames(); await Promise.all([loadActs(),loadNotes(),loadSchedule(),loadSchool(),loadHolidays(),loadBelongings(),loadPremium(),loadChanges()]);
     if(CHANNEL) sb.removeChannel(CHANNEL);
     CHANNEL=sb.channel('family-'+f.id)
       .on('postgres_changes',{event:'*',schema:'public',table:'activities',filter:'family_id=eq.'+f.id},()=>loadActs())
       .on('postgres_changes',{event:'INSERT',schema:'public',table:'notes',filter:'family_id=eq.'+f.id},()=>loadNotes())
-      .on('postgres_changes',{event:'UPDATE',schema:'public',table:'families',filter:'id=eq.'+f.id},p=>{const n=p.new,kc={}; KIDCOLS.forEach(k=>{kc[k]=n[k]||null}); Object.assign(FAM,{type:n.family_type,p1:n.p1,p2:n.p2,...kc,kids:n.kids||2,label:n.label||null}); const h=HH.find(x=>x.f.id===n.id); if(h) Object.assign(h.f,n); applyNames();renderToday();refreshCat()})
+      .on('postgres_changes',{event:'UPDATE',schema:'public',table:'families',filter:'id=eq.'+f.id},p=>{const n=p.new,kc={}; KIDCOLS.forEach(k=>{kc[k]=n[k]||null}); Object.assign(FAM,{type:n.family_type,p1:n.p1,p2:n.p2,...kc,kids:n.kids||2,label:n.label||null,cal_name:n.cal_name||null}); if(typeof buildNav==='function') buildNav(); const h=HH.find(x=>x.f.id===n.id); if(h) Object.assign(h.f,n); applyNames();renderToday();refreshCat()})
       .on('postgres_changes',{event:'*',schema:'public',table:'custody_days',filter:'family_id=eq.'+f.id},schReload)
       .on('postgres_changes',{event:'*',schema:'public',table:'school_work',filter:'family_id=eq.'+f.id},()=>reloadList('work'))
       .on('postgres_changes',{event:'*',schema:'public',table:'reading_log',filter:'family_id=eq.'+f.id},()=>reloadList('reading'))
@@ -2710,7 +2800,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     $$('.cat').forEach(b=>b.setAttribute('aria-selected',b.dataset.cat===c.id));
     const body=$('#cat-body'); body.innerHTML='';
     if(c.id==='activities'){renderActivities(body);return}
-    if(c.id==='schedule'){renderSchedule(body);return}
+    if(c.id==='schedule'){if(FAM.type==='one') renderFamilyCalendar(body); else renderSchedule(body);return}
     if(c.id==='school'){renderSchool(body);return}
     if(c.id==='holidays'){renderHolidays(body);return}
     if(c.id==='belongings'){renderBelongings(body);return}
@@ -2990,7 +3080,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     const ex=$('#approvals-extra'); if(!ex) return;
     const nC=CHG.filter(c=>c.status==='pending').length, nS=SCH.reqs.filter(r=>r.status==='pending').length;
     let h='';
-    if(nS) h='<section class="panel chrome rim-yellow" style="margin-top:18px" aria-labelledby="h-appr-cal"><div class="panel-head"><h3 id="h-appr-cal">Calendar change requests</h3></div><p class="hint" style="margin:0">'+nS+(nS>1?' calendar changes are':' calendar change is')+' waiting. Approve or decline on the Schedule page.</p><div class="note-acts"><button class="btn small" type="button" id="go-sched">Open Schedule</button></div></section>';
+    if(nS) h='<section class="panel chrome rim-yellow" style="margin-top:18px" aria-labelledby="h-appr-cal"><div class="panel-head"><h3 id="h-appr-cal">Calendar change requests</h3></div><p class="hint" style="margin:0">'+nS+(nS>1?' Calendar changes are':' Calendar change is')+' waiting. Approve or decline on the Schedule page.</p><div class="note-acts"><button class="btn small" type="button" id="go-sched">Open Schedule</button></div></section>';
     const me=USER&&USER.id, nJ=JOINREQ.filter(r=>r.status==='pending'&&r.user_id!==me);
     if(nJ.length) h+='<section class="panel chrome rim-yellow" style="margin-top:18px" aria-labelledby="h-appr-join"><div class="panel-head"><h3 id="h-appr-join">Join requests</h3><span class="hint">Nobody joins until everyone in the household approves</span></div><div class="join-list" style="display:grid;gap:10px"></div></section>'+h;
     const nP=(typeof PLANS!=='undefined'?PLANS:[]).filter(p=>p.status!=='approved'&&p.requested_by!==me);
@@ -3025,7 +3115,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
         {id:'s-today',label:'Today',ic:'sun',t:'o'},
         {id:'s-notes',label:one?'Note to the family':'Note to the other parent',ic:'note',t:'b'},
         {id:'s-activities',label:'Activities',ic:'star',t:'p'},
-        ...(one?[]:[{id:'s-schedule',label:'Schedule',ic:'cal',t:'b'}]),
+        {id:'s-schedule',label:calName(),ic:'cal',t:'b'},
         {id:'s-school',label:'School',ic:'book',t:'y'},
         {id:'s-holidays',label:'Holidays',ic:'sun',t:'o'},
         {id:'s-belongings',label:'Belongings',ic:'bag',t:'p'}]},
