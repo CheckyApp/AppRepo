@@ -245,6 +245,11 @@ table.log td{padding:10px 8px;border-bottom:1px solid var(--line);font-variant-n
 .app-note h3{margin:0 0 4px;font-family:var(--display);font-size:1.45rem;font-weight:400;line-height:1.1;color:var(--ink)}
 .app-note p{margin:0 0 12px;color:var(--ink-soft)}
 .app-note .btn{padding:8px 18px}
+.day-checks{border:0;padding:0;margin:0;min-width:0}
+.day-checks legend{font-size:.88rem;font-weight:700;color:var(--ink-soft);padding:0;margin-bottom:6px}
+.chk-row{display:flex;flex-wrap:wrap;gap:8px}
+.opt.chk{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px #3A3442;cursor:pointer}
+.opt.chk:has(input:checked){background:rgba(255,210,31,.16);box-shadow:inset 0 0 0 1.5px var(--p-yellow)}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;
   padding:12px 20px;border-radius:999px;background:var(--paint);color:var(--ink-dark);font-weight:700;font-size:.9rem;transition:.25s;pointer-events:none;max-width:calc(100% - 32px)}
 .toast.show{opacity:1;transform:translate(-50%,0)}
@@ -1590,6 +1595,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   function fieldHtml(f,val){
     const id='rf-'+f.k, v=val==null?'':String(val), ph=f.ph?' placeholder="'+esc(f.ph)+'"':'', mx=f.max?' maxlength="'+f.max+'"':'';
     let input;
+    if(f.type==='checks'){const sel=Array.isArray(val)?val.map(String):[]; return '<fieldset class="field wide day-checks" data-k="'+f.k+'" id="'+id+'"><legend>'+esc(f.label)+'</legend><div class="chk-row">'+optList(f).map(([ov,ol])=>'<label class="opt chk"><input type="checkbox" value="'+esc(ov)+'"'+(sel.includes(String(ov))?' checked':'')+'> '+esc(ol)+'</label>').join('')+'</div></fieldset>'}
     if(f.type==='hidden') return '<input type="hidden" id="'+id+'" value="'+esc(v)+'" data-k="'+f.k+'">';
     if(f.type==='photo') return '<div class="field wide" data-k="'+f.k+'"><label for="'+id+'">'+esc(f.label)+'</label><div class="photo-pick">'+(recCtx&&recCtx.rec&&recCtx.rec._url&&!isPdfPath(recCtx.rec[f.k])?'<img src="'+esc(recCtx.rec._url)+'" alt="Current photo" class="photo-prev" id="'+id+'-prev">':'<img alt="" class="photo-prev" id="'+id+'-prev" hidden>')+'<input id="'+id+'" type="file" accept="'+(f.pdf?'image/*,application/pdf':'image/*')+'">'+(v?'<label class="opt"><input type="checkbox" id="'+id+'-remove"> Remove this '+(f.pdf?'file':'photo')+'</label>':'')+'</div></div>';
     if(f.type==='select') input='<select id="'+id+'">'+optList(f).map(([ov,ol])=>'<option value="'+esc(ov)+'"'+(String(ov)===v?' selected':'')+'>'+esc(ol)+'</option>').join('')+'</select>';
@@ -1598,7 +1604,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       input='<input id="'+id+'" type="'+t+'"'+(t==='number'?' inputmode="decimal" step="any" min="0"':'')+' value="'+esc(t==='time'?v.slice(0,5):v)+'"'+mx+ph+'>'}
     return '<div class="field'+(f.wide||f.type==='longtext'?' wide':'')+'" data-k="'+f.k+'"><label for="'+id+'">'+esc(typeof f.label==='function'?f.label():f.label)+'</label>'+input+'</div>';
   }
-  function formValues(c){const o={};c.fields.forEach(f=>{const el=$('#rf-'+f.k); if(!el||f.type==='photo') return; let v=el.value.trim(); o[f.k]=v===''?null:f.type==='number'?+v:v});return o}
+  function formValues(c){const o={};c.fields.forEach(f=>{const el=$('#rf-'+f.k); if(!el||f.type==='photo') return; if(f.type==='checks'){o[f.k]=[...el.querySelectorAll('input:checked')].map(i=>i.value);return} let v=el.value.trim(); o[f.k]=v===''?null:f.type==='number'?+v:v});return o}
   function syncShow(c){const vals=formValues(c); c.fields.forEach(f=>{if(f.showIf){const w=recForm.querySelector('[data-k="'+f.k+'"]'); if(w) w.hidden=!f.showIf(vals)}})}
   function openRecord(k,rec,opts={}){
     const c=LISTDEF[k]; recCtx={k,rec,preset:opts.preset||{}};
@@ -1779,15 +1785,16 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       {k:'ends',label:'School comes out',type:'time',req:true,reqMsg:'Choose the time school comes out.'},
       {k:'aftercare_ends',label:'Aftercare pickup (optional)',type:'time'},
       {k:'notes',label:'Notes',type:'longtext',max:200,ph:'e.g. Gate 2 by the sports field'},
-      {k:'copy',label:'Use the same times for',type:'select',local:true,options:[['','Only this day'],['week','Monday to Friday (fills the empty days)']],def:'',showIf:()=>!recCtx||!recCtx.rec}],
+      {k:'copy',label:'Also use the same times for',type:'checks',local:true,options:()=>DAYS.slice(0,6).map((d,i)=>[String(i),d]),def:()=>[],showIf:()=>!recCtx||!recCtx.rec}],
     validate:r=>r.starts&&r.ends&&r.ends<=r.starts?'School comes out before it starts.':r.aftercare_ends&&r.ends&&r.aftercare_ends<r.ends?'Aftercare pickup is before school comes out.':null,
     sort:(a,b)=>(+a.week_day)-(+b.week_day),
     item:r=>({title:DAYS[+r.week_day]+' · out at '+t5(r.ends),meta:[r.school,r.starts?'Starts '+t5(r.starts):'',r.aftercare_ends?'Aftercare until '+t5(r.aftercare_ends):'',r.notes]}),
     onSaved:async(saved,rec,extra)=>{
-      if(!rec&&extra&&extra.copy==='week'&&USER&&FAM.id){
+      const pick=(extra&&Array.isArray(extra.copy)?extra.copy:[]).map(Number);
+      if(!rec&&pick.length&&USER&&FAM.id){
         const have=new Set(RECS.stimes.filter(x=>(x.child||'c1')===saved.child).map(x=>+x.week_day));
-        const rows=[0,1,2,3,4].filter(d=>!have.has(d)).map(d=>({family_id:FAM.id,child:saved.child,week_day:d,school:saved.school,starts:saved.starts,ends:saved.ends,aftercare_ends:saved.aftercare_ends,notes:saved.notes}));
-        if(rows.length){const {error}=await sb.from('school_times').insert(rows); if(error) toast('Could not copy: '+error.message); else toast('Added Monday to Friday.')}
+        const rows=pick.filter(d=>!have.has(d)).map(d=>({family_id:FAM.id,child:saved.child,week_day:d,school:saved.school,starts:saved.starts,ends:saved.ends,aftercare_ends:saved.aftercare_ends,notes:saved.notes}));
+        if(rows.length){const {error}=await sb.from('school_times').insert(rows); if(error) toast('Could not copy: '+error.message); else toast('Also added: '+rows.map(r=>DAYS[r.week_day]).join(', ')+'.',4500)}
         await loadList('stimes');
       }
       loadPickups();
@@ -1930,7 +1937,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   }
   // School times panel with "Copy to <other child>" for brothers and sisters in the same school
   function stimesPanel(){
-    const sec=listPanel('stimes',{id:'h-stimes',title:'School times · '+nm(CHILD),add:'Add',empty:'No school times yet. Add the time school comes out (tip: choose "Monday to Friday" to fill the week at once).'});
+    const sec=listPanel('stimes',{id:'h-stimes',title:'School times · '+nm(CHILD),add:'Add',empty:'No school times yet. Add the time school comes out (tip: tick the other days to fill the week at once).'});
     const mine=RECS.stimes.filter(r=>(r.child||'c1')===CHILD), others=KIDS().filter(k=>k!==CHILD);
     if(mine.length&&others.length){
       const row=document.createElement('div'); row.className='note-acts'; row.style.marginTop='4px';
