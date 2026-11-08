@@ -444,6 +444,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     </section>
 
     <div class="grid">
+      <div id="pickup-today" data-page="p-today" style="grid-column:1/-1"></div>
       <section class="panel chrome" aria-labelledby="h-today-acts" id="today-acts-card" data-page="p-today">
         <div class="panel-head"><h3 id="h-today-acts">Happening today</h3><span class="hint" id="today-acts-date"></span></div>
         <ul class="list" id="today-acts"></ul>
@@ -1625,9 +1626,11 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     const fail=(t,fk)=>{err.textContent=t;err.hidden=false;if(fk){const el=$('#rf-'+fk);el&&el.focus()}};
     const row=formValues(c);
     c.fields.forEach(f=>{if(f.showIf&&!f.showIf(row)) row[f.k]=null});
+    const extra={}; c.fields.forEach(f=>{if(f.local){extra[f.k]=row[f.k]; delete row[f.k]}});
     for(const f of c.fields){ if(f.req&&(!f.showIf||f.showIf(row))&&(row[f.k]==null)) return fail(f.reqMsg||('Fill in: '+(typeof f.label==='function'?f.label():f.label)),f.k);
       if(f.type==='number'&&row[f.k]!=null&&isNaN(row[f.k])) return fail('Type a number for: '+(typeof f.label==='function'?f.label():f.label),f.k) }
     const bad=c.validate&&c.validate(row); if(bad) return fail(bad);
+    if(c.save){const r2=await c.save(row,rec,extra); if(typeof r2==='string') return fail(r2); recDlg.close(); return}
     let pendingDates=null;
     if(rec&&needsApproval()&&GUARD[c.table]){const ch=c.strict?strictDiff(c.table,rec,row):dateDiff(c.table,rec,row); if(Object.keys(ch).length){pendingDates=ch; Object.keys(ch).forEach(k=>{row[k]=rec[k]??null})}}
     let oldPhoto=null, localUrl=null;
@@ -1658,7 +1661,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       if(c.photo){ if(oldPhoto&&oldPhoto!==saved[c.photo]) sb.storage.from((c.bucket||'trip-photos')).remove([oldPhoto]); await signPhotos(k,[saved]) }
     }
     if(rec) RECS[k]=RECS[k].map(x=>x===rec?saved:x); else RECS[k].push(saved);
-    if(c.onSaved) c.onSaved(saved,rec);
+    if(c.onSaved) c.onSaved(saved,rec,extra);
     if(pendingDates){recDlg.close(); refreshCat(); await askChange(c.table,saved,'update',pendingDates,c.item(saved).title); return}
     recDlg.close(); refreshCat(); toast((rec?'Saved. ':'Added. ')+(c.private?'Only you can see this.':FAM.type==='two'?nm(otherOf(FAM.me))+' can see it too.':''));
   });
@@ -1765,13 +1768,178 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       return {title:r.title,meta:[EVENT_KIND[r.kind],dmy(r.on_date)+(r.at_time?' '+r.at_time.slice(0,5):''),r.details],done:r.done,
         pill:r.done?null:n<0?['later','Past']:n===0?['due','Today']:n<=7?['due',n===1?'Tomorrow':'In '+n+' days']:r.kind==='parent_evening'?['prem','Parent evening']:null,
         check:{on:r.done,label:'Mark '+r.title+' as done',fn:v=>patchRecord('events',r,{done:v})}}}});
-  const SCHOOL_KEYS=['work','reading','teachers','contacts','events'];
-  const loadSchool=()=>Promise.all(SCHOOL_KEYS.map(loadList));
+  // ---------- School times, exams, terms and the pickup timetable ----------
+  const t5=v=>v?String(v).slice(0,5):'';
+  const WEEKDAYS=()=>DAYS.map((d,i)=>[String(i),d]);
+  defineList({key:'stimes',table:'school_times',noun:'school day',plural:'school times',perChild:true,
+    fields:[
+      {k:'week_day',label:'Day',type:'select',options:WEEKDAYS,def:'0'},
+      {k:'school',label:'School',max:80,ph:'e.g. Sunvalley Primary'},
+      {k:'starts',label:'School starts',type:'time'},
+      {k:'ends',label:'School comes out',type:'time',req:true,reqMsg:'Choose the time school comes out.'},
+      {k:'aftercare_ends',label:'Aftercare pickup (optional)',type:'time'},
+      {k:'notes',label:'Notes',type:'longtext',max:200,ph:'e.g. Gate 2 by the sports field'},
+      {k:'copy',label:'Use the same times for',type:'select',local:true,options:[['','Only this day'],['week','Monday to Friday (fills the empty days)']],def:'',showIf:()=>!recCtx||!recCtx.rec}],
+    validate:r=>r.starts&&r.ends&&r.ends<=r.starts?'School comes out before it starts.':r.aftercare_ends&&r.ends&&r.aftercare_ends<r.ends?'Aftercare pickup is before school comes out.':null,
+    sort:(a,b)=>(+a.week_day)-(+b.week_day),
+    item:r=>({title:DAYS[+r.week_day]+' · out at '+t5(r.ends),meta:[r.school,r.starts?'Starts '+t5(r.starts):'',r.aftercare_ends?'Aftercare until '+t5(r.aftercare_ends):'',r.notes]}),
+    onSaved:async(saved,rec,extra)=>{
+      if(!rec&&extra&&extra.copy==='week'&&USER&&FAM.id){
+        const have=new Set(RECS.stimes.filter(x=>(x.child||'c1')===saved.child).map(x=>+x.week_day));
+        const rows=[0,1,2,3,4].filter(d=>!have.has(d)).map(d=>({family_id:FAM.id,child:saved.child,week_day:d,school:saved.school,starts:saved.starts,ends:saved.ends,aftercare_ends:saved.aftercare_ends,notes:saved.notes}));
+        if(rows.length){const {error}=await sb.from('school_times').insert(rows); if(error) toast('Could not copy: '+error.message); else toast('Added Monday to Friday.')}
+        await loadList('stimes');
+      }
+      loadPickups();
+    },onRemoved:()=>loadPickups()});
+  defineList({key:'exams',table:'exams',noun:'exam',plural:'exams',perChild:true,
+    fields:[
+      {k:'subject',label:'Subject',max:80,req:true,ph:'e.g. Mathematics Paper 1',reqMsg:'Type the subject.'},
+      {k:'on_date',label:'Date',type:'date',req:true,reqMsg:'Choose the exam date.'},
+      {k:'starts',label:'Starts',type:'time'},
+      {k:'ends',label:'Ends',type:'time'},
+      {k:'out_at',label:'Pickup time on this day (if early)',type:'time'},
+      {k:'venue',label:'Where',max:80,ph:'e.g. School hall'},
+      {k:'notes',label:'Notes',type:'longtext',max:200,ph:'e.g. Bring a calculator'}],
+    validate:r=>r.starts&&r.ends&&r.ends<=r.starts?'The exam ends before it starts.':null,
+    sort:(a,b)=>((a.on_date<todayIso())-(b.on_date<todayIso()))||(a.on_date<todayIso()?b.on_date.localeCompare(a.on_date):a.on_date.localeCompare(b.on_date)),
+    item:r=>{const n=daysTo(r.on_date);
+      return {title:r.subject,meta:[dmy(r.on_date)+(r.starts?' '+t5(r.starts)+(r.ends?'–'+t5(r.ends):''):''),r.out_at?'Pickup '+t5(r.out_at):'',r.venue,r.notes],
+        pill:n<0?['later','Done']:n===0?['due','Today']:n===1?['due','Tomorrow']:n<=7?['due','In '+n+' days']:['later',dmy(r.on_date)]}},
+    onSaved:()=>loadPickups(),onRemoved:()=>loadPickups()});
+  const TERM_KIND={term:'School term',closed:'School closed or holiday',half_day:'Half day or early closing'};
+  defineList({key:'terms',table:'school_terms',noun:'term or holiday date',plural:'term dates',
+    fields:[
+      {k:'kind',label:'Type',type:'select',options:Object.entries(TERM_KIND),def:'term'},
+      {k:'title',label:'Name',max:80,req:true,ph:'e.g. Term 1, Public holiday, Sports day',reqMsg:'Give it a name.'},
+      {k:'from_date',label:'From',type:'date',req:true,reqMsg:'Choose the date.'},
+      {k:'to_date',label:'Until (leave empty for one day)',type:'date'},
+      {k:'out_at',label:'School comes out at',type:'time',showIf:v=>v.kind==='half_day'},
+      {k:'notes',label:'Notes',type:'longtext',max:200}],
+    validate:r=>r.to_date&&r.to_date<r.from_date?'The end date is before the start date.':r.kind==='half_day'&&!r.out_at?'Choose the time school comes out.':null,
+    sort:(a,b)=>a.from_date.localeCompare(b.from_date),
+    item:r=>({title:r.title,meta:[TERM_KIND[r.kind],rangeText(r.from_date,r.to_date||r.from_date),r.out_at?'Out at '+t5(r.out_at):'',r.notes],done:(r.to_date||r.from_date)<todayIso(),
+      pill:r.kind==='term'?['ok','Term']:r.kind==='closed'?['later','No school']:['due','Early out']}),
+    onSaved:()=>loadPickups(),onRemoved:()=>loadPickups()});
+  // Change who fetches: saved through the server so the other parent can approve it
+  defineList({key:'pplan',table:'pickup_plans',noun:'pickup change',plural:'pickup changes',
+    fields:[
+      {k:'when',label:'For',type:'select',local:true,options:[['once','One day'],['weekly','Every week']],def:'once'},
+      {k:'on_date',label:'Date',type:'date',showIf:v=>v.when!=='weekly',def:()=>todayIso()},
+      {k:'week_day',label:'Day',type:'select',options:WEEKDAYS,def:'0',showIf:v=>v.when==='weekly'},
+      {k:'child',label:'Child',type:'select',options:()=>[['','All children'],...KIDS().map(k=>[k,nm(k)])],def:''},
+      {k:'fetcher',label:'Who fetches',type:'select',options:()=>[...(FAM.type==='two'?[['p1',nm('p1')],['p2',nm('p2')]]:[[FAM.me||'p1',nm(FAM.me||'p1')]]),['helper','Someone else (Gran, lift club, au pair)']],def:()=>FAM.me||'p1'},
+      {k:'helper_name',label:'Name',max:60,ph:'e.g. Ouma, Lift club',showIf:v=>v.fetcher==='helper'},
+      {k:'notes',label:'Note',type:'longtext',max:200,ph:'e.g. I have a late meeting'}],
+    validate:r=>r.fetcher==='helper'&&!r.helper_name?'Type the name of the person fetching.':null,
+    save:async(row,rec,extra)=>{
+      const weekly=extra.when==='weekly';
+      if(!weekly&&!row.on_date) return 'Choose the date.';
+      const {data,error}=await sb.rpc('add_pickup_plan',{p_family:FAM.id,p_child:row.child||'',p_on_date:weekly?null:row.on_date,p_week_day:weekly?+row.week_day:null,p_fetcher:row.fetcher,p_helper:row.helper_name||'',p_notes:row.notes||''});
+      if(error) return error.message;
+      toast(data.status==='pending'?'Sent to '+nm(otherOf(FAM.me))+' for approval. Nothing changes until they approve.':'Saved.',4000);
+      loadPickups(); return true;
+    },
+    item:r=>({title:''})});
+  var PICK=[], PLANS=[], PICKME=[], PICKLEAD=30;
+  async function loadPickups(){
+    if(!USER||!sb) return;
+    const tasks=[loadMyPickups()];
+    if(FAM.id){
+      tasks.push(sb.rpc('family_pickups',{p_family:FAM.id,p_from:todayIso(),p_days:8}).then(({data})=>{PICK=data||[]}));
+      tasks.push(sb.from('pickup_plans').select('*').eq('family_id',FAM.id).in('status',['approved','pending','remove_pending']).limit(200).then(({data})=>{PLANS=data||[]}));
+    }
+    await Promise.all(tasks); updateBadge(); if(typeof NAVCUR!=='undefined'&&NAVCUR==='s-approvals') renderApprovalsExtra(); refreshCat();
+  }
+  async function loadMyPickups(){
+    if(!USER||!sb) return; const {data,error}=await sb.rpc('my_pickups',{}); if(error) return;
+    PICKME=data||[]; renderPickupToday();
+  }
+  const fetcherText=(r,me)=>!r.fetcher?"Who's fetching? Not set yet":r.fetcher===me?"You're fetching":(r.fetcher_name||'Someone')+' fetching';
+  function renderPickupToday(){
+    const box=$('#pickup-today'); if(!box) return;
+    if(!PICKME.length){box.innerHTML='';return}
+    const multi=new Set(PICKME.map(r=>r.family_id)).size>1;
+    const sec=document.createElement('section'); sec.className='panel chrome rim-yellow'; sec.setAttribute('aria-labelledby','h-pick-today');
+    sec.innerHTML='<div class="panel-head"><h3 id="h-pick-today">🚗 Pickups today</h3><span class="hint">'+esc(short(now))+'</span></div><ul class="list"></ul>';
+    const ul=sec.querySelector('ul');
+    // children with the same time, place and fetcher share one line
+    const groups=[]; [...PICKME].sort((a,b)=>String(a.at_time).localeCompare(String(b.at_time))).forEach(r=>{
+      const key=r.family_id+'|'+r.at_time+'|'+r.place+'|'+r.fetcher+'|'+r.fetcher_name+'|'+r.reason;
+      const g=groups.find(x=>x.key===key); if(g) g.kids.push(r.child_name); else groups.push({key,r,kids:[r.child_name]})});
+    groups.forEach(({r,kids})=>{
+      const hh=HH.find(x=>x.f.id===r.family_id), two=hh&&hh.f.family_type==='two', past=String(r.at_time).slice(0,5)<now.toTimeString().slice(0,5);
+      const li=document.createElement('li'); li.className='bill-li'+(past?' done':'');
+      li.innerHTML='<div class="grow"><span></span><div class="meta"></div><div class="late-row" hidden></div></div><div class="bill-side"><span class="pill"></span></div>';
+      li.querySelector('.grow span').textContent=t5(r.at_time)+' · '+kids.join(' & ');
+      li.querySelector('.meta').textContent=[r.place,r.reason!=='School'?r.reason:'',fetcherText(r,r.my_role),multi&&hh?hhName(hh.f):''].filter(Boolean).join(' · ');
+      const pill=li.querySelector('.pill'); pill.className='pill '+(!r.fetcher?'late':r.fetcher===r.my_role?'due':'ok'); pill.textContent=!r.fetcher?'Not set':r.fetcher===r.my_role?'You':(r.fetcher==='helper'?'Helper':'Other parent');
+      if(two&&!past){
+        const lb=document.createElement('button'); lb.type='button'; lb.className='mini-btn'; lb.textContent='Running late'; lb.setAttribute('aria-expanded','false');
+        const row=li.querySelector('.late-row'); row.innerHTML='<span class="hint">Tell the others:</span> ';
+        [10,15,30].forEach(m=>{const b=document.createElement('button'); b.type='button'; b.className='mini-btn'; b.textContent=m+' min late';
+          b.addEventListener('click',async()=>{b.disabled=true; const {error}=await sb.rpc('running_late',{p_family:r.family_id,p_minutes:m,p_child_names:kids.join(' & ')}); b.disabled=false; if(error){toast(error.message);return} row.hidden=true; lb.setAttribute('aria-expanded','false'); toast('Sent: running about '+m+' minutes late.')});
+          row.appendChild(b)});
+        lb.addEventListener('click',()=>{row.hidden=!row.hidden; lb.setAttribute('aria-expanded',String(!row.hidden))});
+        li.querySelector('.bill-side').appendChild(lb);
+      }
+      ul.appendChild(li)});
+    box.innerHTML=''; box.appendChild(sec);
+  }
+  setInterval(()=>{if(USER) loadMyPickups()},10*60*1000);
+  const planText=p=>(p.on_date?dmy(p.on_date):'Every '+DAYS[p.week_day])+' · '+(p.child?nm(p.child):'All children')+' · '+(p.fetcher==='helper'?(p.helper_name||'Someone else'):nm(p.fetcher))+' fetches';
+  async function answerPlan(p,act){
+    const res=act==='remove'?await sb.rpc('remove_pickup_plan',{p_id:p.id}):await sb.rpc('decide_pickup_plan',{p_id:p.id,p_approve:act==='approve'});
+    if(res.error){toast(res.error.message,4000);return}
+    toast(act==='remove'?(res.data==='pending'?'Sent to '+nm(otherOf(FAM.me))+' for approval.':'Removed.'):act==='approve'?'Approved.':'Declined.');
+    loadPickups();
+  }
+  function planItem(p){
+    const me=USER&&USER.id, mine=p.requested_by===me, pend=p.status!=='approved', li=document.createElement('div'); li.className='req-item'+(mine?' mine':'');
+    li.innerHTML='<div><strong></strong></div><div class="hint"></div><div class="acts"></div>';
+    li.querySelector('strong').textContent=(p.status==='remove_pending'?'Remove: ':'')+planText(p);
+    li.querySelector('.hint').textContent=[p.notes,pend?(mine?'Waiting for '+nm(otherOf(FAM.me))+' to answer':'Asked by '+nm(p.requested_role)):''].filter(Boolean).join(' · ');
+    const acts=li.querySelector('.acts'); const btn=(l,a,g)=>{const b=document.createElement('button');b.type='button';b.className='btn small'+(g?' ghost':'');b.textContent=l;b.addEventListener('click',()=>answerPlan(p,a));acts.appendChild(b)};
+    if(pend&&!mine){btn(p.status==='remove_pending'?'Approve removing':'Approve change','approve');btn('Decline','decline',true)}
+    else if(pend&&mine&&p.status==='pending') btn('Withdraw','remove',true);
+    else if(!pend) btn('Remove','remove',true);
+    return li;
+  }
+  function pickupPanel(){
+    const sec=document.createElement('section'); sec.className='panel chrome'+(PLANS.some(p=>p.status!=='approved'&&p.requested_by!==(USER&&USER.id))?' rim-yellow':''); sec.style.gridColumn='1/-1'; sec.setAttribute('aria-labelledby','h-pick');
+    sec.innerHTML='<div class="panel-head"><h3 id="h-pick">🚗 Pickup timetable</h3><button type="button" class="btn small" id="pick-change">Change who fetches</button></div>'+
+      '<p class="hint" style="margin:0">Who fetches follows the custody calendar, unless you set it here. Exams, half days, holidays and activities after school are worked in automatically.</p>'+
+      '<div class="field" style="max-width:280px"><label for="pick-lead">Remind me before pickup</label><select id="pick-lead">'+[[15,'15 minutes before'],[30,'30 minutes before'],[45,'45 minutes before'],[60,'1 hour before'],[0,'No pickup reminders']].map(([v,l])=>'<option value="'+v+'"'+(v===PICKLEAD?' selected':'')+'>'+l+'</option>').join('')+'</select></div>'+
+      '<div class="pick-pend" style="display:grid;gap:10px"></div><ul class="list pick-days"></ul><div class="pick-regular" style="display:grid;gap:10px"></div>';
+    sec.querySelector('#pick-change').addEventListener('click',()=>openRecord('pplan',null));
+    sec.querySelector('#pick-lead').addEventListener('change',async e=>{const v=+e.target.value; PICKLEAD=v; const {error}=await sb.from('pickup_settings').upsert({user_id:USER.id,lead_min:v||30,enabled:v>0}); toast(error?'Could not save: '+error.message:v?'You’ll get a reminder '+v+' minutes before.':'Pickup reminders are off.')});
+    const pend=PLANS.filter(p=>p.status!=='approved'); const pb=sec.querySelector('.pick-pend');
+    pend.forEach(p=>pb.appendChild(planItem(p)));
+    const ul=sec.querySelector('.pick-days');
+    if(!PICK.length) ul.innerHTML='<li class="empty">'+(RECS.stimes.length?'No school pickups in the next week (holiday, or no school times for these days).':'Add school times below to see the pickup timetable.')+'</li>';
+    const byDay={}; PICK.forEach(r=>{(byDay[r.day]=byDay[r.day]||[]).push(r)});
+    Object.keys(byDay).sort().forEach(d=>{
+      const li=document.createElement('li'); const rows=byDay[d].sort((a,b)=>String(a.at_time).localeCompare(String(b.at_time)));
+      li.innerHTML='<div class="grow"><span></span><div class="meta"></div></div>';
+      li.querySelector('span').textContent=(d===todayIso()?'Today':new Date(d+'T12:00').toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short'}));
+      li.querySelector('.meta').textContent=rows.map(r=>t5(r.at_time)+' '+r.child_name+' ('+[r.reason!=='School'?r.reason:'',fetcherText(r,FAM.me)].filter(Boolean).join(', ')+')').join(' · ');
+      ul.appendChild(li)});
+    const reg=PLANS.filter(p=>p.status==='approved'&&(!p.on_date||p.on_date>=todayIso())), rb=sec.querySelector('.pick-regular');
+    if(reg.length){const h=document.createElement('h4'); h.textContent='Arrangements'; h.style.margin='6px 0 0'; rb.appendChild(h); reg.forEach(p=>rb.appendChild(planItem(p)))}
+    return sec;
+  }
+  async function loadPickupLead(){ if(!USER) return; const {data}=await sb.from('pickup_settings').select('*').eq('user_id',USER.id).maybeSingle(); PICKLEAD=data?(data.enabled?data.lead_min:0):30 }
+  const SCHOOL_KEYS=['work','reading','teachers','contacts','events','stimes','exams','terms'];
+  const loadSchool=()=>Promise.all([...SCHOOL_KEYS.map(loadList),loadPickupLead()]).then(loadPickups);
 
   function renderSchool(body){
     const wrap=document.createElement('div'); wrap.className='grid';
     const marked=RECS.work.filter(r=>r.mark!=null&&r.out_of), avg=marked.length?Math.round(marked.reduce((s,r)=>s+r.mark/r.out_of*100,0)/marked.length):null;
     wrap.append(
+      pickupPanel(),
+      listPanel('stimes',{id:'h-stimes',title:'School times · '+nm(CHILD),add:'Add',empty:'No school times yet. Add the time school comes out (tip: choose "Monday to Friday" to fill the week at once).'}),
+      listPanel('exams',{id:'h-exams',title:'Exams · '+nm(CHILD),add:'Add',empty:'No exams yet. Add the exam timetable, with the pickup time if they come out early.'}),
+      listPanel('terms',{id:'h-terms',title:'Terms & holidays',add:'Add',empty:'No term dates yet. Add them once and pickup reminders stop during holidays.'}),
       listPanel('work',{id:'h-work',title:'Assignments & tests',add:'Add',empty:'No assignments or tests yet. Add one with its due date; add the mark when it comes back.',wide:true,hint:avg!=null?'Average of '+marked.length+' marked: '+avg+'%':''}),
       listPanel('events',{id:'h-sevents',title:'School calendar',add:'Add',empty:'No school dates yet. Add parent evenings, sports days and school closures.'}),
       listPanel('reading',{id:'h-read',title:'Reading',add:'Add',empty:'No reading recorded yet.'}),
@@ -2275,13 +2443,13 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
 
   // ---------- Once a date is set, it's set: date changes and removals need the other parent ----------
   const GUARD={activities:['repeat','week_day','on_date','starts','ends'],handovers:['on_date','at_time'],school_work:['given_date','due_date'],reading_log:['read_on'],
-    teacher_contacts:['contacted_on'],school_events:['on_date','at_time'],holiday_records:['occasion','year','parent','from_date','to_date'],trips:['trip_date','end_date','with_who'],belongings:['bought_on','swapped_on'],who_has:['has_parent','asked_on','expected_on','returned_on'],money_entries:['kind','description','amount','entry_date','repeats','paid_by','owed_by','notes','file_path','proof_path','dispute_note','dispute_amount','dispute_proof_path'],health_records:['given_on','at_time','to_date','follow_up'],documents:['doc_date','at_time','held_by']};
+    teacher_contacts:['contacted_on'],school_events:['on_date','at_time'],holiday_records:['occasion','year','parent','from_date','to_date'],trips:['trip_date','end_date','with_who'],belongings:['bought_on','swapped_on'],who_has:['has_parent','asked_on','expected_on','returned_on'],money_entries:['kind','description','amount','entry_date','repeats','paid_by','owed_by','notes','file_path','proof_path','dispute_note','dispute_amount','dispute_proof_path'],health_records:['given_on','at_time','to_date','follow_up'],documents:['doc_date','at_time','held_by'],school_times:['week_day','starts','ends','aftercare_ends'],school_terms:['kind','from_date','to_date','out_at'],exams:['on_date','starts','ends','out_at']};
   const COL_LABEL={repeat:'how often',week_day:'day',on_date:'date',starts:'start time',ends:'end time',at_time:'time',given_date:'date given',due_date:'due date',
-    read_on:'date',contacted_on:'date',year:'year',from_date:'from',to_date:'until',trip_date:'from',end_date:'until',parent:'who had the children',occasion:'occasion',with_who:'with who',bought_on:'bought',swapped_on:'swapped',has_parent:'who has it',asked_on:'asked',expected_on:'back by',returned_on:'returned',entry_date:'date',paid_by:'who paid',owed_by:'who owes',happened_on:'date',given_on:'date',follow_up:'follow-up',doc_date:'date',held_by:'who has the original',kind:'type',description:'what for',amount:'amount',repeats:'how often',notes:'notes',file_path:'receipt',proof_path:'proof of payment',dispute_note:'disagreement',dispute_amount:'amount agreed to',dispute_proof_path:'their proof'};
-  const TBL_KEY={school_work:'work',reading_log:'reading',teacher_contacts:'contacts',school_events:'events',holiday_records:'holidays',trips:'trips',belongings:'belong',who_has:'whohas',money_entries:'money',health_records:'health',documents:'docs'};
+    read_on:'date',contacted_on:'date',year:'year',from_date:'from',to_date:'until',trip_date:'from',end_date:'until',parent:'who had the children',occasion:'occasion',with_who:'with who',bought_on:'bought',swapped_on:'swapped',has_parent:'who has it',asked_on:'asked',expected_on:'back by',returned_on:'returned',entry_date:'date',paid_by:'who paid',owed_by:'who owes',happened_on:'date',given_on:'date',follow_up:'follow-up',doc_date:'date',held_by:'who has the original',kind:'type',description:'what for',amount:'amount',repeats:'how often',notes:'notes',file_path:'receipt',proof_path:'proof of payment',dispute_note:'disagreement',dispute_amount:'amount agreed to',dispute_proof_path:'their proof',aftercare_ends:'aftercare pickup',out_at:'pickup time'};
+  const TBL_KEY={school_work:'work',reading_log:'reading',teacher_contacts:'contacts',school_events:'events',holiday_records:'holidays',trips:'trips',belongings:'belong',who_has:'whohas',money_entries:'money',health_records:'health',documents:'docs',school_times:'stimes',school_terms:'terms',exams:'exams'};
   let CHG=[];
   const needsApproval=()=>!!(USER&&FAM.id&&(SCH.members||1)>1);
-  const normV=(k,v)=>v==null||v===''?'':/^(starts|ends|at_time)$/.test(k)?String(v).slice(0,5):/^(amount|dispute_amount|year|quantity|duration_min|week_day)$/.test(k)&&!isNaN(+v)?String(+v):String(v);
+  const normV=(k,v)=>v==null||v===''?'':/^(starts|ends|at_time|aftercare_ends|out_at)$/.test(k)?String(v).slice(0,5):/^(amount|dispute_amount|year|quantity|duration_min|week_day)$/.test(k)&&!isNaN(+v)?String(+v):String(v);
   const showV=(k,v)=>{v=normV(k,v); if(!v) return 'none'; if(k==='amount'||k==='dispute_amount') return fmtR(v); if(/_path$/.test(k)) return 'a new file'; if(k==='kind') return (MONEY_KIND[v]||v); if(k==='notes'||k==='description'||k==='dispute_note') return '"'+v+'"'; if(/_date$|_on$/.test(k)) return dmy(v); if(k==='week_day') return DAYS[+v]; if(k==='repeat') return ({weekly:'every week',game:'game or match',once:'once'})[v]||v; if(k==='parent') return (WITH[v]||(()=>v))(); if(k==='occasion') return OCCASION[v]||v; if(k==='has_parent'||k==='paid_by'||k==='owed_by'||k==='held_by') return v==='other'?'someone else':nm(v); return v};
   function dateDiff(tbl,oldRec,row){const ch={};(GUARD[tbl]||[]).forEach(k=>{if(k in row&&normV(k,oldRec[k])!==''&&normV(k,row[k])!==normV(k,oldRec[k])) ch[k]=row[k]===''?null:row[k]});return ch}
   function strictDiff(tbl,oldRec,row){const ch={};(GUARD[tbl]||[]).forEach(k=>{if(k in row&&normV(k,row[k])!==normV(k,oldRec[k])) ch[k]=row[k]===''?null:row[k]});return ch}
@@ -2301,7 +2469,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     if(error) return; CHG=data; renderPending(); refreshCat();
   }
   function updateBadge(){
-    const me=USER&&USER.id, n=CHG.filter(c=>c.status==='pending'&&c.requested_by!==me).length+SCH.reqs.filter(r=>r.status==='pending'&&r.requested_by!==(me||'me')).length+(typeof JOINREQ!=='undefined'?JOINREQ.filter(r=>r.status==='pending'&&r.user_id!==me).length:0);
+    const me=USER&&USER.id, n=CHG.filter(c=>c.status==='pending'&&c.requested_by!==me).length+SCH.reqs.filter(r=>r.status==='pending'&&r.requested_by!==(me||'me')).length+(typeof JOINREQ!=='undefined'?JOINREQ.filter(r=>r.status==='pending'&&r.user_id!==me).length:0)+(typeof PLANS!=='undefined'?PLANS.filter(p=>p.status!=='approved'&&p.requested_by!==me).length:0);
     const mb=$('#menu-badge'); if(mb){mb.hidden=!n; mb.textContent=n; $('#menu-btn').setAttribute('aria-label',n?'Open menu, '+n+(n===1?' change waits':' changes wait')+' for your approval':'Open menu')}
     const ng=$('#nav-approve'); if(ng){ng.hidden=!n; ng.textContent=n}
     const ab=$('#approve-bar'); if(ab){ab.hidden=!n||NAVCUR==='s-approvals'||$('#app').hidden; $('#approve-bar-btn').innerHTML='<span>'+n+(n===1?' change waits':' changes wait')+' for your approval</span><span aria-hidden="true">Open ›</span>'}
@@ -2404,7 +2572,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     await Promise.all([loadPersonal(),loadBills(),loadList('comm'),loadList('pets'),loadList('petrec')]); syncAlerts();
     if(location.hash==='#shared'){history.replaceState(null,'',location.pathname); $('#seg-shared').click()}
     const meta=user.user_metadata||{};
-    await loadJoinRequests(); subscribeJoins(); loadAccess(); loadAppNotes();
+    await loadJoinRequests(); subscribeJoins(); loadAccess(); loadAppNotes(); loadMyPickups();
     if(FROM_INVITE&&meta.invite_code&&!HH.some(h=>h.f.invite_code===meta.invite_code)){
       const {data:f,error:je}=await sb.rpc('join_family',{p_code:meta.invite_code,p_role:meta.invite_role||'p2'});
       if(!je&&f&&f.status==='pending'){await loadJoinRequests(); toast('Your request to join was sent. You\'ll get an alert once it is approved.',5000)}
@@ -2791,9 +2959,11 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     let h='';
     if(nS) h='<section class="panel chrome rim-yellow" style="margin-top:18px" aria-labelledby="h-appr-cal"><div class="panel-head"><h3 id="h-appr-cal">Calendar change requests</h3></div><p class="hint" style="margin:0">'+nS+(nS>1?' calendar changes are':' calendar change is')+' waiting. Approve or decline on the Schedule page.</p><div class="note-acts"><button class="btn small" type="button" id="go-sched">Open Schedule</button></div></section>';
     const me=USER&&USER.id, nJ=JOINREQ.filter(r=>r.status==='pending'&&r.user_id!==me);
-    if(nJ.length) h='<section class="panel chrome rim-yellow" style="margin-top:18px" aria-labelledby="h-appr-join"><div class="panel-head"><h3 id="h-appr-join">Join requests</h3><span class="hint">Nobody joins until everyone in the household approves</span></div><div class="join-list" style="display:grid;gap:10px"></div></section>'+h;
-    if(!nC&&!nS&&!nJ.length) h='<p class="empty" style="margin-top:18px">Nothing is waiting for approval.</p>';
-    ex.innerHTML=h; const g=$('#go-sched'); if(g) g.addEventListener('click',()=>showPage('s-schedule'));
+    if(nJ.length) h+='<section class="panel chrome rim-yellow" style="margin-top:18px" aria-labelledby="h-appr-join"><div class="panel-head"><h3 id="h-appr-join">Join requests</h3><span class="hint">Nobody joins until everyone in the household approves</span></div><div class="join-list" style="display:grid;gap:10px"></div></section>'+h;
+    const nP=(typeof PLANS!=='undefined'?PLANS:[]).filter(p=>p.status!=='approved'&&p.requested_by!==me);
+    if(nP.length) h+='<section class="panel chrome rim-yellow" style="margin-top:18px" aria-labelledby="h-appr-pick"><div class="panel-head"><h3 id="h-appr-pick">Pickup changes</h3></div><div class="pick-appr" style="display:grid;gap:10px"></div></section>';
+    if(!nC&&!nS&&!nJ.length&&!nP.length) h='<p class="empty" style="margin-top:18px">Nothing is waiting for approval.</p>';
+    ex.innerHTML=h; const pa=ex.querySelector('.pick-appr'); if(pa) nP.forEach(p=>pa.appendChild(planItem(p))); const g=$('#go-sched'); if(g) g.addEventListener('click',()=>showPage('s-schedule'));
     const jl=ex.querySelector('.join-list');
     nJ.forEach(r=>{const hh=HH.find(x=>x.f.id===r.family_id), d=document.createElement('div'); d.className='req-item';
       const mine=(r.approvals||[]).includes(me);
