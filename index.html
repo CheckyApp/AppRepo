@@ -2638,14 +2638,14 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   const PAYTEST=/[?&]paytest=1/.test(location.search);
   const fmtD=d=>d?new Date(d).toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'}):'';
   const daysUntil=d=>d?Math.ceil((new Date(d)-Date.now())/864e5):null;
-  // ---------- Notes from Rozanne (tester thank-yous and "What's new") ----------
+  // ---------- Notes from CheckyApp (tester thank-yous and "What's new") ----------
   async function loadAppNotes(){
     const bar=$('#notes-bar'); if(!bar) return;
     const {data,error}=await sb.rpc('my_notes',{}); if(error||!data){bar.hidden=true;return}
     bar.innerHTML='';
     data.forEach(n=>{
       const c=document.createElement('section'); c.className='app-note'; c.setAttribute('aria-label',n.title);
-      const e=document.createElement('span'); e.className='eyebrow'; e.textContent=n.kind==='tester'?'A note from Rozanne':'New in Checky';
+      const e=document.createElement('span'); e.className='eyebrow'; e.textContent=n.kind==='tester'?'Notes from CheckyApp':'New in CheckyApp';
       const h=document.createElement('h3'); h.textContent=n.title;
       const p=document.createElement('p'); p.textContent=n.body;
       const b=document.createElement('button'); b.type='button'; b.className='btn'; b.textContent=n.button||'Got it!';
