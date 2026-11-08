@@ -1928,6 +1928,30 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     if(reg.length){const h=document.createElement('h4'); h.textContent='Arrangements'; h.style.margin='6px 0 0'; rb.appendChild(h); reg.forEach(p=>rb.appendChild(planItem(p)))}
     return sec;
   }
+  // School times panel with "Copy to <other child>" for brothers and sisters in the same school
+  function stimesPanel(){
+    const sec=listPanel('stimes',{id:'h-stimes',title:'School times · '+nm(CHILD),add:'Add',empty:'No school times yet. Add the time school comes out (tip: choose "Monday to Friday" to fill the week at once).'});
+    const mine=RECS.stimes.filter(r=>(r.child||'c1')===CHILD), others=KIDS().filter(k=>k!==CHILD);
+    if(mine.length&&others.length){
+      const row=document.createElement('div'); row.className='note-acts'; row.style.marginTop='4px';
+      const lab=document.createElement('span'); lab.className='hint'; lab.textContent='Same school?'; row.appendChild(lab);
+      [...others,...(others.length>1?['all']:[])].forEach(k=>{const b=document.createElement('button'); b.type='button'; b.className='btn ghost small';
+        b.textContent=k==='all'?'Copy to all children':'Copy to '+nm(k); b.addEventListener('click',()=>copySchoolTimes(k==='all'?others:[k],b)); row.appendChild(b)});
+      sec.appendChild(row);
+    }
+    return sec;
+  }
+  async function copySchoolTimes(targets,btn){
+    const src=RECS.stimes.filter(r=>(r.child||'c1')===CHILD); let rows=[], skipped=0;
+    targets.forEach(k=>{const have=new Set(RECS.stimes.filter(x=>(x.child||'c1')===k).map(x=>+x.week_day));
+      src.forEach(r=>{if(have.has(+r.week_day)){skipped++;return} rows.push({family_id:FAM.id,child:k,week_day:+r.week_day,school:r.school,starts:r.starts,ends:r.ends,aftercare_ends:r.aftercare_ends,notes:r.notes})})});
+    const names=targets.map(nm).join(' & ');
+    if(!rows.length){toast(names+' already has school times for these days. Edit them on their own tab.',4500);return}
+    btn.disabled=true;
+    if(USER&&FAM.id){const {error}=await sb.from('school_times').insert(rows); btn.disabled=false; if(error){toast('Could not copy: '+error.message);return} await loadList('stimes')}
+    else{rows.forEach(r=>RECS.stimes.push({...r,id:'x'+Math.random()})); refreshCat()}
+    toast('Copied '+rows.length+(rows.length===1?' day':' days')+' to '+names+'.'+(skipped?' Days they already had were kept.':''),4500); loadPickups();
+  }
   async function loadPickupLead(){ if(!USER) return; const {data}=await sb.from('pickup_settings').select('*').eq('user_id',USER.id).maybeSingle(); PICKLEAD=data?(data.enabled?data.lead_min:0):30 }
   const SCHOOL_KEYS=['work','reading','teachers','contacts','events','stimes','exams','terms'];
   const loadSchool=()=>Promise.all([...SCHOOL_KEYS.map(loadList),loadPickupLead()]).then(loadPickups);
@@ -1937,7 +1961,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     const marked=RECS.work.filter(r=>r.mark!=null&&r.out_of), avg=marked.length?Math.round(marked.reduce((s,r)=>s+r.mark/r.out_of*100,0)/marked.length):null;
     wrap.append(
       pickupPanel(),
-      listPanel('stimes',{id:'h-stimes',title:'School times · '+nm(CHILD),add:'Add',empty:'No school times yet. Add the time school comes out (tip: choose "Monday to Friday" to fill the week at once).'}),
+      stimesPanel(),
       listPanel('exams',{id:'h-exams',title:'Exams · '+nm(CHILD),add:'Add',empty:'No exams yet. Add the exam timetable, with the pickup time if they come out early.'}),
       listPanel('terms',{id:'h-terms',title:'Terms & holidays',add:'Add',empty:'No term dates yet. Add them once and pickup reminders stop during holidays.'}),
       listPanel('work',{id:'h-work',title:'Assignments & tests',add:'Add',empty:'No assignments or tests yet. Add one with its due date; add the mark when it comes back.',wide:true,hint:avg!=null?'Average of '+marked.length+' marked: '+avg+'%':''}),
