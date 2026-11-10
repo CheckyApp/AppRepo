@@ -2937,7 +2937,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     bar.innerHTML='';
     data.forEach(n=>{
       const c=document.createElement('section'); c.className='app-note'; c.setAttribute('aria-label',n.title);
-      const e=document.createElement('span'); e.className='eyebrow'; e.textContent=n.kind==='tester'?'Notes from CheckyApp':'New in CheckyApp';
+      const e=document.createElement('span'); e.className='eyebrow'; e.textContent=n.kind==='news'?'New in CheckyApp':n.kind==='personal'?'A note just for you':'Notes from CheckyApp';
       const h=document.createElement('h3'); h.textContent=n.title;
       const p=document.createElement('p'); p.textContent=n.body;
       const b=document.createElement('button'); b.type='button'; b.className='btn'; b.textContent=n.button||'Got it!';
