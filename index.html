@@ -2193,7 +2193,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   const PREMIUM_PREVIEW=true; // set to false once payments (Step 10) are switched on
   ['work','reading','teachers','events','holidays','trips','belong','whohas'].forEach(k=>{LISTDEF[k].perChild=true});
   const who3=()=>[['p1',nm('p1')],['p2',nm('p2')],['other','Someone else']];
-  const premiumNote=()=>{const d=document.createElement('p');d.className='hint prem-note';d.innerHTML='<span class="pill prem">Premium</span> Free preview while we test. These sections become part of Premium later.';return d};
+  const premiumNote=()=>document.createDocumentFragment();
 
   // Money
   const MONEY_KIND={expense:'Expense',recurring:'Recurring expense',owed:'Money owed',paid:'Payment made'};
@@ -2259,7 +2259,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       :{title:r.title||COMM_KIND[r.kind],meta:[nm(r.child||'c1'),dmy(r.happened_on),r.notes]}});
   function renderComm(body){
     const head=document.createElement('div'); head.className='personal-head';
-    head.innerHTML='<h2 id="h-pcomm">Communication</h2><span class="pill prem">Premium</span><p class="hint">Only you can see this. The other parent can&#39;t. Free preview while we test.</p>';
+    head.innerHTML='<h2 id="h-pcomm">Communication</h2><p class="hint">Only you can see this. The other parent can&#39;t.</p>';
     const wrap=document.createElement('div'); wrap.className='grid';
     const panel=(kind,id,title,empty)=>listPanel('comm',{id,title,add:'Add',empty,filter:r=>r.kind===kind,preset:{kind}});
     wrap.append(panel('call','h-calls','Calls','No calls logged yet.'),panel('notice','h-notices','Important notices','No notices yet.'),
@@ -2464,7 +2464,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       P('insurance','Insurance','No insurance added.'),
       P('cost','Vet bills and costs','No costs yet.',costs?'This year: '+fmtR(costs):''),
       P('sitter','Sitters and kennels','No sitters or kennels added.'));
-    if(PREMIUM_PREVIEW){const d=P('document','Documents','No documents yet, e.g. vaccination card or adoption papers.'); d.querySelector('h3').insertAdjacentHTML('beforeend',' <span class="pill prem">Premium</span>'); wrap.appendChild(d)}
+    if(PREMIUM_PREVIEW){const d=P('document','Documents','No documents yet, e.g. vaccination card or adoption papers.');  wrap.appendChild(d)}
     applyNames();
   }
   function renderPetsCard(){
@@ -2793,7 +2793,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   const catBox=$('#cats');
   cats.forEach(c=>{
     const b=document.createElement('button'); b.type='button'; b.className='cat'; b.role='tab';
-    b.dataset.cat=c.id; b.innerHTML=c.name+(c.prem?'<span class="lk">· Premium</span>':'');
+    b.dataset.cat=c.id; b.innerHTML=c.name;
     b.addEventListener('click',()=>showCat(c)); catBox.appendChild(b);
   });
   function showCat(c){
@@ -3110,7 +3110,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
         {id:'p-shop',label:'Shopping',ic:'shop',t:'o'},
         {id:'p-bills',label:'Bills',ic:'bills',t:'p'},
         {id:'p-pets',label:'Pets',ic:'pets',t:'b',tag:'New'},
-        ...(PREMIUM_PREVIEW?[{id:'p-comm',label:'Communication',ic:'call',t:'y',tag:'Premium'}]:[])]},
+        ...(PREMIUM_PREVIEW?[{id:'p-comm',label:'Communication',ic:'call',t:'y'}]:[])]},
       {group:(one?'Family':'Shared · both parents'),items:[
         {id:'s-approvals',label:'Approvals',ic:'check2',t:'y',approve:true},
         {id:'s-today',label:'Today',ic:'sun',t:'o'},
@@ -3120,11 +3120,11 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
         {id:'s-school',label:'School',ic:'book',t:'y'},
         {id:'s-holidays',label:'Holidays',ic:'sun',t:'o'},
         {id:'s-belongings',label:'Belongings',ic:'bag',t:'p'}]},
-      {group:(one?'Family':'Shared')+' · Premium',items:[
-        {id:'s-money',label:'Money',ic:'money',t:'y',tag:'Premium'},
-        {id:'s-health',label:'Health',ic:'heart',t:'p',tag:'Premium'},
+      {group:(one?'Family':'Shared')+' · Money, health & documents',items:[
+        {id:'s-money',label:'Money',ic:'money',t:'y'},
+        {id:'s-health',label:'Health',ic:'heart',t:'p'},
         {id:'s-emergency',label:'Emergency card',ic:'plus',t:'p'},
-        {id:'s-documents',label:'Documents',ic:'doc',t:'b',tag:'Premium'}]}];
+        {id:'s-documents',label:'Documents',ic:'doc',t:'b'}]}];
   }
   function buildNav(){
     const nav=$('#nav'); if(!nav) return; nav.innerHTML='';
