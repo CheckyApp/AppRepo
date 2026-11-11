@@ -2193,7 +2193,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   const PREMIUM_PREVIEW=true; // set to false once payments (Step 10) are switched on
   ['work','reading','teachers','events','holidays','trips','belong','whohas'].forEach(k=>{LISTDEF[k].perChild=true});
   const who3=()=>[['p1',nm('p1')],['p2',nm('p2')],['other','Someone else']];
-  const premiumNote=()=>{const d=document.createElement('p');d.className='hint prem-note';d.innerHTML='<span class="pill prem">Premium</span> Free preview while we test. These sections become part of Premium later.';return d};
+  const premiumNote=()=>{const d=document.createElement('p');d.className='hint prem-note';d.innerHTML='<span class="pill prem">Premium</span> Included in your free trial. After that it is part of Premium (R80 a month or R800 a year).';return d};
 
   // Money
   const MONEY_KIND={expense:'Expense',recurring:'Recurring expense',owed:'Money owed',paid:'Payment made'};
@@ -2259,7 +2259,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       :{title:r.title||COMM_KIND[r.kind],meta:[nm(r.child||'c1'),dmy(r.happened_on),r.notes]}});
   function renderComm(body){
     const head=document.createElement('div'); head.className='personal-head';
-    head.innerHTML='<h2 id="h-pcomm">Communication</h2><span class="pill prem">Premium</span><p class="hint">Only you can see this. The other parent can&#39;t. Free preview while we test.</p>';
+    head.innerHTML='<h2 id="h-pcomm">Communication</h2><span class="pill prem">Premium</span><p class="hint">Only you can see this. The other parent can&#39;t.</p>';
     const wrap=document.createElement('div'); wrap.className='grid';
     const panel=(kind,id,title,empty)=>listPanel('comm',{id,title,add:'Add',empty,filter:r=>r.kind===kind,preset:{kind}});
     wrap.append(panel('call','h-calls','Calls','No calls logged yet.'),panel('notice','h-notices','Important notices','No notices yet.'),
@@ -2949,16 +2949,16 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   async function loadAccess(){
     if(!USER||!sb) return; const {data,error}=await sb.rpc('my_access',{}); if(error) return;
     const was=ACCESS&&ACCESS.locked; ACCESS=data; updatePayBar(); const no=$('#nav-owner'); if(no) no.hidden=!ACCESS.owner;
-    if(ACCESS.locked&&NAVCUR&&!OPEN_WHEN_LOCKED.has(NAVCUR)) showPage(NAVCUR);
-    if(was&&!ACCESS.locked){toast('Thank you! Everything is unlocked again.',4000); showPage(LOCKED_WANTED||'p-today')}
+    if(ACCESS.locked&&NAVCUR&&isLockedPage(NAVCUR)) showPage(NAVCUR);
+    if(was&&!ACCESS.locked){toast('Thank you! Premium is unlocked again.',4000); showPage(LOCKED_WANTED||'p-today')}
     if(NAVCUR==='p-sub') renderSub();
   }
   function updatePayBar(){
     const bar=$('#pay-bar'), tag=$('#nav-sub-tag'); if(!bar) return;
     const a=ACCESS, left=a&&daysUntil(a.access_until);
     const show=!!(a&&a.live&&a.open&&!a.locked&&!a.auto_renew&&left!=null&&left<=4&&NAVCUR!=='p-sub');
-    bar.hidden=!show; if(show) $('#pay-bar-btn').innerHTML='<span>'+(a.status==='trial'?'Your free '+(a.tester?'tester access':'trial'):'Your Checky access')+' ends in '+left+(left===1?' day':' days')+'</span><span aria-hidden="true">Choose a plan ›</span>';
-    if(tag){const t=a&&a.lifetime?'Free for life':a&&a.locked?'Paused':a&&a.live&&a.status==='trial'?(left!=null?left+' days left':'Trial'):''; tag.hidden=!t; tag.textContent=t}
+    bar.hidden=!show; if(show) $('#pay-bar-btn').innerHTML='<span>'+(a.status==='trial'?'Your free Premium '+(a.tester?'(tester)':'trial'):'Your Premium')+' ends in '+left+(left===1?' day':' days')+'</span><span aria-hidden="true">Choose a plan ›</span>';
+    if(tag){const t=a&&a.lifetime?'Free for life':a&&a.locked?'Premium paused':a&&a.live&&a.status==='trial'?(left!=null?left+' days left':'Trial'):''; tag.hidden=!t; tag.textContent=t}
   }
   function planButtons(){
     const p=(ACCESS&&ACCESS.prices)||{monthly:80,yearly:800};
@@ -2981,7 +2981,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   }
   function renderSub(){
     const box=$('#sub-body'); if(!box) return; const a=ACCESS;
-    let h='<div class="personal-head"><h2 id="h-sub">Subscription</h2><p class="hint">Your own Checky plan. Each parent pays for their own account.</p></div>';
+    let h='<div class="personal-head"><h2 id="h-sub">Subscription</h2><p class="hint">Checky is free. <strong>Premium</strong> (Money, Health, Emergency card, Documents and Communication) is R80 a month or R800 a year. Each parent pays for their own account.</p></div>';
     if(!USER) h+='<p class="empty">Sign in to see your subscription.</p>';
     else if(!a) h+='<p class="empty">Loading…</p>';
     else{
@@ -2989,15 +2989,15 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       let status;
       if(a.lifetime) status='<p style="margin:0"><strong>Free for life.</strong> This account never pays. Thank you for building Checky! \ud83d\udc9b</p>';
       else if(!a.live) status='<p style="margin:0"><strong>Free while we test.</strong> Payments haven’t started yet. When they do, you’ll get '+(a.tester?'<strong>40 days free</strong> as a tester':'a <strong>14-day free trial</strong>')+' first.</p>';
-      else if(a.locked) status='<p style="margin:0"><strong style="color:var(--p-pink-lt)">Your access is paused.</strong> Choose a plan below to unlock everything straight away.</p>';
-      else if(a.status==='trial'&&!a.open) status='<p style="margin:0"><strong>Free '+(a.tester?'tester access':'trial')+'</strong> until <strong>'+fmtD(a.access_until)+'</strong> ('+Math.max(left,0)+(left===1?' day':' days')+' left).</p><p class="hint" style="margin:6px 0 0">Early access: payments open after the review period. Nothing will be locked before then, and you\u2019ll get a reminder first.</p>';
-      else if(a.status==='trial') status='<p style="margin:0"><strong>Free '+(a.tester?'tester access':'trial')+'</strong> until <strong>'+fmtD(a.access_until)+'</strong> ('+left+(left===1?' day':' days')+' left).</p>';
-      else status='<p style="margin:0"><strong>'+(a.plan==='yearly'?'Yearly':'Monthly')+' plan</strong> · paid until <strong>'+fmtD(a.paid_until)+'</strong>'+(a.auto_renew?' · renews automatically':' · doesn’t renew automatically')+'</p>';
+      else if(a.locked) status='<p style="margin:0"><strong style="color:var(--p-pink-lt)">Premium is paused.</strong> The rest of Checky still works. Choose a plan below to unlock Premium straight away.</p>';
+      else if(a.status==='trial'&&!a.open) status='<p style="margin:0"><strong>Free Premium '+(a.tester?'(tester)':'trial')+'</strong> until <strong>'+fmtD(a.access_until)+'</strong> ('+Math.max(left,0)+(left===1?' day':' days')+' left).</p><p class="hint" style="margin:6px 0 0">Early access: payments open after the review period. Nothing will be locked before then, and you\u2019ll get a reminder first.</p>';
+      else if(a.status==='trial') status='<p style="margin:0"><strong>Free Premium '+(a.tester?'(tester)':'trial')+'</strong> until <strong>'+fmtD(a.access_until)+'</strong> ('+left+(left===1?' day':' days')+' left).</p>';
+      else status='<p style="margin:0"><strong>Premium · '+(a.plan==='yearly'?'yearly':'monthly')+' plan</strong> · paid until <strong>'+fmtD(a.paid_until)+'</strong>'+(a.auto_renew?' · renews automatically':' · doesn’t renew automatically')+'</p>';
       h+='<section class="panel chrome rim-blue" style="margin-top:18px" aria-labelledby="h-sub-status"><div class="panel-head"><h3 id="h-sub-status">Your plan</h3><span class="pill '+(a.locked?'late':a.lifetime?'prem':a.live?'ok':'later')+'">'+(a.lifetime?'Free for life':a.locked?'Paused':!a.live?'Testing':!a.open?'Early access':a.status==='trial'?'Free':a.auto_renew?'Active':'Active (no renewal)')+'</span></div>'+status;
       if(a.live&&a.status==='active'&&a.auto_renew) h+='<div class="note-acts"><button type="button" class="btn ghost small" id="sub-card">Update card</button><button type="button" class="btn ghost small" id="sub-cancel">Stop automatic renewal</button></div>';
       h+='</section>';
-      if(!a.lifetime&&((a.live&&a.open)||PAYTEST)&&!(a.status==='active'&&a.auto_renew)) h+='<section class="panel chrome" style="margin-top:18px" aria-labelledby="h-sub-plans"><div class="panel-head"><h3 id="h-sub-plans">Choose a plan</h3>'+(PAYTEST&&!a.live?'<span class="pill due">Test mode · no real money</span>':'')+'</div>'+(a.status==='trial'&&a.live?'<p class="hint" style="margin:0">Paying now doesn’t waste your free days: your paid time starts after them.</p>':'')+planButtons()+'</section>';
-      h+='<p class="hint" style="margin-top:14px">If access is ever paused, Approvals, the Emergency card, Download my information and Delete my account stay open.</p>';
+      if(!a.lifetime&&((a.live&&a.open)||PAYTEST)&&!(a.status==='active'&&a.auto_renew)) h+='<section class="panel chrome" style="margin-top:18px" aria-labelledby="h-sub-plans"><div class="panel-head"><h3 id="h-sub-plans">Choose a Premium plan</h3>'+(PAYTEST&&!a.live?'<span class="pill due">Test mode · no real money</span>':'')+'</div>'+(a.status==='trial'&&a.live?'<p class="hint" style="margin:0">Paying now doesn’t waste your free days: your paid time starts after them.</p>':'')+planButtons()+'</section>';
+      h+='<p class="hint" style="margin-top:14px">If Premium is ever paused, everything else in Checky keeps working and your Premium information stays safe.</p>';
     }
     box.innerHTML=h; wirePay(box);
     const c=$('#sub-cancel'); if(c) c.addEventListener('click',async()=>{ if(!confirm('Stop automatic renewal? You keep access until the end of the period you paid for.')) return;
@@ -3007,7 +3007,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   }
   function renderLocked(){
     const box=$('#locked-body'); if(!box) return;
-    box.innerHTML='<section class="panel chrome locked-panel" aria-labelledby="h-locked"><span class="pill late">Paused</span><h3 id="h-locked">Your Checky access is paused</h3><p>Your information is safe. Choose a plan to unlock everything straight away.</p><div style="width:100%;max-width:460px">'+planButtons()+'</div><p class="hint">Still open: Approvals, the Emergency card, Download my information and Delete my account (menu › Household setup).</p></section>';
+    box.innerHTML='<section class="panel chrome locked-panel" aria-labelledby="h-locked"><span class="pill prem">Premium</span><h3 id="h-locked">This is part of Premium</h3><p>Money, Health, the Emergency card, Documents and Communication are part of Premium. Your information is safe. Choose a plan to unlock them again.</p><div style="width:100%;max-width:460px">'+planButtons()+'</div><p class="hint">Everything else in Checky keeps working as usual.</p></section>';
     wirePay(box);
   }
   $('#pay-bar-btn').addEventListener('click',()=>showPage('p-sub'));
@@ -3042,9 +3042,11 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       const {error}=await sb.auth.resend({type:'signup',email:b.dataset.resend,options:{emailRedirectTo:location.origin}});
       b.textContent=error?(/security purposes|rate/i.test(error.message)?'Wait a minute':'Could not send'):'Sent \u2713'}));
   }
-  const OPEN_WHEN_LOCKED=new Set(['s-approvals','s-emergency','p-sub','p-alerts','p-locked']);
+  // Free app + paid Premium: only the Premium sections lock when Premium is not paid
+  const PREMIUM_PAGES=new Set(['s-money','s-health','s-emergency','s-documents','p-comm']);
+  const isLockedPage=id=>PREMIUM_PAGES.has(id);
   function showPage(id){
-    if(ACCESS&&ACCESS.locked&&!OPEN_WHEN_LOCKED.has(id)){LOCKED_WANTED=id; id='p-locked'}
+    if(ACCESS&&ACCESS.locked&&isLockedPage(id)){LOCKED_WANTED=id; id='p-locked'}
     setView(id==='p-pets'?'pets':id.startsWith('p-')?'personal':'shared');
     $$('#personal [data-page], #shared [data-page]').forEach(el=>{el.hidden=!(el.dataset.page===id||(el.dataset.page==='s-cat'&&isCat(id)))});
     if(isCat(id)) showCat(cats.find(c=>'s-'+c.id===id));
@@ -3053,7 +3055,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     if(id==='p-sub') renderSub();
     if(id==='p-owner') renderOwner();
     if(id==='p-locked') renderLocked();
-    setNav(id); updateBadge(); window.scrollTo(0,0);
+    setNav(id); if(id==='p-locked'&&$('#top-title')) $('#top-title').textContent='Premium'; updateBadge(); window.scrollTo(0,0);
   }
   var JOINREQ=[]; let JOINCH=null;
   async function loadJoinRequests(){
