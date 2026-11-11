@@ -2981,7 +2981,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   }
   function renderSub(){
     const box=$('#sub-body'); if(!box) return; const a=ACCESS;
-    let h='<div class="personal-head"><h2 id="h-sub">Subscription</h2><p class="hint">Checky is free. <strong>Premium</strong> (Money, Health, Emergency card, Documents and Communication) is R80 a month or R800 a year. Each parent pays for their own account.</p></div>';
+    let h='<div class="personal-head"><h2 id="h-sub">Subscription</h2><p class="hint">Checky is free. <strong>Premium</strong> (Money, Health, Documents and Communication) is R80 a month or R800 a year. Each parent pays for their own account.</p></div>';
     if(!USER) h+='<p class="empty">Sign in to see your subscription.</p>';
     else if(!a) h+='<p class="empty">Loading…</p>';
     else{
@@ -3007,7 +3007,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   }
   function renderLocked(){
     const box=$('#locked-body'); if(!box) return;
-    box.innerHTML='<section class="panel chrome locked-panel" aria-labelledby="h-locked"><span class="pill prem">Premium</span><h3 id="h-locked">This is part of Premium</h3><p>Money, Health, the Emergency card, Documents and Communication are part of Premium. Your information is safe. Choose a plan to unlock them again.</p><div style="width:100%;max-width:460px">'+planButtons()+'</div><p class="hint">Everything else in Checky keeps working as usual.</p></section>';
+    box.innerHTML='<section class="panel chrome locked-panel" aria-labelledby="h-locked"><span class="pill prem">Premium</span><h3 id="h-locked">This is part of Premium</h3><p>Money, Health, Documents and Communication are part of Premium. Your information is safe. Choose a plan to unlock them again.</p><div style="width:100%;max-width:460px">'+planButtons()+'</div><p class="hint">Everything else keeps working as usual, and the Emergency card is always open.</p></section>';
     wirePay(box);
   }
   $('#pay-bar-btn').addEventListener('click',()=>showPage('p-sub'));
@@ -3043,7 +3043,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       b.textContent=error?(/security purposes|rate/i.test(error.message)?'Wait a minute':'Could not send'):'Sent \u2713'}));
   }
   // Free app + paid Premium: only the Premium sections lock when Premium is not paid
-  const PREMIUM_PAGES=new Set(['s-money','s-health','s-emergency','s-documents','p-comm']);
+  const PREMIUM_PAGES=new Set(['s-money','s-health','s-documents','p-comm']); // the Emergency card is always open
   const isLockedPage=id=>PREMIUM_PAGES.has(id);
   function showPage(id){
     if(ACCESS&&ACCESS.locked&&isLockedPage(id)){LOCKED_WANTED=id; id='p-locked'}
@@ -3125,7 +3125,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       {group:(one?'Family':'Shared')+' · Premium',items:[
         {id:'s-money',label:'Money',ic:'money',t:'y',tag:'Premium'},
         {id:'s-health',label:'Health',ic:'heart',t:'p',tag:'Premium'},
-        {id:'s-emergency',label:'Emergency card',ic:'plus',t:'p',tag:'Premium'},
+        {id:'s-emergency',label:'Emergency card',ic:'plus',t:'p',tag:'Always open'},
         {id:'s-documents',label:'Documents',ic:'doc',t:'b',tag:'Premium'}]}];
   }
   function buildNav(){
