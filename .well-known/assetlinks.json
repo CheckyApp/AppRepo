@@ -1,8 +1,15 @@
-[{
-      "relation": ["delegate_permission/common.handle_all_urls"],
-      "target": {
-        "namespace": "android_app",
-        "package_name": "za.co.checkyapp.app",
-        "sha256_cert_fingerprints": ["DB:3A:DA:23:CE:DF:7C:66:81:D7:D3:FC:06:CC:75:3E:E8:45:B1:FF:E5:19:CA:12:7D:8F:B2:70:03:3F:4A:97"]
-      }
-    }]
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "za.co.checkyapp.app",
+      "sha256_cert_fingerprints": [
+        "DB:3A:DA:23:CE:DF:7C:66:81:D7:D3:FC:06:CC:75:3E:E8:45:B1:FF:E5:19:CA:12:7D:8F:B2:70:03:3F:4A:97",
+        "41:D3:2D:1B:47:00:5F:AA:E8:67:4D:F4:C0:C3:98:91:5D:B9:BC:C2:D2:8F:90:29:7F:C2:72:24:7D:B8:8A:DA"
+      ]
+    }
+  }
+]
