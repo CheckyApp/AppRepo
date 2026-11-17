@@ -2696,7 +2696,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     await Promise.all([loadPersonal(),loadBills(),loadList('comm'),loadList('pets'),loadList('petrec')]); syncAlerts();
     if(location.hash==='#shared'){history.replaceState(null,'',location.pathname); $('#seg-shared').click()}
     const meta=user.user_metadata||{};
-    await loadJoinRequests(); subscribeJoins(); loadAccess(); loadAppNotes(); loadMyPickups();
+    await loadJoinRequests(); subscribeJoins(); loadAccess(); loadAppNotes(); loadMyPickups(); logOpen();
     if(FROM_INVITE&&meta.invite_code&&!HH.some(h=>h.f.invite_code===meta.invite_code)){
       const {data:f,error:je}=await sb.rpc('join_family',{p_code:meta.invite_code,p_role:meta.invite_role||'p2'});
       if(!je&&f&&f.status==='pending'){await loadJoinRequests(); toast('Your request to join was sent. You\'ll get an alert once it is approved.',5000)}
@@ -2931,6 +2931,12 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   const fmtD=d=>d?new Date(d).toLocaleDateString('en-ZA',{day:'numeric',month:'long',year:'numeric'}):'';
   const daysUntil=d=>d?Math.ceil((new Date(d)-Date.now())/864e5):null;
   // ---------- Notes from CheckyApp (tester thank-yous and "What's new") ----------
+  // Which way Checky was opened today: from the Play Store app, the home screen, or the browser
+  const OPEN_PLAY=(function(){let p=false;try{if((document.referrer||'').indexOf('android-app://za.co.checkyapp.app')===0){sessionStorage.setItem('checky_play','1')}p=sessionStorage.getItem('checky_play')==='1'}catch(e){p=(document.referrer||'').indexOf('android-app://za.co.checkyapp.app')===0}return p})();
+  let LAST_OPEN=0;
+  function openPlatform(){if(OPEN_PLAY)return'play';try{if(matchMedia('(display-mode: standalone)').matches||navigator.standalone)return'home'}catch(e){}return'web'}
+  function logOpen(){if(!sb||!USER)return;const now=Date.now();if(now-LAST_OPEN<30*60*1000)return;LAST_OPEN=now;sb.rpc('log_open',{p_platform:openPlatform()}).then(()=>{},()=>{})}
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')logOpen()});
   async function loadAppNotes(){
     const bar=$('#notes-bar'); if(!bar) return;
     const {data,error}=await sb.rpc('my_notes',{}); if(error||!data){bar.hidden=true;return}
