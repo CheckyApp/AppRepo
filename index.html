@@ -907,6 +907,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   // ---------- Accounts (Supabase) ----------
   const SB_URL='https://lcxxtysaimrthbdypuyu.supabase.co', SB_KEY='sb_publishable_IDslB8xRql_iJ__IvlLGUw_jyddMdp3';
   const FROM_INVITE=/type=invite/.test(location.hash);
+  let FROM_RECOVERY=/type=recovery/.test(location.hash+location.search); // opened from a 'reset your password' email
   const LINK_ERR=/error_code=otp_expired|error=access_denied/.test(location.hash+location.search); // an old or used email link
   let sb=null; try{ if(window.supabase) sb=window.supabase.createClient(SB_URL,SB_KEY) }catch(e){ sb=null }
   // Anonymous visit count (a number per day, nothing about the person)
@@ -967,6 +968,9 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     if(USER&&sb){try{await turnOffAlerts(true)}catch(e){} try{await sb.auth.signOut()}catch(e){} if(CHANNEL){sb.removeChannel(CHANNEL);CHANNEL=null}}
     USER=null; BILLS=store.get('checky.bills',null)||billSeed(); renderBills(); renderAlerts(); SCH=demoSchedule(); resetLists(); CHG=[]; renderPending(); renderPersonalComm(); renderHandoverStat(); $('#app').hidden=true;$('#login').hidden=false;document.body.classList.remove('inside');window.scrollTo(0,0);
   });
+  // After tapping the link in a 'reset your password' email, always ask for the new password straight away
+  function askNewPassword(){ if($('#pw-dialog').open) return; $('#pw-title').textContent='Choose your new password'; $('#pw-new').value=''; $('#pw-msg').hidden=true; $('#pw-dialog').showModal();
+    try{history.replaceState(null,'',location.pathname)}catch(e){} }
   $('#change-pw').addEventListener('click',()=>{ if(!USER){toast('Sign in first');return} if($('#menu').open) $('#menu').close(); $('#pw-title').textContent='Change your password'; $('#pw-new').value=''; $('#pw-msg').hidden=true; $('#pw-dialog').showModal() });
   $('#pw-cancel').addEventListener('click',()=>$('#pw-dialog').close());
   $('#pw-form').addEventListener('submit',async e=>{
@@ -2763,6 +2767,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     if(location.hash==='#shared'){history.replaceState(null,'',location.pathname); $('#seg-shared').click()}
     const meta=user.user_metadata||{};
     await loadJoinRequests(); subscribeJoins(); loadAccess(); loadAppNotes(); loadMyPickups(); logOpen();
+    if(FROM_RECOVERY){FROM_RECOVERY=false; askNewPassword()}
     if(FROM_INVITE&&meta.invite_code&&!HH.some(h=>h.f.invite_code===meta.invite_code)){
       const {data:f,error:je}=await sb.rpc('join_family',{p_code:meta.invite_code,p_role:meta.invite_role||'p2'});
       if(!je&&f&&f.status==='pending'){await loadJoinRequests(); toast('Your request to join was sent. You\'ll get an alert once it is approved.',5000)}
@@ -2847,7 +2852,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     updateCounts();
   }
   if(sb){
-    sb.auth.onAuthStateChange((ev)=>{ if(ev==='PASSWORD_RECOVERY'){ $('#pw-dialog').showModal() } });
+    sb.auth.onAuthStateChange((ev)=>{ if(ev==='PASSWORD_RECOVERY'){ FROM_RECOVERY=false; askNewPassword() } });
     sb.auth.getSession().then(({data})=>{ if(data&&data.session&&!USER) startCloud(data.session.user) }).catch(()=>{});
   }
   const cats=[
