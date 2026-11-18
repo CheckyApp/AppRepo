@@ -256,8 +256,9 @@ table.log td{padding:10px 8px;border-bottom:1px solid var(--line);font-variant-n
 .dot{display:inline-block;width:7px;height:7px;border-radius:50%}
 .d-b{background:#2EC4EE}.d-p{background:#F2479B}.d-y{background:#FFD21F}.d-o{background:#FF9A3C}
 .cal-rename{margin-left:6px;font-family:var(--body);font-size:.75rem;vertical-align:middle}
-.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;
-  padding:12px 20px;border-radius:999px;background:var(--paint);color:var(--ink-dark);font-weight:700;font-size:.9rem;transition:.25s;pointer-events:none;max-width:calc(100% - 32px)}
+.toast{position:fixed;left:50%;bottom:calc(72px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;z-index:50;
+  padding:16px 22px;border-radius:20px;background:var(--paint);color:var(--ink-dark);font-weight:800;font-size:1.05rem;line-height:1.35;text-align:center;
+  box-shadow:0 0 0 3px rgba(0,0,0,.55),0 14px 40px rgba(0,0,0,.6);transition:.25s;pointer-events:none;width:max-content;max-width:min(440px,calc(100% - 32px))}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 body.inside{--bg:#08070A}
 @media (max-width:520px){
@@ -774,8 +775,8 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
   const toastEl=$('#toast'); let tt;
   function toast(msg,ms){toastEl.textContent=msg;toastEl.classList.add('show');clearTimeout(tt);
-    // Messages about approvals stay up for 4 seconds; other messages 2.4 seconds
-    tt=setTimeout(()=>toastEl.classList.remove('show'),ms||(/approv|declin|withdr|asked/i.test(msg)?4000:2400))}
+    // Messages stay up for 5 seconds (approval messages 6 seconds) so there's time to read them
+    tt=setTimeout(()=>toastEl.classList.remove('show'),ms||(/approv|declin|withdr|asked/i.test(msg)?6000:5000))}
 
   // One light source follows the pointer: rims turn toward it, shadows fall away from it
   const rootStyle=document.documentElement.style;
@@ -2693,7 +2694,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     box.querySelector('.alerts-state').textContent=on?'On':'Off';
     const b1=$('#alerts-on'); if(b1) b1.addEventListener('click',turnOnAlerts);
     const b2=$('#alerts-off'); if(b2) b2.addEventListener('click',()=>turnOffAlerts(false));
-    const b3=$('#alerts-test'); if(b3) b3.addEventListener('click',async()=>{const {error}=await sb.rpc('test_notification'); toast(error?'Could not send: '+error.message:'Test sent. It should appear in a few seconds.')});
+    const b3=$('#alerts-test'); if(b3) b3.addEventListener('click',async()=>{const {error}=await sb.rpc('test_notification'); toast(error?'Could not send: '+error.message:'Test sent! Watch the top of your screen: a Checky alert should pop up in the next few seconds.',7000)});
   }
   // Tapping an alert opens Shared
   if('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.open==='shared'&&!$('#app').hidden) $('#seg-shared').click()});
