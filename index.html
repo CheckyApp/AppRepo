@@ -2687,7 +2687,9 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     if(onIOS()&&!installedApp()) html='<p class="hint" style="margin:0">On iPhone, alerts only work in the installed app. Add Checky to your home screen first (Share, then Add to Home Screen), open it from there and turn alerts on.</p>';
     else if(!pushSupported()) html='<p class="hint" style="margin:0">This browser can\'t show alerts. Open Checky from its home-screen icon, or in Chrome or Safari.</p>';
     else if(Notification.permission==='denied') html='<p class="hint" style="margin:0">Alerts are blocked for Checky. Allow them in your phone\'s settings (Settings, Notifications, Checky), then come back here.</p>';
-    else{ const sub=await currentSub(); on=!!sub||!!pushFlag();
+    else{ const sub=await currentSub(); on=!!sub;
+      if(!on&&pushFlag()){ // Samsung Internet: no subscription visible here, so ask the server whether the saved one is still live
+        try{const {data}=await sb.from('push_subscriptions').select('id').eq('endpoint',pushFlag()).limit(1); on=!!(data&&data.length); if(!on) pushFlag(null)}catch(e){on=false} }
       html=on?'<p class="hint" style="margin:0">Alerts are <strong>on</strong> for this phone. You\'ll hear about new shared entries, notes, and changes that need your approval, even when Checky is closed.</p><div class="note-acts"><button type="button" class="btn small" id="alerts-test">Send me a test</button><button type="button" class="btn ghost small" id="alerts-off">Turn off</button></div>'
         :'<p class="hint" style="margin:0">Get an alert on this phone when the other parent adds something, sends a note, or asks for your approval, even when Checky is closed.</p><div class="note-acts"><button type="button" class="btn small" id="alerts-on">Turn on alerts</button></div>'; }
     body.innerHTML=html+'<p class="hint" id="alerts-msg" role="status" style="margin:0;color:var(--p-pink-lt)" hidden></p>';
