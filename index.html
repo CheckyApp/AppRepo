@@ -317,7 +317,8 @@ dialog::backdrop{background:rgba(5,4,6,.72);backdrop-filter:blur(3px)}
 .menu-btn{position:relative;width:46px;height:46px;flex:none;border:0;border-radius:16px;cursor:pointer;display:grid;place-items:center;color:var(--ink);
   background:linear-gradient(var(--deg),var(--row-hi) 0%,var(--row-mid) 50%,var(--row-lo) 100%);box-shadow:inset 0 0 0 1px var(--line),calc(var(--sx)*.4) calc(var(--sy)*.4) 12px var(--shadow)}
 .menu-btn .badge{position:absolute;top:-5px;right:-5px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;display:grid;place-items:center;background:var(--p-yellow);color:var(--ink-dark);font-size:.72rem;font-weight:800;box-shadow:0 0 0 2px var(--bg)}
-.top-title{margin-left:auto;font-family:var(--display);font-size:1.5rem;line-height:1;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:45vw}
+.top-title{margin-left:auto;flex:1 1 0;min-width:0;font-family:var(--display);font-size:1.5rem;line-height:1.05;color:var(--ink-soft);white-space:normal;text-align:right;overflow-wrap:break-word}
+.top-title.long{font-size:1.2rem}
 dialog.drawer{margin:0;inset:0 auto 0 0;height:100%;max-height:100%;width:min(310px,88vw);border-radius:0 30px 30px 0;
   padding:calc(16px + env(safe-area-inset-top,0px)) 12px calc(16px + env(safe-area-inset-bottom,0px));box-shadow:20px 0 50px rgba(0,0,0,.6)}
 dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn .22s ease-out}
@@ -2636,6 +2637,10 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     toast(a==='withdraw'?'Request withdrawn.':(a==='approve'?'Approved. ':'Declined. ')+nm(c.requested_role)+' can see your answer.');
   }
 
+  // Page title in the top bar: long names get a smaller size and may wrap to two lines, never cut off
+  (function(){const t=document.getElementById('top-title'); if(!t) return;
+    const fit=()=>t.classList.toggle('long',(t.textContent||'').trim().length>12);
+    fit(); new MutationObserver(fit).observe(t,{childList:true,characterData:true,subtree:true});})();
   // ---------- Alerts on this phone (push notifications) ----------
   const VAPID_PUBLIC='BLf0zb58Gd48pvVsBklQznsrYX6lD2IBgUP1Bkg8-z2ZgpzC3E-pXECPdgn7G1pZZOwwe4LOAhqQ3vOm5liwJyg';
   const pushSupported=()=>'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window&&location.protocol==='https:';
