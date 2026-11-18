@@ -890,6 +890,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   // ---------- Accounts (Supabase) ----------
   const SB_URL='https://lcxxtysaimrthbdypuyu.supabase.co', SB_KEY='sb_publishable_IDslB8xRql_iJ__IvlLGUw_jyddMdp3';
   const FROM_INVITE=/type=invite/.test(location.hash);
+  const LINK_ERR=/error_code=otp_expired|error=access_denied/.test(location.hash+location.search); // an old or used email link
   let sb=null; try{ if(window.supabase) sb=window.supabase.createClient(SB_URL,SB_KEY) }catch(e){ sb=null }
   // Anonymous visit count (a number per day, nothing about the person)
   try{ if(sb){ const k='checky.visitday', d=new Date().toISOString().slice(0,10); let first=true; try{first=localStorage.getItem(k)!==d; localStorage.setItem(k,d)}catch(e){} sb.rpc('count_visit',{p_new_today:first}).then(()=>{},()=>{}) } }catch(e){}
@@ -940,6 +941,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       loginMsg(error?error.message:'If that email has a Checky account, a reset link is on its way.');
     }catch(err){loginMsg(netMsg(err))}
   });
+  if(LINK_ERR){ loginMsg('That email link has expired or was already used. Every new reset email cancels the earlier ones. Open the NEWEST Checky email and tap its button, or tap Forgot password? once for a fresh link.'); try{history.replaceState(null,'',location.pathname)}catch(e){} }
   $('#demo-btn').addEventListener('click',()=>{USER=null;loginMsg('');showApp();toast('Demo mode: nothing is saved online')});
   $('#signout').addEventListener('click',async()=>{
     if($('#menu').open) $('#menu').close(); showPage('p-today');
