@@ -255,6 +255,21 @@ table.log td{padding:10px 8px;border-bottom:1px solid var(--line);font-variant-n
 .fcal .dots{position:absolute;left:0;right:0;bottom:3px;display:flex;justify-content:center;gap:2px}
 .dot{display:inline-block;width:7px;height:7px;border-radius:50%}
 .d-b{background:#2EC4EE}.d-p{background:#F2479B}.d-y{background:#FFD21F}.d-o{background:#FF9A3C}
+.swatches{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+.swatches label{position:relative;width:36px;height:36px;border-radius:50%;cursor:pointer;display:grid;place-items:center;flex:none}
+.swatches input{position:absolute;inset:0;margin:0;opacity:0;cursor:pointer}
+.swatches label:has(input:checked){box-shadow:0 0 0 3px #08070A,0 0 0 6px #fff}
+.swatches label:has(input:focus-visible){outline:2px solid var(--p-yellow);outline-offset:5px}
+.swatches .auto{border:2px dashed var(--ink-soft);font-size:.6rem;font-weight:800;color:var(--ink-soft)}
+.cal.has-bars{table-layout:fixed;width:100%;border-spacing:3px}
+.cal.has-bars td{height:auto}
+.cal.has-bars .day{min-height:76px;padding:4px 2px;overflow:hidden}
+.cal .bars{display:grid;gap:2px;margin-top:3px}
+.cal .cbar{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;border-radius:5px;padding:1px 3px;font-size:.64rem;font-weight:700;line-height:1.2;overflow:hidden;word-break:break-word;overflow-wrap:anywhere;width:100%;box-sizing:border-box}
+.cal td.mom .cbar,.cal td.dad .cbar{box-shadow:0 0 0 1px rgba(0,0,0,.4)}
+.cal .more{display:block;font-size:.66rem;font-weight:800;opacity:.85;padding-left:3px}
+.dot.big{width:12px;height:12px}
+@media (max-width:560px){section:has(.cal.has-bars){padding-left:10px;padding-right:10px}.cal.has-bars{border-spacing:2px}.cal .cbar{font-size:.62rem;padding:1px 2px}}
 .cal-rename{margin-left:6px;font-family:var(--body);font-size:.75rem;vertical-align:middle}
 .toast{position:fixed;left:50%;bottom:calc(72px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;z-index:50;
   padding:16px 22px;border-radius:20px;background:var(--paint);color:var(--ink-dark);font-weight:800;font-size:1.05rem;line-height:1.35;text-align:center;
@@ -644,7 +659,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       <div class="field"><label for="act-type">What kind</label><select id="act-type"><option>Sport</option><option>Coding</option><option>Music</option><option>Extra lesson</option><option>Party or event</option><option>Reminder</option><option>Other</option></select></div>
       <div class="field"><label for="act-name">Name</label><input id="act-name" maxlength="60" placeholder="e.g. Netball practice"></div>
       <div class="field"><label for="act-repeat">How often</label><select id="act-repeat"><option value="weekly">Every week</option><option value="game">Game or match</option><option value="once">Once only</option></select></div>
-      <div class="field" id="act-day-wrap"><label for="act-day">Day</label><select id="act-day"><option value="0">Monday</option><option value="1">Tuesday</option><option value="2">Wednesday</option><option value="3">Thursday</option><option value="4">Friday</option><option value="5">Saturday</option><option value="6">Sunday</option></select></div>
+      <fieldset class="field wide day-checks" id="act-day-wrap"><legend>Which days (tick all that apply)</legend><div class="chk-row" id="act-days"><label class="opt chk"><input type="checkbox" value="0"> Mon</label><label class="opt chk"><input type="checkbox" value="1"> Tue</label><label class="opt chk"><input type="checkbox" value="2"> Wed</label><label class="opt chk"><input type="checkbox" value="3"> Thu</label><label class="opt chk"><input type="checkbox" value="4"> Fri</label><label class="opt chk"><input type="checkbox" value="5"> Sat</label><label class="opt chk"><input type="checkbox" value="6"> Sun</label></div></fieldset>
       <div class="field" id="act-date-wrap" hidden><label for="act-date">Date</label><input id="act-date" type="date"></div>
       <div class="field"><label for="act-who">Who</label><select id="act-who"></select></div>
       <div class="field"><label for="act-start">Starts</label><input id="act-start" type="time"></div>
@@ -653,6 +668,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     <div class="field"><label for="act-where">Where</label><input id="act-where" maxlength="80" placeholder="e.g. School netball courts"></div>
     <div class="field"><label for="act-bring">Take along</label><input id="act-bring" maxlength="80" placeholder="e.g. Sports bag, water bottle, R20"></div>
     <div class="field"><label for="act-remind">Remind me</label><select id="act-remind"><option value="">No reminder</option><option value="30 minutes before">30 minutes before</option><option value="1 hour before">1 hour before</option><option value="The evening before">The evening before</option></select></div>
+    <fieldset class="field" id="act-color-wrap"><legend>Colour on the calendar</legend><div id="act-color"></div></fieldset>
     <p class="hint" id="act-error" style="margin:0;color:var(--p-pink-lt)" hidden>Give the activity a name.</p>
     <div class="note-acts"><button class="btn" type="submit" value="save">Save</button><button class="btn ghost" type="button" id="act-cancel">Cancel</button><button class="btn ghost" type="button" id="act-delete" hidden>Remove</button></div>
   </form>
@@ -1138,10 +1154,20 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     {id:'a5',type:'Music',name:'Piano lesson',repeat:'weekly',day:(todayIdx+3)%7,start:'17:00',end:'17:30',who:'c2',where:'Mrs Naidoo\'s studio',bring:'Music book',remind:'1 hour before'},
     {id:'a6',type:'Sport',name:'Netball match vs Oakhill Primary',repeat:'game',date:iso(nextSat),start:'09:00',end:'10:30',who:'c1',where:'Oakhill Primary fields',bring:'Full kit, snacks',remind:'The evening before'}
   ];
+  // Calendar colours: each item can have its own colour, chosen when adding it
+  const PAL={pink:['#F2479B','#fff'],blue:['#2EC4EE','#06141a'],yellow:['#FFD21F','#1a1500'],orange:['#FF9A3C','#1a0e00'],green:['#2FBF71','#04170c'],purple:['#9B5DE5','#fff'],red:['#E63946','#fff'],teal:['#14B8A6','#031614'],grey:['#9AA0A6','#111']};
+  const PAL_NAME={pink:'Pink',blue:'Blue',yellow:'Yellow',orange:'Orange',green:'Green',purple:'Purple',red:'Red',teal:'Teal',grey:'Grey'};
+  const DEF_C={b:'blue',p:'pink',y:'yellow',o:'orange'};
+  const colOf=i=>PAL[i.col&&PAL[i.col]?i.col:DEF_C[i.c]||'grey'];
+  function swatchHtml(name,sel){return '<div class="swatches" role="radiogroup">'+
+    '<label class="auto" title="Automatic"><input type="radio" name="'+name+'" value="" aria-label="Automatic colour"'+(!sel?' checked':'')+'>Auto</label>'+
+    Object.keys(PAL).map(k=>'<label style="background:'+PAL[k][0]+'" title="'+PAL_NAME[k]+'"><input type="radio" name="'+name+'" value="'+k+'" aria-label="'+PAL_NAME[k]+'"'+(sel===k?' checked':'')+'></label>').join('')+'</div>'}
+  const daysOf=a=>Array.isArray(a.days)&&a.days.length?a.days:(a.day!=null?[a.day]:[]);
+  function daysText(list){const n=[...list].map(Number).sort((x,y)=>x-y).map(i=>DAYS[i].slice(0,3)); return n.length<2?(n[0]||''):n.slice(0,-1).join(', ')+' & '+n[n.length-1]}
   let ACTS=store.get('checky.activities',null)||seed;
   const saveActs=()=>{if(!USER) store.set('checky.activities',ACTS)};
-  const dayOf=a=>a.repeat==='weekly'?a.day:((new Date(a.date+'T12:00').getDay()+6)%7);
-  const onDate=(a,d)=>a.repeat==='weekly'?a.day===(d.getDay()+6)%7:a.date===iso(d);
+  const dayOf=a=>a.repeat==='weekly'?daysOf(a)[0]:((new Date(a.date+'T12:00').getDay()+6)%7);
+  const onDate=(a,d)=>a.repeat==='weekly'?daysOf(a).includes((d.getDay()+6)%7):a.date===iso(d);
   const byTime=(x,y)=>(x.start||'99').localeCompare(y.start||'99');
   const short=d=>d.toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short'});
   function actItem(a,opts={}){
@@ -1176,7 +1202,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       row.innerHTML='<div class="day-name">'+DAYS[i].slice(0,3)+'<small>'+d.getDate()+' '+d.toLocaleDateString('en-ZA',{month:'short'})+(i===todayIdx?' · today':'')+'</small></div><div class="chips"></div>';
       const chips=row.querySelector('.chips'); const items=ACTS.filter(a=>onDate(a,d)).sort(byTime);
       if(!items.length) chips.innerHTML='<span class="hint">Free</span>';
-      items.forEach(a=>{const c=document.createElement('button');c.type='button';c.className='chip '+(TYPE_CLASS[a.type]||'t-other');
+      items.forEach(a=>{const c=document.createElement('button');c.type='button';c.className='chip '+(TYPE_CLASS[a.type]||'t-other'); if(a.color&&PAL[a.color]){c.style.background=PAL[a.color][0];c.style.color=PAL[a.color][1]}
         c.innerHTML='<b>'+esc(a.start||'')+'</b><span>'+esc(a.name)+' · '+esc(nm(a.who))+'</span>';c.setAttribute('aria-label',a.name+', '+DAYS[i]+' '+(a.start||'')+'. Edit');
         c.addEventListener('click',()=>openAct(a)); chips.appendChild(c)});
       wk.appendChild(row);
@@ -1190,9 +1216,9 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     // Every week
     const all=document.createElement('section'); all.className='panel chrome'; all.setAttribute('aria-labelledby','h-weekly');
     all.innerHTML='<div class="panel-head"><h3 id="h-weekly">Every week</h3><span class="hint">Regular practice and lessons</span></div><ul class="list"></ul>';
-    const al=all.querySelector('ul'); const weekly=ACTS.filter(a=>a.repeat==='weekly').sort((x,y)=>x.day-y.day||byTime(x,y));
+    const al=all.querySelector('ul'); const weekly=ACTS.filter(a=>a.repeat==='weekly').sort((x,y)=>dayOf(x)-dayOf(y)||byTime(x,y));
     if(!weekly.length) al.innerHTML='<li class="empty">No weekly activities yet.</li>';
-    weekly.forEach(a=>{const li=actItem(a);li.querySelector('.act-name').textContent=DAYS[a.day]+' · '+a.name;al.appendChild(li)});
+    weekly.forEach(a=>{const li=actItem(a);li.querySelector('.act-name').textContent=(daysOf(a).length>1?daysText(daysOf(a)):DAYS[dayOf(a)])+' · '+a.name;al.appendChild(li)});
     wrap.append(week,games,all); body.appendChild(wrap);
     $('#add-act-week').addEventListener('click',()=>openAct(null));
   }
@@ -1204,7 +1230,8 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     editing=a; applyNames();
     $('#act-title').textContent=a?'Edit activity':'Add activity or reminder';
     $('#act-type').value=a?a.type:'Sport'; $('#act-name').value=a?a.name:''; $('#act-repeat').value=a?a.repeat:'weekly';
-    $('#act-day').value=String(a&&a.repeat==='weekly'?a.day:todayIdx); $('#act-date').value=a&&a.date?a.date:'';
+    const ds=a&&a.repeat==='weekly'?daysOf(a):[todayIdx]; $$('#act-days input').forEach(x=>{x.checked=ds.includes(+x.value)}); $('#act-date').value=a&&a.date?a.date:'';
+    $('#act-color').innerHTML=swatchHtml('act-col',a&&a.color);
     $('#act-who').value=a?a.who:'c1'; $('#act-start').value=a?a.start:''; $('#act-end').value=a?a.end:'';
     $('#act-where').value=a?a.where:''; $('#act-bring').value=a?a.bring:''; $('#act-remind').value=a?a.remind:'';
     $('#act-delete').hidden=!a; $('#act-error').hidden=true; syncRepeat(); actDlg.showModal(); $('#act-name').focus();
@@ -1221,8 +1248,11 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     const name=$('#act-name').value.trim(); if(!name){$('#act-error').textContent='Give the activity a name.';$('#act-error').hidden=false;$('#act-name').focus();return}
     const rep=$('#act-repeat').value;
     if(rep!=='weekly'&&!$('#act-date').value){$('#act-error').textContent='Choose the date.';$('#act-error').hidden=false;$('#act-date').focus();return}
-    const a={id:editing?editing.id:'a'+Date.now(),type:$('#act-type').value,name,repeat:rep,
-      day:rep==='weekly'?+$('#act-day').value:undefined,date:rep==='weekly'?undefined:$('#act-date').value,
+    const days=$$('#act-days input:checked').map(x=>+x.value);
+    if(rep==='weekly'&&!days.length){$('#act-error').textContent='Tick at least one day.';$('#act-error').hidden=false;return}
+    const colIn=document.querySelector('input[name="act-col"]:checked');
+    const a={id:editing?editing.id:'a'+Date.now(),type:$('#act-type').value,name,repeat:rep,color:colIn&&colIn.value?colIn.value:null,
+      days:rep==='weekly'?days:undefined,day:rep==='weekly'?days[0]:undefined,date:rep==='weekly'?undefined:$('#act-date').value,
       start:$('#act-start').value,end:$('#act-end').value,who:$('#act-who').value,where:$('#act-where').value.trim(),
       bring:$('#act-bring').value.trim(),remind:$('#act-remind').value};
     if(USER&&FAM.id){
@@ -1364,7 +1394,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     const mLabel=calMonth.toLocaleDateString('en-ZA',{month:'long',year:'numeric'});
     calSec.innerHTML='<div class="panel-head"><h3 id="h-cal">'+esc(calName())+' <button type="button" class="mini-btn cal-rename" aria-label="Rename this Calendar">Rename</button></h3><div class="cal-nav"><button type="button" class="mini-btn" id="cal-prev" aria-label="Previous month">‹</button><b>'+esc(mLabel)+'</b><button type="button" class="mini-btn" id="cal-next" aria-label="Next month">›</button></div></div>'+
       '<div class="legend"><span><i style="background:var(--mother)"></i>'+esc(nm('p1'))+'</span><span><i style="background:var(--father)"></i>'+esc(nm('p2'))+'</span><span><i style="box-shadow:inset 0 0 0 2px var(--p-yellow)"></i>Today</span><span><i style="outline:2px dashed var(--p-yellow);outline-offset:-2px"></i>Waiting for approval</span></div>'+
-      (PAINT?'<div class="paint-bar" role="group" aria-label="Colour days for"><span class="hint">Colour days for:</span><button type="button" class="brush" data-b="p1" aria-pressed="'+(PAINT.brush==='p1')+'"><i style="background:var(--mother)"></i>'+esc(nm('p1'))+'</button><button type="button" class="brush" data-b="p2" aria-pressed="'+(PAINT.brush==='p2')+'"><i style="background:var(--father)"></i>'+esc(nm('p2'))+'</button><button type="button" class="brush" data-b="" aria-pressed="'+(PAINT.brush==='')+'">Clear</button></div>':'')+'<div class="table-scroll"><table class="cal" id="cal"></table></div><div id="cal-foot" style="display:grid;gap:10px"></div>';
+      (PAINT?'<div class="paint-bar" role="group" aria-label="Colour days for"><span class="hint">Colour days for:</span><button type="button" class="brush" data-b="p1" aria-pressed="'+(PAINT.brush==='p1')+'"><i style="background:var(--mother)"></i>'+esc(nm('p1'))+'</button><button type="button" class="brush" data-b="p2" aria-pressed="'+(PAINT.brush==='p2')+'"><i style="background:var(--father)"></i>'+esc(nm('p2'))+'</button><button type="button" class="brush" data-b="" aria-pressed="'+(PAINT.brush==='')+'">Clear</button></div>':'')+'<div class="table-scroll"><table class="cal has-bars" id="cal"></table></div><div id="cal-foot" style="display:grid;gap:10px"></div>';
     const pendingDays=new Set(); SCH.reqs.filter(r=>r.status==='pending').forEach(r=>{for(let d=r.from_date;d<=r.to_date;d=iso(addDays(new Date(d+'T12:00'),1))) pendingDays.add(d)});
     const first=new Date(calMonth), gridStart=addDays(first,-((first.getDay()+6)%7));
     let html='<caption class="hint" style="text-align:left;padding-bottom:4px">'+(PAINT?((SCH.members||1)>1&&hasDays?'Tap empty days to colour them':'Tap days to colour them'):hasDays?((SCH.members||1)>1?'Tap an empty day to fill it in. Tap a filled day to ask for a change.':'Tap an empty day to fill it in, or a filled day to change it'):'Tap a day to start filling in')+'</caption><thead><tr>'+['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>'<th scope="col">'+d+'</th>').join('')+'</tr></thead><tbody>';
@@ -1372,9 +1402,9 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       const rowStart=addDays(gridStart,w*7); if(w>3&&rowStart.getMonth()!==calMonth.getMonth()) break;
       html+='<tr>';
       for(let k=0;k<7;k++){
-        const dt=addDays(gridStart,w*7+k), d=iso(dt), p=shownParent(d);
+        const dt=addDays(gridStart,w*7+k), d=iso(dt), p=shownParent(d), its5=PAINT?[]:calItems(d);
         const cls=[p==='p1'?'mom':p==='p2'?'dad':'none']; if(dt.getMonth()!==calMonth.getMonth()) cls.push('out'); if(d===t) cls.push('today'); if(pendingDays.has(d)) cls.push('pend');
-        html+='<td class="'+cls.join(' ')+'"><button type="button" class="day" data-d="'+d+'" aria-label="'+esc(dt.toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long'}))+': '+(p?esc(nm(p)):'not planned')+(pendingDays.has(d)?', change waiting for approval':'')+'">'+dt.getDate()+'</button></td>';
+        html+='<td class="'+cls.join(' ')+'"><button type="button" class="day" data-d="'+d+'" aria-label="'+esc(dt.toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long'}))+': '+(p?esc(nm(p)):'not planned')+(pendingDays.has(d)?', change waiting for approval':'')+(its5.length?', '+its5.length+(its5.length===1?' item: ':' items: ')+esc(its5.map(i=>i.title).join(', ')):'')+'">'+dt.getDate()+barsHtml(its5)+'</button></td>';
       }
       html+='</tr>';
     }
@@ -1430,7 +1460,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       li.querySelector('.meta').textContent=[r.reason,'Asked by '+(r.requested_by===meId()?'you':nm(r.requested_role)),by+(r.decided_at?' '+dmy(r.decided_at.slice(0,10)):'')].filter(Boolean).join(' · ');
       cl.appendChild(li);
     });
-    wrap.append(calSec,reqSec,hoSec,chSec); body.appendChild(wrap);
+    wrap.append(calSec,comingUpPanel(true),reqSec,hoSec,chSec); body.appendChild(wrap);
     calSec.querySelector('.cal-rename').addEventListener('click',()=>openRecord('calname',null)); calSec.querySelector('#cal-prev').addEventListener('click',()=>{calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()-1,1);refreshCat()});
     calSec.querySelector('#cal-next').addEventListener('click',()=>{calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()+1,1);refreshCat()});
     calSec.querySelectorAll('.day').forEach(b=>b.addEventListener('click',()=>{
@@ -1616,6 +1646,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     const id='rf-'+f.k, v=val==null?'':String(val), ph=f.ph?' placeholder="'+esc(f.ph)+'"':'', mx=f.max?' maxlength="'+f.max+'"':'';
     let input;
     if(f.type==='checks'){const sel=Array.isArray(val)?val.map(String):String(val||'').split(',').filter(Boolean); return '<fieldset class="field wide day-checks" data-k="'+f.k+'" id="'+id+'"><legend>'+esc(f.label)+'</legend><div class="chk-row">'+optList(f).map(([ov,ol])=>'<label class="opt chk"><input type="checkbox" value="'+esc(ov)+'"'+(sel.includes(String(ov))?' checked':'')+'> '+esc(ol)+'</label>').join('')+'</div></fieldset>'}
+    if(f.type==='color') return '<fieldset class="field wide" data-k="'+f.k+'" id="'+id+'"><legend>'+esc(f.label)+'</legend>'+swatchHtml(id+'-r',v)+'</fieldset>';
     if(f.type==='hidden') return '<input type="hidden" id="'+id+'" value="'+esc(v)+'" data-k="'+f.k+'">';
     if(f.type==='photo') return '<div class="field wide" data-k="'+f.k+'"><label for="'+id+'">'+esc(f.label)+'</label><div class="photo-pick">'+(recCtx&&recCtx.rec&&recCtx.rec._url&&!isPdfPath(recCtx.rec[f.k])?'<img src="'+esc(recCtx.rec._url)+'" alt="Current photo" class="photo-prev" id="'+id+'-prev">':'<img alt="" class="photo-prev" id="'+id+'-prev" hidden>')+'<input id="'+id+'" type="file" accept="'+(f.pdf?'image/*,application/pdf':'image/*')+'">'+(v?'<label class="opt"><input type="checkbox" id="'+id+'-remove"> Remove this '+(f.pdf?'file':'photo')+'</label>':'')+'</div></div>';
     if(f.type==='select') input='<select id="'+id+'">'+optList(f).map(([ov,ol])=>'<option value="'+esc(ov)+'"'+(String(ov)===v?' selected':'')+'>'+esc(ol)+'</option>').join('')+'</select>';
@@ -1624,7 +1655,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       input='<input id="'+id+'" type="'+t+'"'+(t==='number'?' inputmode="decimal" step="any" min="0"':'')+' value="'+esc(t==='time'?v.slice(0,5):v)+'"'+mx+ph+'>'}
     return '<div class="field'+(f.wide||f.type==='longtext'?' wide':'')+'" data-k="'+f.k+'"><label for="'+id+'">'+esc(typeof f.label==='function'?f.label():f.label)+'</label>'+input+'</div>';
   }
-  function formValues(c){const o={};c.fields.forEach(f=>{const el=$('#rf-'+f.k); if(!el||f.type==='photo') return; if(f.type==='checks'){const a=[...el.querySelectorAll('input:checked')].map(i=>i.value); o[f.k]=f.join?(a.join(',')||null):a; return} let v=el.value.trim(); o[f.k]=v===''?null:f.type==='number'?+v:v});return o}
+  function formValues(c){const o={};c.fields.forEach(f=>{const el=$('#rf-'+f.k); if(!el||f.type==='photo') return; if(f.type==='color'){const c=el.querySelector('input:checked'); o[f.k]=c&&c.value?c.value:null; return} if(f.type==='checks'){const a=[...el.querySelectorAll('input:checked')].map(i=>i.value); o[f.k]=f.join?(a.join(',')||null):a; return} let v=el.value.trim(); o[f.k]=v===''?null:f.type==='number'?+v:v});return o}
   function syncShow(c){const vals=formValues(c); c.fields.forEach(f=>{if(f.showIf){const w=recForm.querySelector('[data-k="'+f.k+'"]'); if(w) w.hidden=!f.showIf(vals)}})}
   function openRecord(k,rec,opts={}){
     const c=LISTDEF[k]; recCtx={k,rec,preset:opts.preset||{}};
@@ -1638,7 +1669,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     $('#rec-cancel').addEventListener('click',()=>recDlg.close());
     if(rec) $('#rec-delete').addEventListener('click',removeRecord);
     syncShow(c); recDlg.showModal();
-    const ff=opts.focus||(c.fields.find(f=>!f.showIf&&!['select','photo','hidden'].includes(f.type))||c.fields.find(f=>f.showIf&&f.showIf(formValues(c))&&!['select','photo','hidden'].includes(f.type))||{}).k; const fe=ff&&$('#rf-'+ff); if(fe) fe.focus();
+    const ff=opts.focus||(c.fields.find(f=>!f.showIf&&!['select','photo','hidden','color','checks'].includes(f.type))||c.fields.find(f=>f.showIf&&f.showIf(formValues(c))&&!['select','photo','hidden','color','checks'].includes(f.type))||{}).k; const fe=ff&&$('#rf-'+ff); if(fe) fe.focus();
   }
   async function removeRecord(){
     const {k,rec}=recCtx, c=LISTDEF[k];
@@ -1980,40 +2011,61 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       {k:'title',label:'What',max:100,req:true,ph:'e.g. Gran’s birthday, Dentist, Picnic',reqMsg:'Say what it is.'},
       {k:'on_date',label:'Date',type:'date',req:true,reqMsg:'Choose the date.',def:()=>FCAL_DAY||todayIso()},
       {k:'end_date',label:'Until (optional)',type:'date'},
+      {k:'repeat',label:'Repeat',type:'select',options:[['once','No, not repeating'],['weekly','Every week on certain days']],def:'once'},
+      {k:'week_days',label:'Which days (tick all that apply)',type:'checks',join:true,options:()=>DAYS.map((d,i)=>[String(i),d.slice(0,3)]),def:()=>[String((new Date((FCAL_DAY||todayIso())+'T12:00').getDay()+6)%7)],showIf:v=>v.repeat==='weekly'},
       {k:'at_time',label:'Time (optional)',type:'time'},
       {k:'who',label:'For (tick everyone it is for)',type:'checks',join:true,options:()=>[['family','Whole family'],...KIDS().map(k=>[k,nm(k)]),['p1',nm('p1')],...(FAM.p2?[['p2',nm('p2')]]:[])],def:()=>['family']},
+      {k:'color',label:'Colour on the calendar',type:'color'},
       {k:'notes',label:'Notes',type:'longtext',max:300}],
-    validate:r=>{if(r.who&&r.who.split(',').includes('family')) r.who='family'; return r.end_date&&r.end_date<r.on_date?'The end date is before the start date.':null},
+    validate:r=>{if(r.who&&r.who.split(',').includes('family')) r.who='family'; if(!r.repeat) r.repeat='once'; if(r.repeat==='weekly'&&!r.week_days) return 'Tick at least one day for the repeat.'; if(r.repeat!=='weekly') r.week_days=null; return r.end_date&&r.end_date<r.on_date?'The end date is before the start date.':null},
     sort:(a,b)=>(a.on_date+(a.at_time||'')).localeCompare(b.on_date+(b.at_time||'')),
-    item:r=>({title:r.title,meta:[FEV_KIND[r.kind],rangeText(r.on_date,r.end_date||r.on_date)+(r.at_time?' '+t5(r.at_time):''),whoList(r.who),r.notes]})});
+    item:r=>({title:r.title,meta:[FEV_KIND[r.kind],(r.repeat==='weekly'?'Every '+daysText(String(r.week_days||'').split(',').filter(Boolean))+' from '+dmy(r.on_date)+(r.end_date?' until '+dmy(r.end_date):''):rangeText(r.on_date,r.end_date||r.on_date))+(r.at_time?' '+t5(r.at_time):''),whoList(r.who),r.notes]})});
   const whoList=w=>!w||w==='family'?'Whole family':String(w).split(',').map(nm).join(' & ');
   let FCAL_DAY=null, fcalMonth=new Date(now.getFullYear(),now.getMonth(),1);
   const inRange=(d,a,b)=>a&&d>=a&&d<=(b||a);
   function calItems(d){
     const out=[], dt=new Date(d+'T12:00');
-    RECS.fevents.forEach(r=>{if(inRange(d,r.on_date,r.end_date)) out.push({c:'b',time:t5(r.at_time),title:r.title,sub:FEV_KIND[r.kind]+' · '+whoList(r.who),rec:r})});
-    ACTS.filter(a=>onDate(a,dt)).forEach(a=>out.push({c:'p',time:a.start||'',title:a.name,sub:'Activity · '+nm(a.who)}));
+    const dow=String((dt.getDay()+6)%7);
+    RECS.fevents.forEach(r=>{const hit=r.repeat==='weekly'?(d>=r.on_date&&(!r.end_date||d<=r.end_date)&&String(r.week_days||'').split(',').includes(dow)):inRange(d,r.on_date,r.end_date);
+      if(hit) out.push({c:'b',col:r.color,time:t5(r.at_time),title:r.title,sub:FEV_KIND[r.kind]+' · '+whoList(r.who),rec:r})});
+    ACTS.filter(a=>onDate(a,dt)).forEach(a=>out.push({c:'p',col:a.color,time:a.start||'',title:a.name,sub:'Activity · '+nm(a.who),act:a}));
     RECS.events.forEach(r=>{if(r.on_date===d) out.push({c:'y',time:t5(r.at_time),title:r.title,sub:'School · '+nm(r.child||'c1')})});
     RECS.exams.forEach(r=>{if(r.on_date===d) out.push({c:'o',time:t5(r.starts),title:'Exam: '+r.subject,sub:nm(r.child||'c1')})});
     RECS.terms.forEach(r=>{if(r.kind!=='term'&&inRange(d,r.from_date,r.to_date)) out.push({c:'y',time:r.out_at?t5(r.out_at):'',title:r.title,sub:TERM_KIND[r.kind]})});
     RECS.trips.forEach(r=>{if(inRange(d,r.trip_date,r.end_date)) out.push({c:'b',time:'',title:'Trip: '+r.place,sub:'Holiday'})});
     return out.sort((x,y)=>(x.time||'99').localeCompare(y.time||'99'));
   }
+  function barsHtml(its){ if(!its.length) return '';
+    const max=its.length>3?2:3;
+    return '<span class="bars" aria-hidden="true">'+its.slice(0,max).map(i=>{const [bg,fg]=colOf(i); return '<span class="cbar" style="background:'+bg+';color:'+fg+'">'+esc(i.title)+'</span>'}).join('')+(its.length>max?'<span class="more">+'+(its.length-max)+'</span>':'')+'</span>'}
+  function calLi(i,opts={}){const li=document.createElement('li'); li.className='bill-li'; const [bg]=colOf(i);
+    li.innerHTML='<i class="dot big" style="flex:none;background:'+bg+'"></i><div class="grow"><span></span><div class="meta"></div></div><div class="bill-side"></div>';
+    li.querySelector('.grow span').textContent=(opts.noTime||!i.time?'':i.time+' · ')+i.title; li.querySelector('.meta').textContent=opts.meta||i.sub;
+    if(i.rec||i.act){const b=document.createElement('button'); b.type='button'; b.className='mini-btn'; b.textContent='Edit'; b.setAttribute('aria-label','Edit '+i.title); b.addEventListener('click',()=>i.rec?openRecord('fevents',i.rec):openAct(i.act)); li.querySelector('.bill-side').appendChild(b)}
+    return li}
+  function comingUpPanel(withAdd){
+    const up=document.createElement('section'); up.className='panel chrome'; up.setAttribute('aria-labelledby','h-fup');
+    up.innerHTML='<div class="panel-head"><h3 id="h-fup">Coming up</h3>'+(withAdd?'<button type="button" class="btn small" id="cup-add">Add to Calendar</button>':'<span class="hint">Next 30 days</span>')+'</div>'+(withAdd?'<p class="hint" style="margin:0">Next 30 days: activities, school dates, exams and your own dates, in the colours you chose.</p>':'')+'<ul class="list"></ul>';
+    const ul2=up.querySelector('ul'); let any=0;
+    for(let k=0;k<30&&any<15;k++){const d=iso(addDays(now,k)); calItems(d).forEach(i=>{if(any>=15) return; any++; ul2.appendChild(calLi(i,{noTime:true,meta:[k===0?'Today':k===1?'Tomorrow':dmy(d),i.time,i.sub].filter(Boolean).join(' · ')}))})}
+    if(!any) ul2.innerHTML='<li class="empty">Nothing coming up. Tap Add to Calendar.</li>';
+    if(withAdd) up.querySelector('#cup-add').addEventListener('click',()=>openRecord('fevents',null,{preset:{on_date:todayIso()}}));
+    return up}
   function renderFamilyCalendar(body){
     const wrap=document.createElement('div'), t=todayIso(); wrap.className='grid';
     if(!FCAL_DAY) FCAL_DAY=t;
     const sec=document.createElement('section'); sec.className='panel chrome'; sec.style.gridColumn='1/-1'; sec.setAttribute('aria-labelledby','h-fcal');
     const mLabel=fcalMonth.toLocaleDateString('en-ZA',{month:'long',year:'numeric'});
     sec.innerHTML='<div class="panel-head"><h3 id="h-fcal">'+esc(calName())+' <button type="button" class="mini-btn cal-rename" aria-label="Rename this Calendar">Rename</button></h3><div class="cal-nav"><button type="button" class="mini-btn" id="fcal-prev" aria-label="Previous month">‹</button><b>'+esc(mLabel)+'</b><button type="button" class="mini-btn" id="fcal-next" aria-label="Next month">›</button></div></div>'+
-      '<p class="hint" style="margin:0">Your own dates, activities, school dates, exams and holidays, all in one place. Tap a day to see it or add something.</p><div class="table-scroll"><table class="cal fcal" id="fcal"></table></div>';
+      '<p class="hint" style="margin:0">Your own dates, activities, school dates, exams and holidays, all in one place. Tap a day to see it or add something.</p><div class="table-scroll"><table class="cal fcal has-bars" id="fcal"></table></div>';
     const first=new Date(fcalMonth), gridStart=addDays(first,-((first.getDay()+6)%7));
     let html='<thead><tr>'+['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>'<th scope="col">'+d+'</th>').join('')+'</tr></thead><tbody>';
     for(let w=0;w<6;w++){
       const rowStart=addDays(gridStart,w*7); if(w>3&&rowStart.getMonth()!==fcalMonth.getMonth()) break;
       html+='<tr>';
       for(let k=0;k<7;k++){const dt=addDays(gridStart,w*7+k), d=iso(dt), its=calItems(d), cls=['none']; if(dt.getMonth()!==fcalMonth.getMonth()) cls.push('out'); if(d===t) cls.push('today'); if(d===FCAL_DAY) cls.push('sel');
-        const dots=[...new Set(its.map(i=>i.c))].slice(0,4).map(c=>'<i class="dot d-'+c+'"></i>').join('');
-        html+='<td class="'+cls.join(' ')+'"><button type="button" class="day" data-d="'+d+'" aria-label="'+esc(dt.toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long'}))+(its.length?', '+its.length+(its.length===1?' item':' items'):'')+'">'+dt.getDate()+(dots?'<span class="dots">'+dots+'</span>':'')+'</button></td>'}
+
+        html+='<td class="'+cls.join(' ')+'"><button type="button" class="day" data-d="'+d+'" aria-label="'+esc(dt.toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long'}))+(its.length?', '+its.length+(its.length===1?' item':' items')+': '+esc(its.map(i=>i.title).join(', ')):'')+'">'+dt.getDate()+barsHtml(its)+'</button></td>'}
       html+='</tr>';
     }
     sec.querySelector('#fcal').innerHTML=html+'</tbody>';
@@ -2023,16 +2075,8 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     daySec.innerHTML='<div class="panel-head"><h3 id="h-fday">'+esc(FCAL_DAY===t?'Today':new Date(FCAL_DAY+'T12:00').toLocaleDateString('en-ZA',{weekday:'long',day:'numeric',month:'long'}))+'</h3><button type="button" class="btn small" id="fcal-add">Add to Calendar</button></div><ul class="list"></ul>';
     const ul=daySec.querySelector('ul');
     if(!its.length) ul.innerHTML='<li class="empty">Nothing on this day yet.</li>';
-    its.forEach(i=>{const li=document.createElement('li'); li.className='bill-li'; li.innerHTML='<i class="dot d-'+i.c+'" style="flex:none"></i><div class="grow"><span></span><div class="meta"></div></div><div class="bill-side"></div>';
-      li.querySelector('.grow span').textContent=(i.time?i.time+' · ':'')+i.title; li.querySelector('.meta').textContent=i.sub;
-      if(i.rec){const b=document.createElement('button'); b.type='button'; b.className='mini-btn'; b.textContent='Edit'; b.addEventListener('click',()=>openRecord('fevents',i.rec)); li.querySelector('.bill-side').appendChild(b)}
-      ul.appendChild(li)});
-    // coming up
-    const up=document.createElement('section'); up.className='panel chrome'; up.setAttribute('aria-labelledby','h-fup');
-    up.innerHTML='<div class="panel-head"><h3 id="h-fup">Coming up</h3><span class="hint">Next 30 days</span></div><ul class="list"></ul>';
-    const ul2=up.querySelector('ul'); let any=0;
-    for(let k=0;k<30&&any<15;k++){const d=iso(addDays(now,k)), xs=calItems(d); xs.forEach(i=>{if(any>=15) return; any++; const li=document.createElement('li'); li.innerHTML='<i class="dot d-'+i.c+'" style="flex:none"></i><div class="grow"><span></span><div class="meta"></div></div>'; li.querySelector('span').textContent=i.title; li.querySelector('.meta').textContent=[k===0?'Today':k===1?'Tomorrow':dmy(d),i.time,i.sub].filter(Boolean).join(' · '); ul2.appendChild(li)})}
-    if(!any) ul2.innerHTML='<li class="empty">Nothing coming up. Tap a day and choose Add to Calendar.</li>';
+    its.forEach(i=>ul.appendChild(calLi(i)));
+    const up=comingUpPanel(false);
     wrap.append(sec,daySec,up); body.appendChild(wrap);
     sec.querySelector('.cal-rename').addEventListener('click',()=>openRecord('calname',null));
     sec.querySelector('#fcal-prev').addEventListener('click',()=>{fcalMonth=new Date(fcalMonth.getFullYear(),fcalMonth.getMonth()-1,1);refreshCat()});
@@ -2578,7 +2622,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   });
 
   // ---------- Once a date is set, it's set: date changes and removals need the other parent ----------
-  const GUARD={activities:['repeat','week_day','on_date','starts','ends'],handovers:['on_date','at_time'],school_work:['given_date','due_date'],reading_log:['read_on'],
+  const GUARD={activities:['repeat','week_day','week_days','on_date','starts','ends'],handovers:['on_date','at_time'],school_work:['given_date','due_date'],reading_log:['read_on'],
     teacher_contacts:['contacted_on'],school_events:['on_date','at_time'],holiday_records:['occasion','year','parent','from_date','to_date'],trips:['trip_date','end_date','with_who'],belongings:['bought_on','swapped_on'],who_has:['has_parent','asked_on','expected_on','returned_on'],money_entries:['kind','description','amount','entry_date','repeats','paid_by','owed_by','notes','file_path','proof_path','dispute_note','dispute_amount','dispute_proof_path'],health_records:['given_on','at_time','to_date','follow_up'],documents:['doc_date','at_time','held_by'],school_times:['week_day','starts','ends','aftercare_ends'],school_terms:['kind','from_date','to_date','out_at'],exams:['on_date','starts','ends','out_at']};
   const COL_LABEL={repeat:'how often',week_day:'day',on_date:'date',starts:'start time',ends:'end time',at_time:'time',given_date:'date given',due_date:'due date',
     read_on:'date',contacted_on:'date',year:'year',from_date:'from',to_date:'until',trip_date:'from',end_date:'until',parent:'who had the children',occasion:'occasion',with_who:'with who',bought_on:'bought',swapped_on:'swapped',has_parent:'who has it',asked_on:'asked',expected_on:'back by',returned_on:'returned',entry_date:'date',paid_by:'who paid',owed_by:'who owes',happened_on:'date',given_on:'date',follow_up:'follow-up',doc_date:'date',held_by:'who has the original',kind:'type',description:'what for',amount:'amount',repeats:'how often',notes:'notes',file_path:'receipt',proof_path:'proof of payment',dispute_note:'disagreement',dispute_amount:'amount agreed to',dispute_proof_path:'their proof',aftercare_ends:'aftercare pickup',out_at:'pickup time'};
@@ -2707,8 +2751,8 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   if('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.open==='shared'&&!$('#app').hidden) $('#seg-shared').click()});
 
   // ---------- Online data ----------
-  const fromRow=r=>({id:r.id,type:r.kind,name:r.name,repeat:r.repeat,day:r.week_day,date:r.on_date||undefined,start:r.starts||'',end:r.ends||'',who:r.who,where:r.place||'',bring:r.bring||'',remind:r.remind||''});
-  const toRow=a=>({family_id:FAM.id,kind:a.type,name:a.name,repeat:a.repeat,week_day:a.repeat==='weekly'?a.day:null,on_date:a.repeat==='weekly'?null:a.date,
+  const fromRow=r=>({id:r.id,type:r.kind,name:r.name,repeat:r.repeat,day:r.week_day,days:r.week_days?String(r.week_days).split(',').map(Number):(r.week_day!=null?[r.week_day]:[]),color:r.color||null,date:r.on_date||undefined,start:r.starts||'',end:r.ends||'',who:r.who,where:r.place||'',bring:r.bring||'',remind:r.remind||''});
+  const toRow=a=>({family_id:FAM.id,kind:a.type,name:a.name,repeat:a.repeat,color:a.color||null,week_day:a.repeat==='weekly'?daysOf(a)[0]:null,week_days:a.repeat==='weekly'?daysOf(a).join(','):null,on_date:a.repeat==='weekly'?null:a.date,
     starts:a.start||null,ends:a.end||null,who:a.who,place:a.where||null,bring:a.bring||null,remind:a.remind||null});
   async function startCloud(user){
     USER=user; showApp(); toast('Signed in as '+user.email);
