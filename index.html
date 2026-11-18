@@ -948,6 +948,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     loginMsg('Creating your account…');
     try{ const {data,error}=await sb.auth.signUp({...c,options:{emailRedirectTo:location.origin}});
       if(error){loginMsg(/security purposes|rate/i.test(error.message)?'We just sent you an email. Please wait a minute before trying again.':/already registered/i.test(error.message)?'This email already has an account. Sign in instead, or tap Forgot password?':error.message);return}
+      if(data.user&&Array.isArray(data.user.identities)&&data.user.identities.length===0){loginMsg('You already have a Checky account with '+c.email+'. Tap Sign in with your password. Forgot it? Tap Forgot password? once.');return}
       if(data.session){loginMsg('');await startCloud(data.user)}
       else offerResend(c.email,'Almost done! We sent a confirmation link to '+c.email+'. Open it (check Spam or Promotions too), then come back and sign in.');
     }catch(err){loginMsg(netMsg(err))}
