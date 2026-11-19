@@ -157,6 +157,9 @@ input::placeholder,textarea::placeholder{color:#7D756D}
 .bill-side{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end}
 .amount{font-weight:700;font-variant-numeric:tabular-nums}
 .add-row{display:flex;gap:8px}
+.item-edit-form{display:flex;flex-wrap:wrap;gap:6px;align-items:center;flex:1;min-width:0}
+.item-edit-form input{flex:1 1 160px;min-width:0;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--field)}
+.mini-btn.danger{color:#ff8a8a}
 .add-row input{flex:1;min-width:0;padding:10px 16px;border-radius:999px;border:1px solid var(--line);background:var(--field);box-shadow:inset 0 2px 4px var(--shadow)}
 
 /* ---------- Shared ---------- */
@@ -487,7 +490,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       <section class="panel chrome" aria-labelledby="h-chores" data-page="p-chores">
         <div class="panel-head"><h3 id="h-chores">Chores</h3><span class="hint">Today</span></div>
         <form class="add-row" id="chore-form">
-          <input id="chore-input" aria-label="Add a chore" placeholder="Add a chore, e.g. feed the dog">
+          <input id="chore-input" spellcheck="true" autocapitalize="sentences" aria-label="Add a chore" placeholder="Add a chore, e.g. feed the dog">
           <button class="btn small" type="submit">Add</button>
         </form>
         <ul class="list" id="chores">
@@ -501,7 +504,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       <section class="panel chrome" aria-labelledby="h-shop" data-page="p-shop">
         <div class="panel-head"><h3 id="h-shop">Shopping list</h3><span class="hint" id="shop-hint">5 items</span></div>
         <form class="add-row" id="shop-form">
-                    <input id="shop-input" aria-label="Add an item" placeholder="Add an item, e.g. bread">
+                    <input id="shop-input" spellcheck="true" autocapitalize="sentences" aria-label="Add an item" placeholder="Add an item, e.g. bread">
           <button class="btn small" type="submit">Add</button>
         </form>
         <ul class="list" id="shop">
@@ -1015,8 +1018,27 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     const li=document.createElement('li'); if(done) li.classList.add('done');
     li.innerHTML='<input type="checkbox" class="check"><div class="grow"><span></span>'+(detail?'<div class="meta"></div>':'')+'</div>';
     li.querySelector('span').textContent=body; if(detail) li.querySelector('.meta').textContent=detail;
-    const cb=li.querySelector('input'); cb.setAttribute('aria-label',body); cb.checked=!!done; if(id) cb.dataset.id=id; return li;
+    const cb=li.querySelector('input'); cb.setAttribute('aria-label',body); cb.checked=!!done; if(id) cb.dataset.id=id; addEditBtn(li); return li;
   }
+  // Edit or delete a chore / shopping item (fix a spelling mistake, change it, or remove it)
+  function addEditBtn(li){ if(li.querySelector('.item-edit')||li.classList.contains('empty')) return; const sp=li.querySelector('.grow > span'); if(!sp) return;
+    const b=document.createElement('button'); b.type='button'; b.className='mini-btn item-edit'; b.textContent='Edit'; b.setAttribute('aria-label','Edit '+sp.textContent); li.appendChild(b) }
+  $$('#chores li, #shop li').forEach(addEditBtn);
+  document.addEventListener('click',async e=>{
+    const eb=e.target.closest('.item-edit'); if(!eb) return;
+    const li=eb.closest('li'), grow=li.querySelector('.grow'), sp=grow.querySelector('span'), cb=li.querySelector('.check'), id=cb&&cb.dataset.id, old=sp.textContent;
+    const f=document.createElement('form'); f.className='item-edit-form';
+    f.innerHTML='<input aria-label="Change the wording" maxlength="200" spellcheck="true" autocapitalize="sentences"><button class="mini-btn" type="submit">Save</button><button class="mini-btn danger" type="button" data-a="del">Delete</button><button class="mini-btn" type="button" data-a="cancel">Cancel</button>';
+    const inp=f.querySelector('input'); inp.value=old; grow.hidden=true; eb.hidden=true; li.insertBefore(f,eb); inp.focus(); inp.select();
+    const close=()=>{f.remove(); grow.hidden=false; eb.hidden=false; eb.focus()};
+    f.addEventListener('submit',async ev=>{ev.preventDefault(); const v=inp.value.trim(); if(!v){inp.focus();return} if(v===old){close();return}
+      if(USER&&id){const {error}=await sb.from('personal_items').update({body:v}).eq('id',id); if(error){toast('Could not save: '+error.message);return}}
+      sp.textContent=v; if(cb) cb.setAttribute('aria-label',v); eb.setAttribute('aria-label','Edit '+v); close(); toast('Changed to "'+v+'"')});
+    f.addEventListener('click',async ev=>{const a=ev.target.dataset&&ev.target.dataset.a; if(!a) return;
+      if(a==='cancel'){close();return}
+      if(a==='del'){ if(USER&&id){const {error}=await sb.from('personal_items').delete().eq('id',id); if(error){toast('Could not delete: '+error.message);return}}
+        li.remove(); updateCounts(); toast('Deleted "'+old+'"')}});
+  });
   async function addItem(list,input,ul){
     const v=input.value.trim(); if(!v) return; input.value='';
     let id=null;
