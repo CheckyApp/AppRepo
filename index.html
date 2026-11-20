@@ -272,6 +272,20 @@ table.log td{padding:10px 8px;border-bottom:1px solid var(--line);font-variant-n
 .cal td.mom .cbar,.cal td.dad .cbar{box-shadow:0 0 0 1px rgba(0,0,0,.4)}
 .cal .more{display:block;font-size:.66rem;font-weight:800;opacity:.85;padding-left:3px}
 .dot.big{width:12px;height:12px}
+.spend-sum{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.spend-sum li{display:flex;justify-content:space-between;gap:10px;padding:8px 12px;border-radius:14px;background:var(--row-lo)}
+.spend-total{font-size:1.6rem;font-weight:900;margin:4px 0 8px}
+.month-nav{display:flex;align-items:center;gap:8px}
+#spend-report{position:fixed;inset:0;z-index:80;background:#fff;color:#111;overflow:auto;padding:18px}
+#spend-report table{width:100%;border-collapse:collapse;font-size:14px;margin:12px 0}
+#spend-report th,#spend-report td{border-bottom:1px solid #ccc;padding:6px;text-align:left;vertical-align:top}
+#spend-report .slip{break-inside:avoid;margin:16px 0;border:1px solid #ccc;padding:8px;border-radius:8px}
+#spend-report .slip img{max-width:100%;max-height:900px}
+#spend-report .no-print{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+#spend-report button{padding:10px 16px;border-radius:999px;border:1px solid #333;background:#fff;color:#111;font-weight:700}
+#spend-report button.primary{background:#111;color:#fff}
+#spend-report input,#spend-report select{background:#fff!important;color:#111!important;border:1px solid #888!important;border-radius:8px;padding:6px 8px;margin-left:4px;box-shadow:none!important}
+@media print{body>*:not(#spend-report){display:none!important}#spend-report{position:static;padding:0}#spend-report .no-print{display:none}}
 @media (max-width:560px){section:has(.cal.has-bars){padding-left:10px;padding-right:10px}.cal.has-bars{border-spacing:2px}.cal .cbar{font-size:.62rem;padding:1px 2px}}
 .cal-rename{margin-left:6px;font-family:var(--body);font-size:.75rem;vertical-align:middle}
 .toast{position:fixed;left:50%;bottom:calc(72px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;z-index:50;
@@ -502,7 +516,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       </section>
 
       <section class="panel chrome" aria-labelledby="h-shop" data-page="p-shop">
-        <div class="panel-head"><h3 id="h-shop">Shopping list</h3><span class="hint" id="shop-hint">5 items</span></div>
+        <div class="panel-head"><h3 id="h-shop">Shopping list</h3><span class="hint" id="shop-hint">5 items</span><button type="button" class="btn small" id="add-slip">Add slip</button></div>
         <form class="add-row" id="shop-form">
                     <input id="shop-input" spellcheck="true" autocapitalize="sentences" aria-label="Add an item" placeholder="Add an item, e.g. bread">
           <button class="btn small" type="submit">Add</button>
@@ -523,6 +537,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       </section>
     </div>
     <div id="personal-comm" data-page="p-comm"></div>
+    <div id="personal-spend" data-page="p-spend"></div>
     <div data-page="p-sub" id="sub-body"></div>
     <div data-page="p-owner" id="owner-body"></div>
     <div data-page="p-locked" id="locked-body"></div>
@@ -1024,6 +1039,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   function addEditBtn(li){ if(li.querySelector('.item-edit')||li.classList.contains('empty')) return; const sp=li.querySelector('.grow > span'); if(!sp) return;
     const b=document.createElement('button'); b.type='button'; b.className='mini-btn item-edit'; b.textContent='Edit'; b.setAttribute('aria-label','Edit '+sp.textContent); li.appendChild(b) }
   $$('#chores li, #shop li').forEach(addEditBtn);
+  $('#add-slip').addEventListener('click',()=>{ if(ACCESS&&ACCESS.locked){showPage('p-spend');return} openRecord('spend',null,{preset:{spent_on:todayIso(),category:'Groceries'}}) });
   document.addEventListener('click',async e=>{
     const eb=e.target.closest('.item-edit'); if(!eb) return;
     const li=eb.closest('li'), grow=li.querySelector('.grow'), sp=grow.querySelector('span'), cb=li.querySelector('.check'), id=cb&&cb.dataset.id, old=sp.textContent;
@@ -2364,6 +2380,62 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     body.append(head,wrap);
   }
 
+  // ---------- Spending & slips (Premium, private: only you) ----------
+  const SPEND_CATS=['Groceries','Household','School','Clothes','Medical','Transport','Fuel','Eating out','Kids activities','Gifts','Pets'];
+  const spendCat=r=>r.category==='__other'?(r.category_custom||'Other'):(r.category||'Other');
+  const randFmt=v=>'R '+Number(v||0).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2});
+  defineList({key:'spend',table:'personal_spending',noun:'slip',plural:'slips',private:true,photo:'file_path',bucket:'personal-files',
+    fields:[
+      {k:'file_path',label:'Slip (take a photo, or choose a photo or PDF)',type:'photo',pdf:true},
+      {k:'spent_on',label:'Date',type:'date',req:true,def:()=>todayIso(),reqMsg:'Choose the date.'},
+      {k:'shop',label:'Shop or who you paid',max:80,ph:'e.g. Pick n Pay'},
+      {k:'amount',label:'Amount (R)',type:'number',req:true,ph:'e.g. 845.50',reqMsg:'Type the amount in rand.'},
+      {k:'category',label:'Category',type:'select',options:()=>{const own=[...new Set((RECS.spend||[]).filter(r=>r.category==='__other'&&r.category_custom).map(r=>r.category_custom))].filter(x=>!SPEND_CATS.includes(x));
+        return [...SPEND_CATS.map(c=>[c,c]),...own.map(c=>[c,c]),['__other','Other (type your own)']]},def:'Groceries'},
+      {k:'category_custom',label:'Your own category',max:40,ph:'e.g. School tour',showIf:v=>v.category==='__other'},
+      {k:'notes',label:'Notes',type:'longtext',max:300,ph:'e.g. Uniform for the new term'}],
+    validate:r=>{if(r.amount<0||isNaN(r.amount)||r.amount===''||r.amount==null) return 'Type the amount in rand, for example 845.50.';
+      if(r.category==='__other'){const t=(r.category_custom||'').trim(); if(!t) return 'Type your own category.'; if(SPEND_CATS.includes(t)){r.category=t;r.category_custom=null}} else r.category_custom=null; return null},
+    sort:(a,b)=>(b.spent_on||'').localeCompare(a.spent_on||'')||String(b.created_at||'').localeCompare(String(a.created_at||'')),
+    item:r=>({title:(r.shop||spendCat(r))+' · '+randFmt(r.amount),meta:[dmy(r.spent_on),spendCat(r),r.notes]})});
+  let SPEND_MONTH=null;
+  function renderPersonalSpend(){const box=$('#personal-spend'); if(!box) return; box.innerHTML=''; if(!PREMIUM_PREVIEW) return;
+    if(!SPEND_MONTH) SPEND_MONTH=todayIso().slice(0,7);
+    const head=document.createElement('div'); head.className='personal-head';
+    head.innerHTML='<h2 id="h-pspend">Spending &amp; slips</h2><span class="pill prem">Premium</span><p class="hint">Only you can see this. Keep your slips safe and download them any time, for example for a court date.</p>';
+    const wrap=document.createElement('div'); wrap.className='grid';
+    const rows=(RECS.spend||[]).filter(r=>(r.spent_on||'').slice(0,7)===SPEND_MONTH);
+    const tot=rows.reduce((a,r)=>a+Number(r.amount||0),0); const byCat={}; rows.forEach(r=>{const c=spendCat(r); byCat[c]=(byCat[c]||0)+Number(r.amount||0)});
+    const mDate=new Date(SPEND_MONTH+'-15T12:00'); const mName=mDate.toLocaleDateString('en-ZA',{month:'long',year:'numeric'});
+    const sum=document.createElement('section'); sum.className='panel chrome'; sum.setAttribute('aria-labelledby','h-spsum');
+    sum.innerHTML='<div class="panel-head"><h3 id="h-spsum">'+esc(mName)+'</h3><div class="month-nav"><button type="button" class="mini-btn" data-m="-1" aria-label="Previous month">‹</button><button type="button" class="mini-btn" data-m="1" aria-label="Next month">›</button></div></div>'+
+      '<p class="spend-total">'+randFmt(tot)+'</p><ul class="spend-sum">'+(Object.keys(byCat).length?Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([c,v])=>'<li><span>'+esc(c)+'</span><b>'+randFmt(v)+'</b></li>').join(''):'<li class="empty">No slips this month yet.</li>')+'</ul>'+
+      '<div class="note-acts" style="margin-top:12px"><button type="button" class="btn small" id="spend-report-btn">Download slips</button></div>';
+    sum.querySelectorAll('[data-m]').forEach(b=>b.addEventListener('click',()=>{const d=new Date(SPEND_MONTH+'-15T12:00'); d.setMonth(d.getMonth()+Number(b.dataset.m)); SPEND_MONTH=d.toISOString().slice(0,7); renderPersonalSpend()}));
+    sum.querySelector('#spend-report-btn').addEventListener('click',openSpendReport);
+    const list=listPanel('spend',{id:'h-spl',title:'Slips in '+mName,add:'Add slip',empty:'No slips this month. Tap Add slip after shopping.',filter:r=>(r.spent_on||'').slice(0,7)===SPEND_MONTH,preset:{spent_on:todayIso()}});
+    wrap.append(sum,list); box.append(head,wrap)}
+  function openSpendReport(){
+    const all=(RECS.spend||[]); const first=all.length?all.map(r=>r.spent_on).sort()[0]:todayIso();
+    const cats=[...new Set(all.map(spendCat))].sort();
+    const d=document.createElement('div'); d.id='spend-report'; d.setAttribute('role','dialog'); d.setAttribute('aria-modal','true'); d.setAttribute('aria-label','Download slips');
+    d.innerHTML='<div class="no-print"><label>From <input type="date" id="sr-from" value="'+first+'"></label><label>To <input type="date" id="sr-to" value="'+todayIso()+'"></label>'+
+      '<label>Category <select id="sr-cat"><option value="">All</option>'+cats.map(c=>'<option>'+esc(c)+'</option>').join('')+'</select></label>'+
+      '<button type="button" class="primary" id="sr-print">Save as PDF / Print</button><button type="button" id="sr-close">Close</button></div><div id="sr-body"></div>';
+    document.body.appendChild(d);
+    const dfull=x=>x?new Date(x+'T12:00').toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}):'';
+    const draw=()=>{const f=$('#sr-from').value, t=$('#sr-to').value, c=$('#sr-cat').value;
+      const rows=all.filter(r=>(!f||r.spent_on>=f)&&(!t||r.spent_on<=t)&&(!c||spendCat(r)===c)).sort((a,b)=>(a.spent_on||'').localeCompare(b.spent_on||''));
+      const tot=rows.reduce((a,r)=>a+Number(r.amount||0),0);
+      $('#sr-body').innerHTML='<h1 style="font-size:22px;margin:0">Spending and slips</h1><p style="margin:4px 0">'+esc((USER&&USER.email)||'Demo')+' · '+esc(dfull(f))+' to '+esc(dfull(t))+(c?' · '+esc(c):'')+'</p><p style="margin:4px 0"><b>'+rows.length+(rows.length===1?' slip':' slips')+' · Total '+randFmt(tot)+'</b></p>'+
+        '<table><thead><tr><th>#</th><th>Date</th><th>Shop</th><th>Category</th><th>Amount</th><th>Notes</th></tr></thead><tbody>'+rows.map((r,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(dfull(r.spent_on))+'</td><td>'+esc(r.shop||'')+'</td><td>'+esc(spendCat(r))+'</td><td style="white-space:nowrap">'+randFmt(r.amount)+'</td><td>'+esc(r.notes||'')+'</td></tr>').join('')+'</tbody></table>'+
+        rows.map((r,i)=>r._url?'<div class="slip"><b>#'+(i+1)+' · '+esc(dfull(r.spent_on))+' · '+esc(r.shop||spendCat(r))+' · '+randFmt(r.amount)+'</b><br>'+(isPdfPath(r.file_path)?'<a href="'+esc(r._url)+'" target="_blank" rel="noopener">Open PDF slip</a> (PDF slips print separately)':'<img src="'+esc(r._url)+'" alt="Slip '+(i+1)+'">')+'</div>':'').join('')+
+        '<p style="font-size:12px;color:#555;margin-top:16px">Made with CheckyApp on '+esc(dfull(todayIso()))+'.</p>'};
+    draw(); ['#sr-from','#sr-to','#sr-cat'].forEach(x=>$(x).addEventListener('change',draw));
+    $('#sr-print').addEventListener('click',()=>window.print());
+    const close=()=>{d.remove(); $('#spend-report-btn')&&$('#spend-report-btn').focus()};
+    $('#sr-close').addEventListener('click',close); d.addEventListener('keydown',e=>{if(e.key==='Escape') close()}); $('#sr-print').focus();
+  }
   // Health
   const HEALTH_KIND={doctor:'Doctor',medical_aid:'Medical aid',allergy:'Allergy or condition',vaccine:'Vaccination',childhood_illness:'Childhood illness',medication:'Medication (when sick)',operation:'Past operation'};
   const VACCINES=['BCG (TB)','Polio (OPV drops)','6-in-1 (Hexavalent)','Rotavirus','Pneumococcal (PCV)','Measles','MMR (measles, mumps, rubella)','Chickenpox (varicella)','Hepatitis A','Hepatitis B','Tetanus and diphtheria (Td) booster','HPV','Flu','COVID-19','Meningococcal','Typhoid','Other'];
@@ -2602,7 +2674,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     m.textContent='Downloaded. The file is in your Downloads folder.';
   }
   const PREMIUM_KEYS=['money','health','docs'];
-  function renderPersonalComm(){const box=$('#personal-comm'); if(!box) return; box.innerHTML=''; if(PREMIUM_PREVIEW) renderComm(box)}
+  function renderPersonalComm(){const box=$('#personal-comm'); if(!box) return; box.innerHTML=''; if(PREMIUM_PREVIEW) renderComm(box); renderPersonalSpend()}
   const loadPremium=()=>Promise.all(PREMIUM_KEYS.map(loadList));
 
   // Choosing a child
@@ -2800,7 +2872,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     // Start every account with empty lists instead of the demo examples
     ['#chores','#shop','#today-acts'].forEach(s=>{$(s).innerHTML=''}); $('#note-sent').innerHTML=''; ACTS=[]; BILLS=[]; SCH={plan:null,days:{},reqs:[],hand:[],members:1}; PAINT=null; resetLists(); CHG=[]; renderPending(); updateCounts(); renderToday(); renderBills(); renderHandoverStat();
     const ok=await loadHouseholds(); if(!ok) return; const data=HH;
-    await Promise.all([loadPersonal(),loadBills(),loadList('comm'),loadList('pets'),loadList('petrec')]); syncAlerts();
+    await Promise.all([loadPersonal(),loadBills(),loadList('comm'),loadList('spend'),loadList('pets'),loadList('petrec')]); syncAlerts();
     if(location.hash==='#shared'){history.replaceState(null,'',location.pathname); $('#seg-shared').click()}
     const meta=user.user_metadata||{};
     await loadJoinRequests(); subscribeJoins(); loadAccess(); loadAppNotes(); loadMyPickups(); logOpen();
@@ -3157,7 +3229,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       b.textContent=error?(/security purposes|rate/i.test(error.message)?'Wait a minute':'Could not send'):'Sent \u2713'}));
   }
   // Free app + paid Premium: only the Premium sections lock when Premium is not paid
-  const PREMIUM_PAGES=new Set(['s-money','s-health','s-documents','p-comm']); // the Emergency card is always open
+  const PREMIUM_PAGES=new Set(['s-money','s-health','s-documents','p-comm','p-spend']); // the Emergency card is always open
   const isLockedPage=id=>PREMIUM_PAGES.has(id);
   function showPage(id){
     if(ACCESS&&ACCESS.locked&&isLockedPage(id)){LOCKED_WANTED=id; id='p-locked'}
@@ -3225,6 +3297,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
         {id:'p-chores',label:'Chores',ic:'chores',t:'y'},
         {id:'p-shop',label:'Shopping',ic:'shop',t:'o'},
         {id:'p-bills',label:'Bills',ic:'bills',t:'p'},
+        ...(PREMIUM_PREVIEW?[{id:'p-spend',label:'Spending & slips',ic:'money',t:'o',tag:'Premium'}]:[]),
         {id:'p-pets',label:'Pets',ic:'pets',t:'b',tag:'New'},
         ...(PREMIUM_PREVIEW?[{id:'p-comm',label:'Communication',ic:'call',t:'y',tag:'Premium'}]:[])]},
       {group:(one?'Family':'Shared · both parents'),items:[
