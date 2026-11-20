@@ -1731,7 +1731,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
   async function removeRecord(){
     const {k,rec}=recCtx, c=LISTDEF[k];
     if(c.strict&&!isMine(rec)){toast("You can't remove the other parent's entry. Use Disagree instead.",4000);return}
-    if(needsApproval()&&GUARD[c.table]){recDlg.close(); const it=c.item(rec); await askChange(c.table,rec,'delete',null,c.noun.charAt(0).toUpperCase()+c.noun.slice(1)+' "'+it.title+'"'); return}
+    if(needsApproval()&&GUARD[c.table]&&c.table!=='family_events'){recDlg.close(); const it=c.item(rec); await askChange(c.table,rec,'delete',null,c.noun.charAt(0).toUpperCase()+c.noun.slice(1)+' "'+it.title+'"'); return}
     if(USER&&(FAM.id||c.private)){const {error}=await sb.from(c.table).delete().eq('id',rec.id); if(error){toast('Could not remove: '+error.message);return} if(c.photo&&rec[c.photo]) sb.storage.from((c.bucket||'trip-photos')).remove([rec[c.photo]])}
     RECS[k]=RECS[k].filter(x=>x!==rec); if(c.onRemoved) c.onRemoved(rec); recDlg.close(); refreshCat(); toast('Removed');
   }
@@ -2061,6 +2061,10 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     },item:()=>({title:''})});
 
   // ---------- Family Calendar (one home): everything in one month view, plus your own dates ----------
+  const ORG_OPTS=()=>[['','Not decided yet'],['p1',nm('p1')],['p2',nm('p2')],['both','Both, together'],['other','Someone else']];
+  const orgText=r=>!r||!r.organiser?'':(r.organiser==='other'?(r.organiser_name||'Someone else'):r.organiser==='both'?'Both':nm(r.organiser))+' organising';
+  const ORG_FIELDS=kinds=>[{k:'organiser',label:'Who\u2019s organising',type:'select',options:ORG_OPTS,showIf:v=>FAM.type==='two'&&kinds.includes(v.kind||v.occasion)},
+    {k:'organiser_name',label:'Who else is organising',max:60,ph:'e.g. Gran',showIf:v=>FAM.type==='two'&&kinds.includes(v.kind||v.occasion)&&v.organiser==='other'}];
   const FEV_KIND={family:'Family',birthday:'Birthday',appointment:'Appointment',outing:'Outing',visit:'Visit',reminder:'Reminder',other:'Other'};
   defineList({key:'fevents',table:'family_events',noun:'Calendar item',plural:'Calendar items',
     fields:[
@@ -2072,11 +2076,12 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       {k:'week_days',label:'Which days (tick all that apply)',type:'checks',join:true,options:()=>DAYS.map((d,i)=>[String(i),d.slice(0,3)]),def:()=>[String((new Date((FCAL_DAY||todayIso())+'T12:00').getDay()+6)%7)],showIf:v=>v.repeat==='weekly'},
       {k:'at_time',label:'Time (optional)',type:'time'},
       {k:'who',label:'For (tick everyone it is for)',type:'checks',join:true,options:()=>[['family','Whole family'],...KIDS().map(k=>[k,nm(k)]),['p1',nm('p1')],...(FAM.p2?[['p2',nm('p2')]]:[])],def:()=>['family']},
+      ...ORG_FIELDS(['birthday','outing']),
       {k:'color',label:'Colour on the calendar',type:'color'},
       {k:'notes',label:'Notes',type:'longtext',max:300}],
     validate:r=>{if(r.who&&r.who.split(',').includes('family')) r.who='family'; if(!r.repeat) r.repeat='once'; if(r.repeat==='weekly'&&!r.week_days) return 'Tick at least one day for the repeat.'; if(r.repeat!=='weekly') r.week_days=null; return r.end_date&&r.end_date<r.on_date?'The end date is before the start date.':null},
     sort:(a,b)=>(a.on_date+(a.at_time||'')).localeCompare(b.on_date+(b.at_time||'')),
-    item:r=>({title:r.title,meta:[FEV_KIND[r.kind],(r.repeat==='weekly'?'Every '+daysText(String(r.week_days||'').split(',').filter(Boolean))+' from '+dmy(r.on_date)+(r.end_date?' until '+dmy(r.end_date):''):rangeText(r.on_date,r.end_date||r.on_date))+(r.at_time?' '+t5(r.at_time):''),whoList(r.who),r.notes]})});
+    item:r=>({title:r.title,meta:[FEV_KIND[r.kind],(r.repeat==='weekly'?'Every '+daysText(String(r.week_days||'').split(',').filter(Boolean))+' from '+dmy(r.on_date)+(r.end_date?' until '+dmy(r.end_date):''):rangeText(r.on_date,r.end_date||r.on_date))+(r.at_time?' '+t5(r.at_time):''),whoList(r.who),orgText(r),r.notes]})});
   const whoList=w=>!w||w==='family'?'Whole family':String(w).split(',').map(nm).join(' & ');
   let FCAL_DAY=null, fcalMonth=new Date(now.getFullYear(),now.getMonth(),1);
   const inRange=(d,a,b)=>a&&d>=a&&d<=(b||a);
@@ -2084,7 +2089,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     const out=[], dt=new Date(d+'T12:00');
     const dow=String((dt.getDay()+6)%7);
     RECS.fevents.forEach(r=>{const hit=r.repeat==='weekly'?(d>=r.on_date&&(!r.end_date||d<=r.end_date)&&String(r.week_days||'').split(',').includes(dow)):inRange(d,r.on_date,r.end_date);
-      if(hit) out.push({c:'b',col:r.color,time:t5(r.at_time),title:r.title,sub:FEV_KIND[r.kind]+' · '+whoList(r.who),rec:r})});
+      if(hit) out.push({c:'b',col:r.color,time:t5(r.at_time),title:r.title,sub:FEV_KIND[r.kind]+' · '+whoList(r.who)+(orgText(r)?' · '+orgText(r):''),rec:r})});
     ACTS.filter(a=>onDate(a,dt)).forEach(a=>out.push({c:'p',col:a.color,time:a.start||'',title:a.name,sub:'Activity · '+whoNames(a.who),act:a}));
     RECS.events.forEach(r=>{if(r.on_date===d) out.push({c:'y',time:t5(r.at_time),title:r.title,sub:'School · '+nm(r.child||'c1')})});
     RECS.exams.forEach(r=>{if(r.on_date===d) out.push({c:'o',time:t5(r.starts),title:'Exam: '+r.subject,sub:nm(r.child||'c1')})});
@@ -2193,6 +2198,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
       {k:'occasion',label:'Occasion',type:'select',options:Object.entries(OCCASION),def:'christmas'},
       {k:'year',label:'Year',type:'number',req:true,ph:'e.g. 2026',reqMsg:'Type the year, for example 2026.'},
       {k:'parent',label:'Who had the children',type:'select',options:()=>Object.entries(WITH).map(([k,f])=>[k,f()]),def:()=>FAM.me},
+      ...ORG_FIELDS(['birthday']),
       {k:'label',label:'Name (optional)',max:60,ph:'e.g. June/July holidays, 9th birthday'},
       {k:'from_date',label:'From',type:'date',showIf:v=>!['birthday','christmas','new_year'].includes(v.occasion)},
       {k:'to_date',label:'Until',type:'date',showIf:v=>!['birthday','christmas','new_year'].includes(v.occasion)},
@@ -2200,7 +2206,7 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
     validate:r=>(!Number.isInteger(r.year)||r.year<1990||r.year>2100)?'Type the year, for example 2026.':(r.from_date&&r.to_date&&r.to_date<r.from_date)?'The end date is before the start date.':null,
     sort:(a,b)=>(b.year-a.year)||(b.from_date||'').localeCompare(a.from_date||''),
     item:r=>({title:r.year+(r.label?' · '+r.label:'')+(['easter','new_year','other'].includes(r.occasion)?' · '+OCCASION[r.occasion]:''),
-      meta:[r.from_date?rangeText(r.from_date,r.to_date||r.from_date):'',r.notes],
+      meta:[r.from_date?rangeText(r.from_date,r.to_date||r.from_date):'',r.occasion==='birthday'?orgText(r):'',r.notes],
       pill:[r.parent==='p1'?'mom':r.parent==='p2'?'dad':'later','With '+(WITH[r.parent]||(()=>''))()]})});
   defineList({key:'trips',table:'trips',noun:'trip',plural:'trips',photo:'photo_path',
     fields:[
@@ -2736,14 +2742,14 @@ dialog.drawer[open]{display:flex;flex-direction:column;gap:2px;animation:slideIn
 
   // ---------- Once a date is set, it's set: date changes and removals need the other parent ----------
   const GUARD={activities:['repeat','week_day','week_days','on_date','starts','ends'],handovers:['on_date','at_time'],school_work:['given_date','due_date'],reading_log:['read_on'],
-    teacher_contacts:['contacted_on'],school_events:['on_date','at_time'],holiday_records:['occasion','year','parent','from_date','to_date'],trips:['trip_date','end_date','with_who'],belongings:['bought_on','swapped_on'],who_has:['has_parent','asked_on','expected_on','returned_on'],money_entries:['kind','description','amount','entry_date','repeats','paid_by','owed_by','notes','file_path','proof_path','dispute_note','dispute_amount','dispute_proof_path'],health_records:['given_on','at_time','to_date','follow_up'],documents:['doc_date','at_time','held_by'],school_times:['week_day','starts','ends','aftercare_ends'],school_terms:['kind','from_date','to_date','out_at'],exams:['on_date','starts','ends','out_at']};
+    teacher_contacts:['contacted_on'],school_events:['on_date','at_time'],holiday_records:['occasion','year','parent','from_date','to_date','organiser','organiser_name'],family_events:['organiser','organiser_name'],trips:['trip_date','end_date','with_who'],belongings:['bought_on','swapped_on'],who_has:['has_parent','asked_on','expected_on','returned_on'],money_entries:['kind','description','amount','entry_date','repeats','paid_by','owed_by','notes','file_path','proof_path','dispute_note','dispute_amount','dispute_proof_path'],health_records:['given_on','at_time','to_date','follow_up'],documents:['doc_date','at_time','held_by'],school_times:['week_day','starts','ends','aftercare_ends'],school_terms:['kind','from_date','to_date','out_at'],exams:['on_date','starts','ends','out_at']};
   const COL_LABEL={repeat:'how often',week_day:'day',on_date:'date',starts:'start time',ends:'end time',at_time:'time',given_date:'date given',due_date:'due date',
-    read_on:'date',contacted_on:'date',year:'year',from_date:'from',to_date:'until',trip_date:'from',end_date:'until',parent:'who had the children',occasion:'occasion',with_who:'with who',bought_on:'bought',swapped_on:'swapped',has_parent:'who has it',asked_on:'asked',expected_on:'back by',returned_on:'returned',entry_date:'date',paid_by:'who paid',owed_by:'who owes',happened_on:'date',given_on:'date',follow_up:'follow-up',doc_date:'date',held_by:'who has the original',kind:'type',description:'what for',amount:'amount',repeats:'how often',notes:'notes',file_path:'receipt',proof_path:'proof of payment',dispute_note:'disagreement',dispute_amount:'amount agreed to',dispute_proof_path:'their proof',aftercare_ends:'aftercare pickup',out_at:'pickup time'};
-  const TBL_KEY={school_work:'work',reading_log:'reading',teacher_contacts:'contacts',school_events:'events',holiday_records:'holidays',trips:'trips',belongings:'belong',who_has:'whohas',money_entries:'money',health_records:'health',documents:'docs',school_times:'stimes',school_terms:'terms',exams:'exams'};
+    read_on:'date',contacted_on:'date',year:'year',from_date:'from',to_date:'until',trip_date:'from',end_date:'until',parent:'who had the children',occasion:'occasion',with_who:'with who',bought_on:'bought',swapped_on:'swapped',has_parent:'who has it',asked_on:'asked',expected_on:'back by',returned_on:'returned',entry_date:'date',paid_by:'who paid',owed_by:'who owes',happened_on:'date',given_on:'date',follow_up:'follow-up',doc_date:'date',held_by:'who has the original',kind:'type',description:'what for',amount:'amount',repeats:'how often',notes:'notes',file_path:'receipt',proof_path:'proof of payment',dispute_note:'disagreement',dispute_amount:'amount agreed to',dispute_proof_path:'their proof',aftercare_ends:'aftercare pickup',out_at:'pickup time',organiser:'who\u2019s organising',organiser_name:'who else is organising'};
+  const TBL_KEY={school_work:'work',reading_log:'reading',teacher_contacts:'contacts',school_events:'events',holiday_records:'holidays',family_events:'fevents',trips:'trips',belongings:'belong',who_has:'whohas',money_entries:'money',health_records:'health',documents:'docs',school_times:'stimes',school_terms:'terms',exams:'exams'};
   let CHG=[];
   const needsApproval=()=>!!(USER&&FAM.id&&(SCH.members||1)>1);
   const normV=(k,v)=>v==null||v===''?'':/^(starts|ends|at_time|aftercare_ends|out_at)$/.test(k)?String(v).slice(0,5):/^(amount|dispute_amount|year|quantity|duration_min|week_day)$/.test(k)&&!isNaN(+v)?String(+v):String(v);
-  const showV=(k,v)=>{v=normV(k,v); if(!v) return 'none'; if(k==='amount'||k==='dispute_amount') return fmtR(v); if(/_path$/.test(k)) return 'a new file'; if(k==='kind') return (MONEY_KIND[v]||v); if(k==='notes'||k==='description'||k==='dispute_note') return '"'+v+'"'; if(/_date$|_on$/.test(k)) return dmy(v); if(k==='week_day') return DAYS[+v]; if(k==='repeat') return ({weekly:'every week',game:'game or match',once:'once'})[v]||v; if(k==='parent') return (WITH[v]||(()=>v))(); if(k==='occasion') return OCCASION[v]||v; if(k==='has_parent'||k==='paid_by'||k==='owed_by'||k==='held_by') return v==='other'?'someone else':nm(v); return v};
+  const showV=(k,v)=>{v=normV(k,v); if(!v) return 'none'; if(k==='amount'||k==='dispute_amount') return fmtR(v); if(/_path$/.test(k)) return 'a new file'; if(k==='kind') return (MONEY_KIND[v]||v); if(k==='notes'||k==='description'||k==='dispute_note') return '"'+v+'"'; if(/_date$|_on$/.test(k)) return dmy(v); if(k==='week_day') return DAYS[+v]; if(k==='repeat') return ({weekly:'every week',game:'game or match',once:'once'})[v]||v; if(k==='parent') return (WITH[v]||(()=>v))(); if(k==='organiser') return v==='both'?'both':v==='other'?'someone else':nm(v); if(k==='occasion') return OCCASION[v]||v; if(k==='has_parent'||k==='paid_by'||k==='owed_by'||k==='held_by') return v==='other'?'someone else':nm(v); return v};
   function dateDiff(tbl,oldRec,row){const ch={};(GUARD[tbl]||[]).forEach(k=>{if(k in row&&normV(k,oldRec[k])!==''&&normV(k,row[k])!==normV(k,oldRec[k])) ch[k]=row[k]===''?null:row[k]});return ch}
   function strictDiff(tbl,oldRec,row){const ch={};(GUARD[tbl]||[]).forEach(k=>{if(k in row&&normV(k,row[k])!==normV(k,oldRec[k])) ch[k]=row[k]===''?null:row[k]});return ch}
   const changeText=(ch,oldRec)=>Object.keys(ch).map(k=>COL_LABEL[k]+' '+showV(k,oldRec[k])+' → '+showV(k,ch[k])).join(', ');
